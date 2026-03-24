@@ -1645,6 +1645,46 @@ export default function EmployeeDetail() {
               </div>
             </div>
           )}
+          {/* ── 凡例（レジェンド） ── */}
+          <div className="mt-3 p-3 rounded-lg bg-muted/40 border border-border/50">
+            <div className="text-xs font-medium text-muted-foreground mb-2">凡例（36協定基準）</div>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+              <div className="text-xs text-muted-foreground font-medium">残業時間</div>
+              <div className="text-xs text-muted-foreground font-medium">深夜残業（22:00〜5:00）</div>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5">
+                  <div className="h-2.5 w-6 rounded-sm bg-blue-400" />
+                  <span className="text-xs text-muted-foreground">適正 （0〜35h）</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-2.5 w-6 rounded-sm bg-yellow-400" />
+                  <span className="text-xs text-muted-foreground">注意 （36〜45h）</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-2.5 w-6 rounded-sm bg-orange-400" />
+                  <span className="text-xs text-muted-foreground">警告 （46〜60h）特別条項</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-2.5 w-6 rounded-sm bg-red-500" />
+                  <span className="text-xs text-muted-foreground">危険 （61〜80h）過労ライン</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-2.5 w-6 rounded-sm bg-red-900" />
+                  <span className="text-xs text-muted-foreground">超過 （80h超）過労死ライン</span>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5">
+                  <div className="h-2.5 w-6 rounded-sm bg-purple-400" />
+                  <span className="text-xs text-muted-foreground">深夜残業時間</span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  ※ 22:00〜翌5:00の時間帯<br />
+                  ※ 割増率 50%以上（深夜25%＋時間外25%）
+                </div>
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -1652,10 +1692,11 @@ export default function EmployeeDetail() {
               <thead>
                 <tr className="border-b text-left text-muted-foreground">
                   <th className="pb-2 font-medium">月</th>
-                  <th className="pb-2 font-medium text-right">残業時間</th>
-                  <th className="pb-2 font-medium text-right">深夜残業</th>
-                  <th className="pb-2 font-medium">バー</th>
-                  <th className="pb-2 font-medium text-right">ステータス</th>
+                  <th className="pb-2 font-medium text-right">残業</th>
+                  <th className="pb-2 font-medium text-right">深夜</th>
+                  <th className="pb-2 font-medium pl-2" style={{minWidth: '160px'}}>残業バー</th>
+                  <th className="pb-2 font-medium pl-2" style={{minWidth: '80px'}}>深夜バー</th>
+                  <th className="pb-2 font-medium text-right">判定</th>
                   <th className="pb-2 font-medium text-right">操作</th>
                 </tr>
               </thead>
@@ -1664,13 +1705,20 @@ export default function EmployeeDetail() {
                   const ot = overtimeMap.get(m);
                   const isEditing = editingMonth === m;
                   const hours = isEditing ? editOT.overtimeHours : (ot?.overtimeHours ?? 0);
-                  const isOver45 = hours > 45;
-                  const isWarn = hours > 35 && hours <= 45;
-                  const maxHours = Math.max(
-                    ...(overtimes ?? []).map((o) => o.overtimeHours),
-                    45
-                  );
-                  const barWidth = hours > 0 ? (hours / maxHours) * 100 : 0;
+                  const lateNight = isEditing ? editOT.lateNightOvertime : (ot?.lateNightOvertime ?? 0);
+                  // 5-level color for regular overtime based on labor law thresholds
+                  const getOvertimeColor = (h: number) => {
+                    if (h > 80) return { bar: "bg-red-900", text: "text-red-900 dark:text-red-300 font-bold", label: "超過", badge: "destructive" as const };
+                    if (h > 60) return { bar: "bg-red-500", text: "text-red-600 dark:text-red-400 font-semibold", label: "危険", badge: "destructive" as const };
+                    if (h > 45) return { bar: "bg-orange-400", text: "text-orange-600 dark:text-orange-400 font-semibold", label: "警告", badge: "outline" as const };
+                    if (h > 35) return { bar: "bg-yellow-400", text: "text-yellow-600 dark:text-yellow-500", label: "注意", badge: "outline" as const };
+                    return { bar: "bg-blue-400", text: "", label: "", badge: "outline" as const };
+                  };
+                  const otColor = getOvertimeColor(hours);
+                  // Bar width: 100h = full width for regular overtime
+                  const otBarWidth = hours > 0 ? Math.min(100, (hours / 100) * 100) : 0;
+                  // Bar width for late night: 40h = full width
+                  const lnBarWidth = lateNight > 0 ? Math.min(100, (lateNight / 40) * 100) : 0;
                   return (
                     <tr key={m} className="border-b">
                       <td className="py-2 font-medium">{m}月</td>
@@ -1687,22 +1735,36 @@ export default function EmployeeDetail() {
                                   setEditOT({ ...editOT, overtimeHours: parseFloat(e.target.value) || 0 })
                                 }
                                 className={`h-7 w-20 text-right ${
-                                  editOT.overtimeHours >= 80
+                                  editOT.overtimeHours > 80
+                                    ? "border-red-600 focus-visible:ring-red-600"
+                                    : editOT.overtimeHours > 60
                                     ? "border-red-400 focus-visible:ring-red-400"
-                                    : editOT.overtimeHours >= 45
-                                    ? "border-amber-400 focus-visible:ring-amber-400"
+                                    : editOT.overtimeHours > 45
+                                    ? "border-orange-400 focus-visible:ring-orange-400"
+                                    : editOT.overtimeHours > 35
+                                    ? "border-yellow-400 focus-visible:ring-yellow-400"
                                     : ""
                                 }`}
                                 data-testid={`input-overtime-hours-${m}`}
                               />
-                              {editOT.overtimeHours >= 80 && (
+                              {editOT.overtimeHours > 80 && (
                                 <Badge variant="destructive" className="text-xs px-1 py-0" data-testid={`badge-overtime-danger-${m}`}>
-                                  80h超過
+                                  80h超 過労死ライン
                                 </Badge>
                               )}
-                              {editOT.overtimeHours >= 45 && editOT.overtimeHours < 80 && (
-                                <Badge variant="outline" className="text-xs px-1 py-0 border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-400" data-testid={`badge-overtime-warn-${m}`}>
-                                  45h超過
+                              {editOT.overtimeHours > 60 && editOT.overtimeHours <= 80 && (
+                                <Badge variant="destructive" className="text-xs px-1 py-0">
+                                  過労ライン
+                                </Badge>
+                              )}
+                              {editOT.overtimeHours > 45 && editOT.overtimeHours <= 60 && (
+                                <Badge variant="outline" className="text-xs px-1 py-0 border-orange-400 bg-orange-50 text-orange-700 dark:border-orange-600 dark:bg-orange-950/30 dark:text-orange-400">
+                                  特別条項超
+                                </Badge>
+                              )}
+                              {editOT.overtimeHours > 35 && editOT.overtimeHours <= 45 && (
+                                <Badge variant="outline" className="text-xs px-1 py-0 border-yellow-400 bg-yellow-50 text-yellow-700 dark:border-yellow-600 dark:bg-yellow-950/30 dark:text-yellow-400">
+                                  上限接近
                                 </Badge>
                               )}
                             </div>
@@ -1720,7 +1782,7 @@ export default function EmployeeDetail() {
                               data-testid={`input-late-night-overtime-${m}`}
                             />
                           </td>
-                          <td className="py-1 px-2" />
+                          <td className="py-1 px-2" colSpan={2} />
                           <td className="py-1 text-right" />
                           <td className="py-1 text-right">
                             <div className="flex items-center justify-end gap-1">
@@ -1748,36 +1810,61 @@ export default function EmployeeDetail() {
                         </>
                       ) : (
                         <>
-                          <td className={`py-2 text-right tabular-nums ${
-                            isOver45 ? "text-red-600 dark:text-red-400 font-semibold" : 
-                            isWarn ? "text-amber-600 dark:text-amber-400" : ""
-                          }`}>
+                          <td className={`py-2 text-right tabular-nums ${otColor.text}`}>
                             {ot ? `${hours}h` : "-"}
                           </td>
-                          <td className="py-2 text-right tabular-nums">
-                            {ot ? `${ot.lateNightOvertime}h` : "-"}
+                          <td className="py-2 text-right tabular-nums text-purple-600 dark:text-purple-400">
+                            {ot ? `${lateNight}h` : "-"}
                           </td>
-                          <td className="py-2 px-2">
-                            {ot && (
-                              <div className="h-3 w-full rounded bg-muted/50 overflow-hidden max-w-[120px]">
+                          {/* Regular overtime bar */}
+                          <td className="py-2 pl-2">
+                            {ot && hours > 0 && (
+                              <div className="relative h-4 w-full rounded bg-muted/50 overflow-hidden" style={{minWidth: '120px'}}>
+                                {/* 45h threshold marker */}
+                                <div className="absolute top-0 h-full border-l border-dashed border-muted-foreground/40" style={{left: '45%'}} />
+                                {/* 80h threshold marker */}
+                                <div className="absolute top-0 h-full border-l border-dashed border-red-400/50" style={{left: '80%'}} />
+                                {/* Overtime bar */}
                                 <div
-                                  className={`h-full rounded transition-all ${
-                                    isOver45 ? "bg-red-400" : isWarn ? "bg-amber-400" : "bg-blue-400"
-                                  }`}
-                                  style={{ width: `${barWidth}%` }}
+                                  className={`h-full rounded transition-all ${otColor.bar}`}
+                                  style={{ width: `${otBarWidth}%` }}
                                 />
+                                {/* Hours label on bar */}
+                                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-white mix-blend-difference">
+                                  {hours}h
+                                </span>
+                              </div>
+                            )}
+                          </td>
+                          {/* Late night overtime bar */}
+                          <td className="py-2 pl-2">
+                            {ot && lateNight > 0 && (
+                              <div className="relative h-4 w-full rounded bg-muted/50 overflow-hidden" style={{minWidth: '60px'}}>
+                                <div
+                                  className="h-full rounded transition-all bg-purple-400"
+                                  style={{ width: `${lnBarWidth}%` }}
+                                />
+                                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-white mix-blend-difference">
+                                  {lateNight}h
+                                </span>
                               </div>
                             )}
                           </td>
                           <td className="py-2 text-right">
-                            {ot && isOver45 ? (
-                              <Badge variant="destructive" className="text-xs">
-                                45h超過
-                              </Badge>
-                            ) : ot && isWarn ? (
-                              <Badge variant="outline" className="text-xs border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
-                                注意
-                              </Badge>
+                            {ot && otColor.label ? (
+                              otColor.label === "超過" || otColor.label === "危険" ? (
+                                <Badge variant="destructive" className="text-xs">
+                                  {otColor.label}
+                                </Badge>
+                              ) : otColor.label === "警告" ? (
+                                <Badge variant="outline" className="text-xs border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-600 dark:bg-orange-950/40 dark:text-orange-400">
+                                  {otColor.label}
+                                </Badge>
+                              ) : otColor.label === "注意" ? (
+                                <Badge variant="outline" className="text-xs border-yellow-300 bg-yellow-50 text-yellow-700 dark:border-yellow-600 dark:bg-yellow-950/40 dark:text-yellow-400">
+                                  {otColor.label}
+                                </Badge>
+                              ) : null
                             ) : null}
                           </td>
                           <td className="py-2 text-right">
