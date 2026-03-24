@@ -1,0 +1,2153 @@
+{
+  "employees": [
+    {
+      "id": "1",
+      "name": "佐藤　直樹",
+      "assignment": "ジェイ･バス",
+      "joinDate": "2015-07-21",
+      "tenureMonths": 126
+    },
+    {
+      "id": "2",
+      "name": "吉村　幸子",
+      "assignment": "諸岡",
+      "joinDate": "2016-07-25",
+      "tenureMonths": 114
+    },
+    {
+      "id": "3",
+      "name": "清水　勝美",
+      "assignment": "日立建機　土浦",
+      "joinDate": "2014-08-01",
+      "tenureMonths": 138
+    },
+    {
+      "id": "4",
+      "name": "ジョシ",
+      "assignment": "ラスコ",
+      "joinDate": "2025-08-01",
+      "tenureMonths": 6
+    },
+    {
+      "id": "5",
+      "name": "久保井　愛樹",
+      "assignment": "ニコン",
+      "joinDate": "2025-08-01",
+      "tenureMonths": 6
+    },
+    {
+      "id": "6",
+      "name": "瓦井　昌平",
+      "assignment": "フルヤ金属",
+      "joinDate": "2022-08-08",
+      "tenureMonths": 42
+    },
+    {
+      "id": "7",
+      "name": "髙橋　靖広",
+      "assignment": "日立建機　土浦",
+      "joinDate": "2021-08-17",
+      "tenureMonths": 53
+    },
+    {
+      "id": "8",
+      "name": "ホーマー",
+      "assignment": "フジクラ",
+      "joinDate": "2013-08-26",
+      "tenureMonths": 149
+    },
+    {
+      "id": "9",
+      "name": "馬渕　志保",
+      "assignment": "日立建機　土浦",
+      "joinDate": "2015-09-01",
+      "tenureMonths": 125
+    },
+    {
+      "id": "10",
+      "name": "柳田　風斗",
+      "assignment": "-",
+      "joinDate": "2025-09-01",
+      "tenureMonths": 5
+    },
+    {
+      "id": "11",
+      "name": "三浦　慎吾",
+      "assignment": "ヤシカ車体",
+      "joinDate": "2018-09-01",
+      "tenureMonths": 89
+    },
+    {
+      "id": "12",
+      "name": "渡邊　恵美",
+      "assignment": "本田技研工業",
+      "joinDate": "2011-09-03",
+      "tenureMonths": 173
+    },
+    {
+      "id": "13",
+      "name": "波佐間　義章",
+      "assignment": "クボタ空調",
+      "joinDate": "2017-09-11",
+      "tenureMonths": 101
+    },
+    {
+      "id": "14",
+      "name": "渡辺　勇",
+      "assignment": "クボタ空調",
+      "joinDate": "2020-09-14",
+      "tenureMonths": 64
+    },
+    {
+      "id": "15",
+      "name": "田邉　久美子",
+      "assignment": "日立建機　土浦",
+      "joinDate": "2016-09-21",
+      "tenureMonths": 112
+    },
+    {
+      "id": "16",
+      "name": "矢嶋　紀男",
+      "assignment": "日立建機　土浦",
+      "joinDate": "2010-10-19",
+      "tenureMonths": 183
+    },
+    {
+      "id": "17",
+      "name": "髙松　奎大",
+      "assignment": "諸岡",
+      "joinDate": "2020-05-01",
+      "tenureMonths": 69
+    },
+    {
+      "id": "18",
+      "name": "宮崎　慎吾",
+      "assignment": "日本電子",
+      "joinDate": "2020-05-01",
+      "tenureMonths": 69
+    },
+    {
+      "id": "19",
+      "name": "小宮　友希",
+      "assignment": "アボット",
+      "joinDate": "2020-05-01",
+      "tenureMonths": 69
+    },
+    {
+      "id": "20",
+      "name": "北川　幹",
+      "assignment": "日本電子",
+      "joinDate": "2020-05-01",
+      "tenureMonths": 69
+    },
+    {
+      "id": "21",
+      "name": "丸山　貴史",
+      "assignment": "日本電子",
+      "joinDate": "2020-05-01",
+      "tenureMonths": 69
+    },
+    {
+      "id": "22",
+      "name": "中野　恵悦",
+      "assignment": "本田技術研究所",
+      "joinDate": "2010-11-01",
+      "tenureMonths": 183
+    },
+    {
+      "id": "23",
+      "name": "新　幸祐",
+      "assignment": "クボタ空調",
+      "joinDate": "2016-11-28",
+      "tenureMonths": 110
+    },
+    {
+      "id": "24",
+      "name": "五十嵐　朗",
+      "assignment": "日立建機　土浦",
+      "joinDate": "2010-12-01",
+      "tenureMonths": 182
+    },
+    {
+      "id": "25",
+      "name": "阿部　由佳",
+      "assignment": "ビー・ブラウンエースクラップ",
+      "joinDate": "2025-12-04",
+      "tenureMonths": 2
+    },
+    {
+      "id": "26",
+      "name": "小倉　拓巳",
+      "assignment": "日立建機　土浦",
+      "joinDate": "2016-12-05",
+      "tenureMonths": 110
+    },
+    {
+      "id": "27",
+      "name": "中山　圭祐",
+      "assignment": "クボタ空調",
+      "joinDate": "2018-01-08",
+      "tenureMonths": 97
+    },
+    {
+      "id": "28",
+      "name": "アントニオ",
+      "assignment": "ラスコ",
+      "joinDate": "2017-01-10",
+      "tenureMonths": 109
+    },
+    {
+      "id": "29",
+      "name": "栁谷　尚輝",
+      "assignment": "クボタ空調",
+      "joinDate": "2023-01-25",
+      "tenureMonths": 36
+    },
+    {
+      "id": "30",
+      "name": "野澤　宏彰",
+      "assignment": "丸久製作所",
+      "joinDate": "2016-02-01",
+      "tenureMonths": 120
+    },
+    {
+      "id": "31",
+      "name": "臼井　紀裕",
+      "assignment": "クボタ空調",
+      "joinDate": "2021-02-15",
+      "tenureMonths": 59
+    },
+    {
+      "id": "32",
+      "name": "松﨑　路子",
+      "assignment": "フルヤ金属",
+      "joinDate": "2011-02-24",
+      "tenureMonths": 179
+    },
+    {
+      "id": "33",
+      "name": "髙田　光恵",
+      "assignment": "クボタ空調",
+      "joinDate": "2025-03-17",
+      "tenureMonths": 10
+    },
+    {
+      "id": "34",
+      "name": "桑村　優太",
+      "assignment": "日本電子",
+      "joinDate": "2018-03-19",
+      "tenureMonths": 94
+    },
+    {
+      "id": "35",
+      "name": "阿久津　悠治",
+      "assignment": "諸岡",
+      "joinDate": "2007-09-01",
+      "tenureMonths": 221
+    },
+    {
+      "id": "36",
+      "name": "一寸木　涼花",
+      "assignment": "諸岡",
+      "joinDate": "2019-04-01",
+      "tenureMonths": 82
+    },
+    {
+      "id": "37",
+      "name": "平山　真愛",
+      "assignment": "クボタ空調",
+      "joinDate": "2020-04-01",
+      "tenureMonths": 70
+    },
+    {
+      "id": "38",
+      "name": "水田　京佑",
+      "assignment": "ビオリスメディカル",
+      "joinDate": "2020-04-01",
+      "tenureMonths": 70
+    },
+    {
+      "id": "39",
+      "name": "富田　涼介",
+      "assignment": "-",
+      "joinDate": "2022-04-01",
+      "tenureMonths": 46
+    },
+    {
+      "id": "40",
+      "name": "野崎　頼公",
+      "assignment": "協和製作所",
+      "joinDate": "2022-04-01",
+      "tenureMonths": 46
+    },
+    {
+      "id": "41",
+      "name": "齋藤　玲",
+      "assignment": "ラスコ",
+      "joinDate": "2022-04-01",
+      "tenureMonths": 46
+    },
+    {
+      "id": "42",
+      "name": "松本　雄太",
+      "assignment": "日立プラントメカニクス",
+      "joinDate": "2022-04-01",
+      "tenureMonths": 46
+    },
+    {
+      "id": "43",
+      "name": "家泉　彩奈",
+      "assignment": "富士フィルター工業",
+      "joinDate": "2023-04-01",
+      "tenureMonths": 34
+    },
+    {
+      "id": "44",
+      "name": "金子　叶夢",
+      "assignment": "小平産業",
+      "joinDate": "2023-04-01",
+      "tenureMonths": 34
+    },
+    {
+      "id": "45",
+      "name": "江川　紗音",
+      "assignment": "ニコン",
+      "joinDate": "2024-04-01",
+      "tenureMonths": 22
+    },
+    {
+      "id": "46",
+      "name": "小林　輝良人",
+      "assignment": "ニコン",
+      "joinDate": "2024-04-01",
+      "tenureMonths": 22
+    },
+    {
+      "id": "47",
+      "name": "齋木　彩桜",
+      "assignment": "ニコン",
+      "joinDate": "2024-04-01",
+      "tenureMonths": 22
+    },
+    {
+      "id": "48",
+      "name": "濵野　瑞生",
+      "assignment": "ニコン",
+      "joinDate": "2024-04-01",
+      "tenureMonths": 22
+    },
+    {
+      "id": "49",
+      "name": "渡邊　勇斗",
+      "assignment": "富士フィルター工業",
+      "joinDate": "2024-04-01",
+      "tenureMonths": 22
+    },
+    {
+      "id": "50",
+      "name": "安生　新太",
+      "assignment": "日本電子",
+      "joinDate": "2024-04-01",
+      "tenureMonths": 22
+    },
+    {
+      "id": "51",
+      "name": "德安　爽太朗",
+      "assignment": "ペンタテクノサービス",
+      "joinDate": "2024-04-01",
+      "tenureMonths": 22
+    },
+    {
+      "id": "52",
+      "name": "鈴木　柊也",
+      "assignment": "-",
+      "joinDate": "2024-04-01",
+      "tenureMonths": 22
+    },
+    {
+      "id": "53",
+      "name": "山元　涼太",
+      "assignment": "フィアロコーポレーション",
+      "joinDate": "2024-04-01",
+      "tenureMonths": 22
+    },
+    {
+      "id": "54",
+      "name": "石山　丈嗣",
+      "assignment": "協栄産業",
+      "joinDate": "2024-04-01",
+      "tenureMonths": 22
+    },
+    {
+      "id": "55",
+      "name": "渡邉　陽太",
+      "assignment": "SUBARUテクノ",
+      "joinDate": "2024-04-01",
+      "tenureMonths": 22
+    },
+    {
+      "id": "56",
+      "name": "真下　蒼麻",
+      "assignment": "協和製作所",
+      "joinDate": "2024-04-01",
+      "tenureMonths": 22
+    },
+    {
+      "id": "57",
+      "name": "小野口　蒼汰",
+      "assignment": "ニコン",
+      "joinDate": "2025-04-01",
+      "tenureMonths": 10
+    },
+    {
+      "id": "58",
+      "name": "齋藤　蒼空",
+      "assignment": "ニコン",
+      "joinDate": "2025-04-01",
+      "tenureMonths": 10
+    },
+    {
+      "id": "59",
+      "name": "髙山　華蓮",
+      "assignment": "フィアロコーポレーション",
+      "joinDate": "2025-04-01",
+      "tenureMonths": 10
+    },
+    {
+      "id": "60",
+      "name": "中島　康裕",
+      "assignment": "日立プラントメカニクス",
+      "joinDate": "2025-04-01",
+      "tenureMonths": 10
+    },
+    {
+      "id": "61",
+      "name": "鈴木　勇統",
+      "assignment": "-",
+      "joinDate": "2025-04-01",
+      "tenureMonths": 10
+    },
+    {
+      "id": "62",
+      "name": "軽部　昌樹",
+      "assignment": "富士精密",
+      "joinDate": "2025-04-01",
+      "tenureMonths": 10
+    },
+    {
+      "id": "63",
+      "name": "ラッセル",
+      "assignment": "フジクラ",
+      "joinDate": "2017-04-20",
+      "tenureMonths": 105
+    },
+    {
+      "id": "64",
+      "name": "日髙　公一郎",
+      "assignment": "フルヤ金属",
+      "joinDate": "2014-04-22",
+      "tenureMonths": 141
+    },
+    {
+      "id": "65",
+      "name": "鈴木　博志",
+      "assignment": "日立建機　土浦",
+      "joinDate": "2005-05-06",
+      "tenureMonths": 249
+    },
+    {
+      "id": "66",
+      "name": "佐藤　駿",
+      "assignment": "協和製作所",
+      "joinDate": "2014-05-07",
+      "tenureMonths": 141
+    },
+    {
+      "id": "67",
+      "name": "松岡　リリコ",
+      "assignment": "日立建機　土浦",
+      "joinDate": "2010-06-01",
+      "tenureMonths": 188
+    },
+    {
+      "id": "68",
+      "name": "川田　典伽",
+      "assignment": "フルヤ金属",
+      "joinDate": "2021-06-01",
+      "tenureMonths": 56
+    },
+    {
+      "id": "69",
+      "name": "石川　翔太",
+      "assignment": "東プレ",
+      "joinDate": "2018-06-11",
+      "tenureMonths": 92
+    },
+    {
+      "id": "70",
+      "name": "上野　哲也",
+      "assignment": "クボタ空調",
+      "joinDate": "2013-06-12",
+      "tenureMonths": 152
+    },
+    {
+      "id": "71",
+      "name": "川西一樹",
+      "assignment": "-",
+      "joinDate": "2025-06-16",
+      "tenureMonths": 9
+    }
+  ],
+  "paidLeaves": [
+    {
+      "employeeId": "1",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 20.0,
+      "consumedDays": 7.0,
+      "remainingDays": 20.0,
+      "expiredDays": 13.0,
+      "usageRate": 0.35
+    },
+    {
+      "employeeId": "2",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 7.5,
+      "consumedDays": 0.0,
+      "remainingDays": 20.0,
+      "expiredDays": 7.5,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "3",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 20.0,
+      "consumedDays": 13.5,
+      "remainingDays": 20.0,
+      "expiredDays": 6.5,
+      "usageRate": 0.675
+    },
+    {
+      "employeeId": "4",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 20.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "5",
+      "fiscalYear": 2025,
+      "grantedDays": 10.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 10.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "6",
+      "fiscalYear": 2025,
+      "grantedDays": 14.0,
+      "carriedOverDays": 2.0,
+      "consumedDays": 12.0,
+      "remainingDays": 4.0,
+      "expiredDays": 0.0,
+      "usageRate": 0.8571
+    },
+    {
+      "employeeId": "7",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 2.0,
+      "consumedDays": 12.0,
+      "remainingDays": 10.0,
+      "expiredDays": 0.0,
+      "usageRate": 0.6
+    },
+    {
+      "employeeId": "8",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 12.0,
+      "consumedDays": 0.0,
+      "remainingDays": 32.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "9",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 16.5,
+      "remainingDays": 3.5,
+      "expiredDays": 0.0,
+      "usageRate": 0.825
+    },
+    {
+      "employeeId": "10",
+      "fiscalYear": 2025,
+      "grantedDays": 0.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "11",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 14.5,
+      "consumedDays": 14.5,
+      "remainingDays": 13.5,
+      "expiredDays": 6.5,
+      "usageRate": 0.725
+    },
+    {
+      "employeeId": "12",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 16.0,
+      "remainingDays": 4.0,
+      "expiredDays": 0.0,
+      "usageRate": 0.8
+    },
+    {
+      "employeeId": "13",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 14.0,
+      "consumedDays": 5.0,
+      "remainingDays": 20.0,
+      "expiredDays": 9.0,
+      "usageRate": 0.25
+    },
+    {
+      "employeeId": "14",
+      "fiscalYear": 2025,
+      "grantedDays": 18,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 18,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "15",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 16.0,
+      "remainingDays": 4.0,
+      "expiredDays": 0.0,
+      "usageRate": 0.8
+    },
+    {
+      "employeeId": "16",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 20.0,
+      "consumedDays": 14.5,
+      "remainingDays": 20.0,
+      "expiredDays": 5.5,
+      "usageRate": 0.725
+    },
+    {
+      "employeeId": "17",
+      "fiscalYear": 2025,
+      "grantedDays": 18.0,
+      "carriedOverDays": 20.0,
+      "consumedDays": 12.0,
+      "remainingDays": 18.0,
+      "expiredDays": 8.0,
+      "usageRate": 0.6667
+    },
+    {
+      "employeeId": "18",
+      "fiscalYear": 2025,
+      "grantedDays": 18.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 18.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "19",
+      "fiscalYear": 2025,
+      "grantedDays": 18.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 18.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "20",
+      "fiscalYear": 2025,
+      "grantedDays": 18.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 18.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "21",
+      "fiscalYear": 2025,
+      "grantedDays": 18.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 18.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "22",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 11.0,
+      "remainingDays": 9.0,
+      "expiredDays": 0.0,
+      "usageRate": 0.55
+    },
+    {
+      "employeeId": "23",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 6.0,
+      "consumedDays": 5.5,
+      "remainingDays": 20.0,
+      "expiredDays": 0.5,
+      "usageRate": 0.275
+    },
+    {
+      "employeeId": "24",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 8.0,
+      "consumedDays": 10.0,
+      "remainingDays": 18.0,
+      "expiredDays": 0.0,
+      "usageRate": 0.5
+    },
+    {
+      "employeeId": "25",
+      "fiscalYear": 2025,
+      "grantedDays": 0,
+      "carriedOverDays": 0,
+      "consumedDays": 0,
+      "remainingDays": 0,
+      "expiredDays": 0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "26",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 1.0,
+      "consumedDays": 9.0,
+      "remainingDays": 12.0,
+      "expiredDays": 0.0,
+      "usageRate": 0.45
+    },
+    {
+      "employeeId": "27",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 17.5,
+      "consumedDays": 5.0,
+      "remainingDays": 20.0,
+      "expiredDays": 12.5,
+      "usageRate": 0.25
+    },
+    {
+      "employeeId": "28",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 18.0,
+      "remainingDays": 2.0,
+      "expiredDays": 0.0,
+      "usageRate": 0.9
+    },
+    {
+      "employeeId": "29",
+      "fiscalYear": 2025,
+      "grantedDays": 12.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 6.0,
+      "remainingDays": 6.0,
+      "expiredDays": 0.0,
+      "usageRate": 0.5
+    },
+    {
+      "employeeId": "30",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 20.0,
+      "consumedDays": 5.0,
+      "remainingDays": 20.0,
+      "expiredDays": 15.0,
+      "usageRate": 0.25
+    },
+    {
+      "employeeId": "31",
+      "fiscalYear": 2025,
+      "grantedDays": 16.0,
+      "carriedOverDays": 6.5,
+      "consumedDays": 0.0,
+      "remainingDays": 16.0,
+      "expiredDays": 6.5,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "32",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 15.0,
+      "consumedDays": 3.0,
+      "remainingDays": 20.0,
+      "expiredDays": 12.0,
+      "usageRate": 0.15
+    },
+    {
+      "employeeId": "33",
+      "fiscalYear": 2025,
+      "grantedDays": 10.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 10.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "34",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 18.0,
+      "consumedDays": 0.0,
+      "remainingDays": 20.0,
+      "expiredDays": 18.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "35",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 20.0,
+      "consumedDays": 0.0,
+      "remainingDays": 20.0,
+      "expiredDays": 20.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "36",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 3.5,
+      "consumedDays": 0.0,
+      "remainingDays": 20.0,
+      "expiredDays": 3.5,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "37",
+      "fiscalYear": 2025,
+      "grantedDays": 18.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 1.0,
+      "remainingDays": 17.0,
+      "expiredDays": 0.0,
+      "usageRate": 0.0556
+    },
+    {
+      "employeeId": "38",
+      "fiscalYear": 2025,
+      "grantedDays": 18.0,
+      "carriedOverDays": 14.0,
+      "consumedDays": 0.0,
+      "remainingDays": 18.0,
+      "expiredDays": 14.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "39",
+      "fiscalYear": 2025,
+      "grantedDays": 14.0,
+      "carriedOverDays": 10.0,
+      "consumedDays": 0.0,
+      "remainingDays": 14.0,
+      "expiredDays": 10.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "40",
+      "fiscalYear": 2025,
+      "grantedDays": 14.0,
+      "carriedOverDays": 11.0,
+      "consumedDays": 0.0,
+      "remainingDays": 14.0,
+      "expiredDays": 11.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "41",
+      "fiscalYear": 2025,
+      "grantedDays": 14.0,
+      "carriedOverDays": 12.0,
+      "consumedDays": 0.0,
+      "remainingDays": 14.0,
+      "expiredDays": 12.0,
+      "usageRate": 0.0
+    },
+    {
+      "employeeId": "42",
+      "fiscalYear": 2025,
+      "grantedDays": 14.0,
+      "carriedOverDays": 11.0,
+      "consumedDays": 0.0,
+      "remainingDays": 14.0,
+      "expiredDays": 11.0,
+      "usageRate": 0.0
+    },
+    {
+      "employeeId": "43",
+      "fiscalYear": 2025,
+      "grantedDays": 12.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 12.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "44",
+      "fiscalYear": 2025,
+      "grantedDays": 12.0,
+      "carriedOverDays": 10.0,
+      "consumedDays": 0.0,
+      "remainingDays": 12.0,
+      "expiredDays": 10.0,
+      "usageRate": 0.0
+    },
+    {
+      "employeeId": "45",
+      "fiscalYear": 2025,
+      "grantedDays": 11.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 11.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "46",
+      "fiscalYear": 2025,
+      "grantedDays": 11.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 11.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "47",
+      "fiscalYear": 2025,
+      "grantedDays": 11.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 11.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "48",
+      "fiscalYear": 2025,
+      "grantedDays": 11.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 11.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "49",
+      "fiscalYear": 2025,
+      "grantedDays": 11.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 11.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "50",
+      "fiscalYear": 2025,
+      "grantedDays": 11.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 11.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "51",
+      "fiscalYear": 2025,
+      "grantedDays": 11.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 11.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "52",
+      "fiscalYear": 2025,
+      "grantedDays": 11.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 11.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "53",
+      "fiscalYear": 2025,
+      "grantedDays": 11.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 11.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "54",
+      "fiscalYear": 2025,
+      "grantedDays": 11.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 11.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "55",
+      "fiscalYear": 2025,
+      "grantedDays": 11.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 11.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "56",
+      "fiscalYear": 2025,
+      "grantedDays": 11.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 11.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "57",
+      "fiscalYear": 2025,
+      "grantedDays": 10.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 10.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "58",
+      "fiscalYear": 2025,
+      "grantedDays": 10.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 10.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "59",
+      "fiscalYear": 2025,
+      "grantedDays": 10.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 10.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "60",
+      "fiscalYear": 2025,
+      "grantedDays": 10.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 10.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "61",
+      "fiscalYear": 2025,
+      "grantedDays": 10.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 10.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "62",
+      "fiscalYear": 2025,
+      "grantedDays": 10.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 10.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "63",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.5,
+      "remainingDays": 19.5,
+      "expiredDays": 0.0,
+      "usageRate": 0.025
+    },
+    {
+      "employeeId": "64",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 20.0,
+      "consumedDays": 0.0,
+      "remainingDays": 20.0,
+      "expiredDays": 20.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "65",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 20.0,
+      "consumedDays": 0.0,
+      "remainingDays": 20.0,
+      "expiredDays": 20.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "66",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 20.0,
+      "consumedDays": 0.0,
+      "remainingDays": 20.0,
+      "expiredDays": 20.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "67",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 19.5,
+      "consumedDays": 19.5,
+      "remainingDays": 20.0,
+      "expiredDays": 0.0,
+      "usageRate": 0.975
+    },
+    {
+      "employeeId": "68",
+      "fiscalYear": 2025,
+      "grantedDays": 16.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 16.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "69",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 0.0,
+      "consumedDays": 0.0,
+      "remainingDays": 20.0,
+      "expiredDays": 0.0,
+      "usageRate": 0
+    },
+    {
+      "employeeId": "70",
+      "fiscalYear": 2025,
+      "grantedDays": 20.0,
+      "carriedOverDays": 16.5,
+      "consumedDays": 10.5,
+      "remainingDays": 20.0,
+      "expiredDays": 6.0,
+      "usageRate": 0.525
+    },
+    {
+      "employeeId": "71",
+      "fiscalYear": 2025,
+      "grantedDays": 10,
+      "carriedOverDays": 0,
+      "consumedDays": 0,
+      "remainingDays": 10,
+      "expiredDays": 0,
+      "usageRate": 0
+    }
+  ],
+  "monthlyOvertimes": [
+    {
+      "employeeId": "1",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 18.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "1",
+      "year": 2025,
+      "month": 7,
+      "overtimeHours": 4.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "2",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 4.75,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "2",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 8.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "2",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 3.75,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "3",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 26.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "3",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 30.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "3",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 32.5,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "6",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 16.75,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "6",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 15.75,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "6",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 28.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "7",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 3.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "7",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 10.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "8",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 1.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "11",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 12.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "11",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 10.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "11",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 12.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "12",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 31.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "12",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 33.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "12",
+      "year": 2025,
+      "month": 7,
+      "overtimeHours": 35.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "13",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 28.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "13",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 32.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "13",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 37.5,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "14",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 24.75,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "14",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 23.5,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "14",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 26.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "15",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 2.25,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "15",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 0.25,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "15",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 0.5,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "16",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 1.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "16",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 1.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "17",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 28.25,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "17",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 26.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "17",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 32.75,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "22",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 13.32,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "22",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 5.88,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "22",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 10.02,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "22",
+      "year": 2025,
+      "month": 7,
+      "overtimeHours": 8.42,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "23",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 36.75,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "23",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 28.75,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "23",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 49.75,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "24",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 2.25,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "24",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 15.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "24",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 19.25,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "25",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 2.25,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "25",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 15.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "25",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 19.25,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "27",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 21.75,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "27",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 10.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "27",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 28.5,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "28",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 2.28,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "28",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 31.93,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "28",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 4.63,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "29",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 2.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "32",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 28.25,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "32",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 20.25,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "32",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 8.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "33",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 3.5,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "35",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 34.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "35",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 29.5,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "35",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 35.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "36",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 1.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "36",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 6.5,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "36",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 1.5,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "37",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 25.75,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "37",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 13.75,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "37",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 23.5,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "40",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 23.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "40",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 17.25,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "40",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 20.75,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "40",
+      "year": 2025,
+      "month": 7,
+      "overtimeHours": 19.25,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "40",
+      "year": 2025,
+      "month": 8,
+      "overtimeHours": 15.75,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "40",
+      "year": 2025,
+      "month": 9,
+      "overtimeHours": 22.75,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "41",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 26.68,
+      "lateNightOvertime": 0.6
+    },
+    {
+      "employeeId": "41",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 32.45,
+      "lateNightOvertime": 0.28
+    },
+    {
+      "employeeId": "41",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 13.7,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "42",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 27.75,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "42",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 25.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "42",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 26.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "43",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 24.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "43",
+      "year": 2025,
+      "month": 9,
+      "overtimeHours": 2.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "43",
+      "year": 2025,
+      "month": 10,
+      "overtimeHours": 9.5,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "46",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 2.92,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "46",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 4.43,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "46",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 7.23,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "46",
+      "year": 2025,
+      "month": 7,
+      "overtimeHours": 14.52,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "46",
+      "year": 2025,
+      "month": 8,
+      "overtimeHours": 14.52,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "47",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 7.22,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "47",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 1.95,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "47",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 3.27,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "47",
+      "year": 2025,
+      "month": 7,
+      "overtimeHours": 4.02,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "47",
+      "year": 2025,
+      "month": 8,
+      "overtimeHours": 4.02,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "48",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 1.25,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "48",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 3.23,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "48",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 15.33,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "48",
+      "year": 2025,
+      "month": 7,
+      "overtimeHours": 24.75,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "48",
+      "year": 2025,
+      "month": 8,
+      "overtimeHours": 24.75,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "49",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 20.25,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "49",
+      "year": 2025,
+      "month": 7,
+      "overtimeHours": 23.75,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "49",
+      "year": 2025,
+      "month": 8,
+      "overtimeHours": 15.25,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "49",
+      "year": 2025,
+      "month": 9,
+      "overtimeHours": 19.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "49",
+      "year": 2025,
+      "month": 10,
+      "overtimeHours": 22.25,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "51",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 6.5,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "51",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 5.33,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "51",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 6.33,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "53",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 16.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "53",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 24.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "53",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 29.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "55",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 5.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "55",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 10.9,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "55",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 32.83,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "56",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 9.25,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "56",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 38.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "59",
+      "year": 2025,
+      "month": 8,
+      "overtimeHours": 0.88,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "64",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 36.5,
+      "lateNightOvertime": 2.75
+    },
+    {
+      "employeeId": "64",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 17.5,
+      "lateNightOvertime": 0.5
+    },
+    {
+      "employeeId": "64",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 18.75,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "65",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 21.5,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "65",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 20.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "65",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 25.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "66",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 2.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "66",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 15.5,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "67",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 24.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "67",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 23.5,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "67",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 20.5,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "68",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 21.5,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "68",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 19.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "68",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 21.25,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "69",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 5.0,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "69",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 9.5,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "69",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 6.5,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "70",
+      "year": 2025,
+      "month": 4,
+      "overtimeHours": 18.5,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "70",
+      "year": 2025,
+      "month": 5,
+      "overtimeHours": 26.5,
+      "lateNightOvertime": 0
+    },
+    {
+      "employeeId": "70",
+      "year": 2025,
+      "month": 6,
+      "overtimeHours": 35.0,
+      "lateNightOvertime": 0
+    }
+  ]
+}
