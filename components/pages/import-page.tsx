@@ -10,10 +10,15 @@ import {
   FileSpreadsheet,
   CheckCircle,
   AlertCircle,
+  Search,
+  ShieldCheck,
+  Check,
+  X,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -70,6 +75,43 @@ type OvertimeImportResult = {
   importedOvertimes: number;
   skipped: number;
   skippedReasons: string[];
+};
+
+type DiffDecision = {
+  action: "approve" | "reject" | "pending";
+  customValue?: string | number;
+};
+
+type DiffItem = {
+  employeeId: string;
+  employeeName: string;
+  category: "employee" | "paidLeave" | "overtime";
+  field: string;
+  fieldLabel: string;
+  dbValue: string | number | null;
+  excelValue: string | number | null;
+  month?: number;
+  isNew: boolean;
+  isProtected: boolean;
+};
+
+type NewRecord = {
+  employeeId: string;
+  employeeName: string;
+  category: "employee" | "paidLeave" | "overtime";
+  summary: string;
+};
+
+type DiffResult = {
+  diffs: DiffItem[];
+  newRecords: NewRecord[];
+  summary: {
+    totalDiffs: number;
+    protectedDiffs: number;
+    newEmployees: number;
+    newPaidLeaves: number;
+    newOvertimes: number;
+  };
 };
 
 // ─── Column mapping helpers ───────────────────────────────────────────────────
@@ -180,6 +222,12 @@ export default function ImportPage() {
   const [jsonRaw, setJsonRaw] = useState<unknown>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [overtimeResult, setOvertimeResult] = useState<OvertimeImportResult | null>(null);
+
+  // Diff review state
+  const [diffResult, setDiffResult] = useState<DiffResult | null>(null);
+  const [decisions, setDecisions] = useState<Record<string, DiffDecision>>({});
+  const [newRecordChecks, setNewRecordChecks] = useState<Record<string, boolean>>({});
+  const [isDiffChecking, setIsDiffChecking] = useState(false);
 
   // ── Mutation: POST /api/import (employees + paidLeaves) ──────────────────
   const importMutation = useMutation({
@@ -330,6 +378,9 @@ export default function ImportPage() {
     setFileType(null);
     setImportResult(null);
     setOvertimeResult(null);
+    setDiffResult(null);
+    setDecisions({});
+    setNewRecordChecks({});
     importMutation.reset();
     importOvertimesMutation.reset();
 
@@ -367,7 +418,210 @@ export default function ImportPage() {
     e.preventDefault();
   };
 
-  // ── Import execution ──────────────────────────────────────────────────────
+  // ── Diff check ──────────────────────────────────────────────────────────
+
+  const diffKey = (diff: DiffItem, idx: number) =>
+    `${diff.employeeId}-${diff.category}-${diff.field}-${diff.month ?? ""}-${idx}`;
+
+  const newRecordKey = (rec: NewRecord, idx: number) =>
+    `${rec.employeeId}-${rec.category}-${idx}`;
+
+  const handleDiffCheck = async () => {
+    if (!parsed) return;
+    setIsDiffChecking(true);
+    try {
+      const res = await apiRequest("POST", "/api/import-diff", {
+        employees: parsed.employees,
+        paidLeaves: parsed.paidLeaves,
+        overtimes: parsed.overtimes,
+      });
+      const result: DiffResult = await res.json();
+      setDiffResult(result);
+
+      // Initialize decisions: all pending, protected stays pending
+      const initDecisions: Record<string, DiffDecision> = {};
+      result.diffs.forEach((d, i) => {
+        initDecisions[diffKey(d, i)] = { action: "pending" };
+      });
+      setDecisions(initDecisions);
+
+      // Initialize new record checks: all checked by default
+      const initChecks: Record<string, boolean> = {};
+      result.newRecords.forEach((r, i) => {
+        initChecks[newRecordKey(r, i)] = true;
+      });
+      setNewRecordChecks(initChecks);
+    } catch (error) {
+      toast({
+        title: "差分チェック失敗",
+        description: String(error),
+        variant: "destructive",
+      });
+    } finally {
+      setIsDiffChecking(false);
+    }
+  };
+
+  const setDecision = (key: string, action: DiffDecision["action"], customValue?: string | number) => {
+    setDecisions((prev) => ({
+      ...prev,
+      [key]: { action, customValue: action === "reject" ? customValue : undefined },
+    }));
+  };
+
+  const setCustomValue = (key: string, value: string) => {
+    setDecisions((prev) => ({
+      ...prev,
+      [key]: { ...prev[key], customValue: value },
+    }));
+  };
+
+  const bulkSetDecisions = (action: "approve" | "reject") => {
+    setDecisions((prev) => {
+      const next = { ...prev };
+      diffResult?.diffs.forEach((d, i) => {
+        if (!d.isProtected) {
+          const k = diffKey(d, i);
+          next[k] = {
+            action,
+            customValue: action === "reject" ? (d.dbValue ?? "") : undefined,
+          };
+        }
+      });
+      return next;
+    });
+  };
+
+  const handleConfirmImport = async () => {
+    if (!parsed || !diffResult) return;
+
+    // Build modified data based on decisions
+    // Start with deep copies of the parsed data
+    const modifiedEmployees = parsed.employees.map((e) => ({ ...e }));
+    const modifiedPaidLeaves = parsed.paidLeaves.map((pl) => ({ ...pl }));
+    const modifiedOvertimes = parsed.overtimes.map((o) => ({ ...o }));
+
+    // Apply diff decisions
+    diffResult.diffs.forEach((diff, i) => {
+      const k = diffKey(diff, i);
+      const decision = decisions[k];
+      if (!decision || diff.isProtected) return;
+
+      if (decision.action === "approve") {
+        // Use Excel value — already in parsed data, no change needed
+        return;
+      }
+
+      if (decision.action === "reject") {
+        const valueToUse = decision.customValue !== undefined && decision.customValue !== ""
+          ? decision.customValue
+          : diff.dbValue;
+
+        // Apply the DB/custom value back to the parsed data
+        if (diff.category === "employee") {
+          const emp = modifiedEmployees.find((e) => e.id === diff.employeeId);
+          if (emp) {
+            (emp as Record<string, unknown>)[diff.field] = valueToUse;
+          }
+        } else if (diff.category === "paidLeave") {
+          const pl = modifiedPaidLeaves.find((p) => p.employeeId === diff.employeeId);
+          if (pl) {
+            (pl as Record<string, unknown>)[diff.field] =
+              typeof diff.dbValue === "number" ? Number(valueToUse) : valueToUse;
+          }
+        } else if (diff.category === "overtime") {
+          const ot = modifiedOvertimes.find(
+            (o) => o.employeeId === diff.employeeId && o.month === diff.month
+          );
+          if (ot) {
+            (ot as Record<string, unknown>)[diff.field] =
+              typeof diff.dbValue === "number" ? Number(valueToUse) : valueToUse;
+          }
+        }
+        return;
+      }
+
+      // pending: exclude this field change — revert to DB value
+      if (diff.category === "employee") {
+        const emp = modifiedEmployees.find((e) => e.id === diff.employeeId);
+        if (emp && diff.dbValue !== null) {
+          (emp as Record<string, unknown>)[diff.field] = diff.dbValue;
+        }
+      } else if (diff.category === "paidLeave") {
+        const pl = modifiedPaidLeaves.find((p) => p.employeeId === diff.employeeId);
+        if (pl && diff.dbValue !== null) {
+          (pl as Record<string, unknown>)[diff.field] =
+            typeof diff.dbValue === "number" ? Number(diff.dbValue) : diff.dbValue;
+        }
+      } else if (diff.category === "overtime") {
+        const ot = modifiedOvertimes.find(
+          (o) => o.employeeId === diff.employeeId && o.month === diff.month
+        );
+        if (ot && diff.dbValue !== null) {
+          (ot as Record<string, unknown>)[diff.field] =
+            typeof diff.dbValue === "number" ? Number(diff.dbValue) : diff.dbValue;
+        }
+      }
+    });
+
+    // Filter out unchecked new records
+    const excludedNewRecords = new Set<string>();
+    diffResult.newRecords.forEach((rec, i) => {
+      const k = newRecordKey(rec, i);
+      if (!newRecordChecks[k]) {
+        excludedNewRecords.add(`${rec.employeeId}-${rec.category}`);
+      }
+    });
+
+    const filteredEmployees = modifiedEmployees.filter(
+      (e) => !excludedNewRecords.has(`${e.id}-employee`)
+    );
+    const filteredPaidLeaves = modifiedPaidLeaves.filter(
+      (pl) => !excludedNewRecords.has(`${pl.employeeId}-paidLeave`)
+    );
+    const filteredOvertimes = modifiedOvertimes.filter(
+      (o) => !excludedNewRecords.has(`${o.employeeId}-overtime`)
+    );
+
+    // Now run the import with modified data
+    const hasEmployeesOrLeaves =
+      filteredEmployees.length > 0 || filteredPaidLeaves.length > 0;
+    const hasOvertimes = filteredOvertimes.length > 0;
+
+    const promises: Promise<unknown>[] = [];
+
+    if (hasEmployeesOrLeaves) {
+      promises.push(
+        importMutation.mutateAsync({
+          employees: filteredEmployees,
+          paidLeaves: filteredPaidLeaves,
+        })
+      );
+    }
+
+    if (hasOvertimes) {
+      promises.push(importOvertimesMutation.mutateAsync(filteredOvertimes));
+    }
+
+    await Promise.allSettled(promises);
+
+    // Clear state
+    setParsed(null);
+    setFileName("");
+    setFileType(null);
+    setJsonRaw(null);
+    setDiffResult(null);
+    setDecisions({});
+    setNewRecordChecks({});
+
+    queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/paid-leaves"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/monthly-overtimes"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/employee-summaries"] });
+  };
+
+  // ── Import execution (direct, skipping diff review) ────────────────────
 
   const handleImport = async () => {
     if (!parsed) return;
@@ -418,6 +672,9 @@ export default function ImportPage() {
     setJsonRaw(null);
     setImportResult(null);
     setOvertimeResult(null);
+    setDiffResult(null);
+    setDecisions({});
+    setNewRecordChecks({});
     importMutation.reset();
     importOvertimesMutation.reset();
   };
@@ -550,30 +807,254 @@ export default function ImportPage() {
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleImport}
-                  disabled={isImporting}
-                  data-testid="button-import"
-                >
-                  {isImporting ? (
-                    "インポート中..."
-                  ) : (
+              {!diffResult && (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleDiffCheck}
+                      disabled={isDiffChecking || isImporting}
+                      data-testid="button-diff-check"
+                    >
+                      {isDiffChecking ? (
+                        "差分チェック中..."
+                      ) : (
+                        <>
+                          <Search className="h-3.5 w-3.5 mr-1" />
+                          差分チェック
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleCancel}
+                      disabled={isDiffChecking || isImporting}
+                      data-testid="button-cancel-import"
+                    >
+                      キャンセル
+                    </Button>
+                  </div>
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground underline hover:text-foreground transition-colors"
+                    onClick={handleImport}
+                    disabled={isImporting}
+                    data-testid="link-direct-import"
+                  >
+                    直接インポート（差分チェックをスキップ）
+                  </button>
+                </div>
+              )}
+
+              {/* Diff Review Panel */}
+              {diffResult && (
+                <div className="space-y-4" data-testid="diff-review-panel">
+                  {/* No diffs case */}
+                  {diffResult.summary.totalDiffs === 0 && diffResult.newRecords.length === 0 && (
+                    <div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 p-3">
+                      <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <p className="text-sm text-emerald-700">
+                        相違なし — データベースとExcelの内容は一致しています
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Summary + bulk actions */}
+                  {(diffResult.summary.totalDiffs > 0 || diffResult.newRecords.length > 0) && (
                     <>
-                      <Upload className="h-3.5 w-3.5 mr-1" />
-                      インポート実行
+                      <div className="rounded-lg bg-muted/50 p-3">
+                        <p className="text-sm font-medium">
+                          {diffResult.summary.totalDiffs}件の相違あり
+                          {diffResult.newRecords.length > 0 && (
+                            <> / {diffResult.newRecords.length}件の新規データ</>
+                          )}
+                          {diffResult.summary.protectedDiffs > 0 && (
+                            <> / {diffResult.summary.protectedDiffs}件は自動計算で保護</>
+                          )}
+                        </p>
+                      </div>
+
+                      {diffResult.diffs.filter((d) => !d.isProtected).length > 0 && (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => bulkSetDecisions("approve")}
+                          >
+                            <Check className="h-3 w-3 mr-1" />
+                            一括許可
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => bulkSetDecisions("reject")}
+                          >
+                            <X className="h-3 w-3 mr-1" />
+                            一括却下
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Group diffs by employee */}
+                      {(() => {
+                        const grouped = new Map<string, { name: string; diffs: Array<DiffItem & { idx: number }> }>();
+                        diffResult.diffs.forEach((d, i) => {
+                          if (!grouped.has(d.employeeId)) {
+                            grouped.set(d.employeeId, { name: d.employeeName, diffs: [] });
+                          }
+                          grouped.get(d.employeeId)!.diffs.push({ ...d, idx: i });
+                        });
+                        return Array.from(grouped.entries()).map(([empId, group]) => (
+                          <div key={empId} className="rounded-lg border p-3 space-y-2">
+                            <p className="text-sm font-medium">
+                              {group.name}
+                              <span className="text-xs text-muted-foreground ml-2">ID: {empId}</span>
+                            </p>
+                            <div className="space-y-1">
+                              {group.diffs.map((d) => {
+                                const k = diffKey(d, d.idx);
+                                const decision = decisions[k];
+                                const isApproved = decision?.action === "approve";
+                                const isRejected = decision?.action === "reject";
+
+                                if (d.isProtected) {
+                                  return (
+                                    <div
+                                      key={k}
+                                      className="flex items-center gap-3 rounded-md bg-muted/30 px-3 py-2 text-xs text-muted-foreground"
+                                    >
+                                      <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+                                      <span className="w-24 shrink-0 font-medium">{d.fieldLabel}</span>
+                                      <span className="truncate">{d.dbValue ?? "—"} → {d.excelValue ?? "—"}</span>
+                                      <Badge variant="outline" className="ml-auto text-xs shrink-0">自動計算</Badge>
+                                    </div>
+                                  );
+                                }
+
+                                return (
+                                  <div
+                                    key={k}
+                                    className={`flex items-center gap-3 rounded-md px-3 py-2 text-xs transition-colors ${
+                                      isApproved
+                                        ? "bg-emerald-50 border border-emerald-200"
+                                        : isRejected
+                                        ? "bg-amber-50 border border-amber-200"
+                                        : "bg-background border border-border"
+                                    }`}
+                                  >
+                                    <span className="w-24 shrink-0 font-medium">{d.fieldLabel}</span>
+                                    <span className="text-muted-foreground shrink-0">
+                                      DB: {d.dbValue ?? "—"}
+                                    </span>
+                                    <span className="shrink-0">→</span>
+                                    <span className="shrink-0 font-medium">
+                                      Excel: {d.excelValue ?? "—"}
+                                    </span>
+                                    {isRejected && (
+                                      <Input
+                                        className="h-7 w-32 text-xs"
+                                        defaultValue={String(decision.customValue ?? d.dbValue ?? "")}
+                                        onChange={(e) => setCustomValue(k, e.target.value)}
+                                        placeholder="修正値"
+                                      />
+                                    )}
+                                    <div className="flex gap-1 ml-auto shrink-0">
+                                      <Button
+                                        variant={isApproved ? "default" : "outline"}
+                                        size="sm"
+                                        className="h-6 px-2 text-xs"
+                                        onClick={() => setDecision(k, "approve")}
+                                      >
+                                        許可
+                                      </Button>
+                                      <Button
+                                        variant={isRejected ? "default" : "outline"}
+                                        size="sm"
+                                        className="h-6 px-2 text-xs"
+                                        onClick={() =>
+                                          setDecision(k, "reject", d.dbValue ?? "")
+                                        }
+                                      >
+                                        却下
+                                      </Button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ));
+                      })()}
+
+                      {/* New records */}
+                      {diffResult.newRecords.length > 0 && (
+                        <div className="rounded-lg border p-3 space-y-2">
+                          <p className="text-sm font-medium">新規データ</p>
+                          <div className="space-y-1">
+                            {diffResult.newRecords.map((rec, i) => {
+                              const k = newRecordKey(rec, i);
+                              return (
+                                <label
+                                  key={k}
+                                  className="flex items-center gap-3 rounded-md bg-background border border-border px-3 py-2 text-xs cursor-pointer hover:bg-muted/30 transition-colors"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={newRecordChecks[k] ?? true}
+                                    onChange={(e) =>
+                                      setNewRecordChecks((prev) => ({
+                                        ...prev,
+                                        [k]: e.target.checked,
+                                      }))
+                                    }
+                                    className="rounded"
+                                  />
+                                  <span className="font-medium">
+                                    {rec.employeeName}
+                                    <span className="text-muted-foreground ml-1">({rec.employeeId})</span>
+                                  </span>
+                                  <Badge variant="outline" className="text-xs">
+                                    {rec.category === "employee"
+                                      ? "社員"
+                                      : rec.category === "paidLeave"
+                                      ? "有給"
+                                      : "残業"}
+                                  </Badge>
+                                  <span className="text-muted-foreground">{rec.summary}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </>
                   )}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleCancel}
-                  disabled={isImporting}
-                  data-testid="button-cancel-import"
-                >
-                  キャンセル
-                </Button>
-              </div>
+
+                  {/* Confirm / Cancel buttons */}
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleConfirmImport}
+                      disabled={isImporting}
+                      data-testid="button-confirm-import"
+                    >
+                      {isImporting ? (
+                        "インポート中..."
+                      ) : (
+                        <>
+                          <Upload className="h-3.5 w-3.5 mr-1" />
+                          確定
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleCancel}
+                      disabled={isImporting}
+                    >
+                      キャンセル
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

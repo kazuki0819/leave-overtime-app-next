@@ -261,15 +261,18 @@ export class TursoStorage implements IStorage {
     const fy = leave.fiscalYear ?? 2025;
     const existing = await this.getPaidLeaveByEmployee(leave.employeeId, fy);
     if (existing) {
+      // 取得履歴がある社員は消化日数・残日数・取得率を保護（自動計算優先）
+      const usages = await this.getLeaveUsages(leave.employeeId);
+      const hasUsages = usages.length > 0;
       const updated = {
         employeeId: leave.employeeId,
         fiscalYear: fy,
         grantedDays: leave.grantedDays ?? existing.grantedDays,
         carriedOverDays: leave.carriedOverDays ?? existing.carriedOverDays,
-        consumedDays: leave.consumedDays ?? existing.consumedDays,
-        remainingDays: leave.remainingDays ?? existing.remainingDays,
+        consumedDays: hasUsages ? existing.consumedDays : (leave.consumedDays ?? existing.consumedDays),
+        remainingDays: hasUsages ? existing.remainingDays : (leave.remainingDays ?? existing.remainingDays),
         expiredDays: leave.expiredDays ?? existing.expiredDays,
-        usageRate: leave.usageRate ?? existing.usageRate,
+        usageRate: hasUsages ? existing.usageRate : (leave.usageRate ?? existing.usageRate),
       };
       await db.update(paidLeaves).set(updated).where(eq(paidLeaves.id, existing.id));
       const rows = await db.select().from(paidLeaves).where(eq(paidLeaves.id, existing.id)).limit(1);
