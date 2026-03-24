@@ -261,7 +261,7 @@ export default function LeaveManagement() {
     { key: "notice", label: "管理情報", count: noticeLeaveEmps.length },
     { key: "under5", label: "5日未達", count: under5.length },
     { key: "achieved", label: "5日達成", count: achieved5.length },
-    { key: "clear", label: "問題なし", count: summaries.length - leaveAlertEmps.length - cautionLeaveEmps.length - infoLeaveEmps.length - noticeLeaveEmps.length },
+    { key: "clear", label: "問題なし", count: summaries.filter(e => !e.alerts.some(a => a.category === "paid_leave")).length },
   ];
 
   const SortIcon = ({ col }: { col: SortKey }) => {
