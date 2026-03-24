@@ -404,6 +404,7 @@ export default function EmployeeDetail() {
   const empAlerts = (allAlerts ?? []).filter((a) => a.employeeId === id);
   const dangerAlerts = empAlerts.filter((a) => a.severity === "danger");
   const warningAlerts = empAlerts.filter((a) => a.severity === "warning");
+  const cautionAlerts = empAlerts.filter((a) => a.severity === "caution");
   const infoAlerts = empAlerts.filter((a) => a.severity === "info");
   const noticeAlerts = empAlerts.filter((a) => a.severity === "notice");
   const overtimeAlerts = empAlerts.filter((a) => a.category === "overtime");
@@ -609,7 +610,7 @@ export default function EmployeeDetail() {
           <div className="flex gap-1.5 ml-2">
             {dangerAlerts.length > 0 && (
               <Badge variant="destructive" className="text-xs">
-                危険 {dangerAlerts.length}件
+                違反 {dangerAlerts.length}件
               </Badge>
             )}
             {warningAlerts.length > 0 && (
@@ -617,7 +618,15 @@ export default function EmployeeDetail() {
                 variant="outline"
                 className="text-xs border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
               >
-                注意 {warningAlerts.length}件
+                警告 {warningAlerts.length}件
+              </Badge>
+            )}
+            {cautionAlerts.length > 0 && (
+              <Badge
+                variant="outline"
+                className="text-xs border-cyan-300 bg-cyan-50 text-cyan-700 dark:border-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-400"
+              >
+                注意 {cautionAlerts.length}件
               </Badge>
             )}
             {infoAlerts.length > 0 && (
@@ -625,7 +634,7 @@ export default function EmployeeDetail() {
                 variant="outline"
                 className="text-xs border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-400"
               >
-                勧告 {infoAlerts.length}件
+                参考 {infoAlerts.length}件
               </Badge>
             )}
             {noticeAlerts.length > 0 && (
@@ -720,11 +729,13 @@ export default function EmployeeDetail() {
             ? "border-red-300 bg-red-50/50 dark:border-red-800 dark:bg-red-950/20" 
             : warningAlerts.length > 0
             ? "border-amber-300 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20"
+            : cautionAlerts.length > 0
+            ? "border-cyan-300 bg-cyan-50/50 dark:border-cyan-800 dark:bg-cyan-950/20"
             : "border-blue-300 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20"
         }`}>
           <CardHeader className="pb-2 pt-3 px-4">
             <CardTitle className="flex items-center gap-2 text-base font-semibold">
-              <AlertTriangle className={`h-4 w-4 ${dangerAlerts.length > 0 ? "text-red-500" : warningAlerts.length > 0 ? "text-amber-500" : "text-blue-500"}`} />
+              <AlertTriangle className={`h-4 w-4 ${dangerAlerts.length > 0 ? "text-red-500" : warningAlerts.length > 0 ? "text-amber-500" : cautionAlerts.length > 0 ? "text-cyan-500" : "text-blue-500"}`} />
               アラート一覧 ({empAlerts.length}件)
             </CardTitle>
           </CardHeader>
@@ -744,7 +755,7 @@ export default function EmployeeDetail() {
                           <Badge variant="destructive" className="text-xs px-1.5 py-0">
                             {a.category === "overtime" ? "残業" : "有給"}
                           </Badge>
-                          <span className="text-xs font-semibold text-red-800 dark:text-red-300">危険</span>
+                          <span className="text-xs font-semibold text-red-800 dark:text-red-300">違反</span>
                         </div>
                         <p className="text-sm text-red-800 dark:text-red-300 mt-0.5">{a.message}</p>
                       </div>
@@ -769,7 +780,7 @@ export default function EmployeeDetail() {
                           >
                             {a.category === "overtime" ? "残業" : "有給"}
                           </Badge>
-                          <span className="text-xs font-semibold text-amber-800 dark:text-amber-300">注意</span>
+                          <span className="text-xs font-semibold text-amber-800 dark:text-amber-300">警告</span>
                         </div>
                         <p className="text-sm text-amber-800 dark:text-amber-300 mt-0.5">{a.message}</p>
                       </div>
@@ -777,7 +788,31 @@ export default function EmployeeDetail() {
                   ))}
                 </div>
               )}
-              {/* Info alerts (健全性勧告) */}
+              {/* Caution alerts (注意：健康リスク) */}
+              {cautionAlerts.length > 0 && (
+                <div className="space-y-1.5">
+                  {cautionAlerts.map((a, i) => (
+                    <div
+                      key={`c-${i}`}
+                      className="flex items-start gap-2 rounded-md bg-cyan-100 dark:bg-cyan-950/50 px-3 py-2"
+                    >
+                      <AlertTriangle className="h-4 w-4 text-cyan-600 dark:text-cyan-400 mt-0.5 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant="outline"
+                            className="text-xs px-1.5 py-0 border-cyan-400 bg-cyan-200/50 text-cyan-800 dark:border-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-300"
+                          >
+                            注意
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-cyan-800 dark:text-cyan-300 mt-0.5">{a.message}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Info alerts (参考) */}
               {infoAlerts.length > 0 && (
                 <div className="space-y-1.5">
                   {infoAlerts.map((a, i) => (
@@ -792,7 +827,7 @@ export default function EmployeeDetail() {
                             variant="outline"
                             className="text-xs px-1.5 py-0 border-blue-400 bg-blue-200/50 text-blue-800 dark:border-blue-600 dark:bg-blue-900/30 dark:text-blue-300"
                           >
-                            健全性勧告
+                            参考
                           </Badge>
                         </div>
                         <p className="text-sm text-blue-800 dark:text-blue-300 mt-0.5">{a.message}</p>
@@ -1649,7 +1684,7 @@ export default function EmployeeDetail() {
           <div className="mt-3 p-3 rounded-lg bg-muted/40 border border-border/50">
             <div className="text-xs font-medium text-muted-foreground mb-2">凡例（36協定基準）</div>
             <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
-              <div className="text-xs text-muted-foreground font-medium">残業時間</div>
+              <div className="text-xs text-muted-foreground font-medium">残業時間（月単位）</div>
               <div className="text-xs text-muted-foreground font-medium">深夜残業（22:00〜5:00）</div>
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-1.5">
@@ -1657,25 +1692,21 @@ export default function EmployeeDetail() {
                   <span className="text-xs text-muted-foreground">適正 （0〜35h）</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="h-2.5 w-6 rounded-sm bg-yellow-400" />
-                  <span className="text-xs text-muted-foreground">注意 （36〜45h）</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="h-2.5 w-6 rounded-sm bg-orange-400" />
-                  <span className="text-xs text-muted-foreground">警告 （46〜60h）特別条項</span>
+                  <div className="h-2.5 w-6 rounded-sm bg-amber-400" />
+                  <span className="text-xs text-muted-foreground">警告 （35h超〜45h）上限接近</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="h-2.5 w-6 rounded-sm bg-red-500" />
-                  <span className="text-xs text-muted-foreground">危険 （61〜80h）過労ライン</span>
+                  <span className="text-xs text-muted-foreground">違反 （45h超）36協定原則上限超過</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="h-2.5 w-6 rounded-sm bg-red-900" />
-                  <span className="text-xs text-muted-foreground">超過 （80h超）過労死ライン</span>
+                <div className="text-xs text-muted-foreground mt-1 pl-8 leading-relaxed">
+                  ├ 80h超：過労死ライン・産業医面談勧奨<br />
+                  └ 100h超：産業医面談義務（安衛法66条の8）
                 </div>
               </div>
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-1.5">
-                  <div className="h-2.5 w-6 rounded-sm bg-purple-400" />
+                  <div className="h-2.5 w-6 rounded-sm bg-purple-500" />
                   <span className="text-xs text-muted-foreground">深夜残業時間</span>
                 </div>
                 <div className="text-xs text-muted-foreground mt-1 leading-relaxed">
@@ -1706,12 +1737,10 @@ export default function EmployeeDetail() {
                   const isEditing = editingMonth === m;
                   const hours = isEditing ? editOT.overtimeHours : (ot?.overtimeHours ?? 0);
                   const lateNight = isEditing ? editOT.lateNightOvertime : (ot?.lateNightOvertime ?? 0);
-                  // 5-level color for regular overtime based on labor law thresholds
+                  // 3-level color aligned with backend alert severity
                   const getOvertimeColor = (h: number) => {
-                    if (h > 80) return { bar: "bg-red-900", text: "text-red-900 dark:text-red-300 font-bold", label: "超過", badge: "destructive" as const };
-                    if (h > 60) return { bar: "bg-red-500", text: "text-red-600 dark:text-red-400 font-semibold", label: "危険", badge: "destructive" as const };
-                    if (h > 45) return { bar: "bg-orange-400", text: "text-orange-600 dark:text-orange-400 font-semibold", label: "警告", badge: "outline" as const };
-                    if (h > 35) return { bar: "bg-yellow-400", text: "text-yellow-600 dark:text-yellow-500", label: "注意", badge: "outline" as const };
+                    if (h > 45) return { bar: "bg-red-500", text: "text-red-600 dark:text-red-400 font-semibold", label: "違反", badge: "destructive" as const };
+                    if (h > 35) return { bar: "bg-amber-400", text: "text-amber-600 dark:text-amber-500", label: "警告", badge: "outline" as const };
                     return { bar: "bg-blue-400", text: "", label: "", badge: "outline" as const };
                   };
                   const otColor = getOvertimeColor(hours);
@@ -1735,36 +1764,22 @@ export default function EmployeeDetail() {
                                   setEditOT({ ...editOT, overtimeHours: parseFloat(e.target.value) || 0 })
                                 }
                                 className={`h-7 w-20 text-right ${
-                                  editOT.overtimeHours > 80
-                                    ? "border-red-600 focus-visible:ring-red-600"
-                                    : editOT.overtimeHours > 60
-                                    ? "border-red-400 focus-visible:ring-red-400"
-                                    : editOT.overtimeHours > 45
-                                    ? "border-orange-400 focus-visible:ring-orange-400"
+                                  editOT.overtimeHours > 45
+                                    ? "border-red-500 focus-visible:ring-red-500"
                                     : editOT.overtimeHours > 35
-                                    ? "border-yellow-400 focus-visible:ring-yellow-400"
+                                    ? "border-amber-400 focus-visible:ring-amber-400"
                                     : ""
                                 }`}
                                 data-testid={`input-overtime-hours-${m}`}
                               />
-                              {editOT.overtimeHours > 80 && (
+                              {editOT.overtimeHours > 45 && (
                                 <Badge variant="destructive" className="text-xs px-1 py-0" data-testid={`badge-overtime-danger-${m}`}>
-                                  80h超 過労死ライン
-                                </Badge>
-                              )}
-                              {editOT.overtimeHours > 60 && editOT.overtimeHours <= 80 && (
-                                <Badge variant="destructive" className="text-xs px-1 py-0">
-                                  過労ライン
-                                </Badge>
-                              )}
-                              {editOT.overtimeHours > 45 && editOT.overtimeHours <= 60 && (
-                                <Badge variant="outline" className="text-xs px-1 py-0 border-orange-400 bg-orange-50 text-orange-700 dark:border-orange-600 dark:bg-orange-950/30 dark:text-orange-400">
-                                  特別条項超
+                                  違反（45h超）
                                 </Badge>
                               )}
                               {editOT.overtimeHours > 35 && editOT.overtimeHours <= 45 && (
-                                <Badge variant="outline" className="text-xs px-1 py-0 border-yellow-400 bg-yellow-50 text-yellow-700 dark:border-yellow-600 dark:bg-yellow-950/30 dark:text-yellow-400">
-                                  上限接近
+                                <Badge variant="outline" className="text-xs px-1 py-0 border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-400">
+                                  警告（36協定上限接近）
                                 </Badge>
                               )}
                             </div>
@@ -1849,16 +1864,12 @@ export default function EmployeeDetail() {
                           </td>
                           <td className="py-2 text-right">
                             {ot && otColor.label ? (
-                              otColor.label === "超過" || otColor.label === "危険" ? (
+                              otColor.label === "違反" ? (
                                 <Badge variant="destructive" className="text-xs">
                                   {otColor.label}
                                 </Badge>
                               ) : otColor.label === "警告" ? (
-                                <Badge variant="outline" className="text-xs border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-600 dark:bg-orange-950/40 dark:text-orange-400">
-                                  {otColor.label}
-                                </Badge>
-                              ) : otColor.label === "注意" ? (
-                                <Badge variant="outline" className="text-xs border-yellow-300 bg-yellow-50 text-yellow-700 dark:border-yellow-600 dark:bg-yellow-950/40 dark:text-yellow-400">
+                                <Badge variant="outline" className="text-xs border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-400">
                                   {otColor.label}
                                 </Badge>
                               ) : null

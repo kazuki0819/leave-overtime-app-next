@@ -248,9 +248,9 @@ export default function LeaveManagement() {
   );
   const filterButtons: { key: LeaveFilter; label: string; count: number }[] = [
     { key: "all", label: "全員", count: summaries.length },
-    { key: "danger", label: "危険", count: dangerLeaveEmps.length },
-    { key: "warning", label: "注意", count: warningOnlyEmps.length },
-    { key: "info", label: "勧告", count: infoLeaveEmps.length },
+    { key: "danger", label: "違反", count: dangerLeaveEmps.length },
+    { key: "warning", label: "警告", count: warningOnlyEmps.length },
+    { key: "info", label: "参考", count: infoLeaveEmps.length },
     { key: "notice", label: "管理情報", count: noticeLeaveEmps.length },
     { key: "under5", label: "5日未達", count: under5.length },
     { key: "achieved", label: "5日達成", count: achieved5.length },

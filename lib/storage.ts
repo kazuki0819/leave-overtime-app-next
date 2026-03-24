@@ -306,7 +306,7 @@ export class TursoStorage implements IStorage {
         alerts.push({
           employeeId: emp.id, employeeName: emp.name,
           type: "monthly_45h", severity: "danger",
-          message: `${o.month}月の残業が${o.overtimeHours}時間（45時間超過）`,
+          message: `${o.month}月の残業が${o.overtimeHours}時間（36協定原則上限4 5h超過）`,
           value: o.overtimeHours,
         });
       }
@@ -316,7 +316,7 @@ export class TursoStorage implements IStorage {
         alerts.push({
           employeeId: emp.id, employeeName: emp.name,
           type: "monthly_100h", severity: "danger",
-          message: `${o.month}月の残業が${o.overtimeHours}時間（100時間超過）— 産業医面談の実施が必要（労働安全衛生法第66条の8）`,
+          message: `${o.month}月の残業が${o.overtimeHours}時間（100h超過）— 産業医面談義務（安衛法66条の8）`,
           value: o.overtimeHours,
         });
       }
@@ -326,7 +326,7 @@ export class TursoStorage implements IStorage {
         alerts.push({
           employeeId: emp.id, employeeName: emp.name,
           type: "monthly_100h", severity: "warning",
-          message: `${o.month}月の残業が${o.overtimeHours}時間（80時間超過）— 産業医面談の申出勧奨が必要`,
+          message: `${o.month}月の残業が${o.overtimeHours}時間（80h超過・過労死ライン）— 産業医面談の申出勧奨が必要`,
           value: o.overtimeHours,
         });
       }
@@ -336,7 +336,7 @@ export class TursoStorage implements IStorage {
         alerts.push({
           employeeId: emp.id, employeeName: emp.name,
           type: "monthly_45h", severity: "warning",
-          message: `${o.month}月の残業が${o.overtimeHours}時間（45時間に接近）`,
+          message: `${o.month}月の残業が${o.overtimeHours}時間（36協定上限45hに接近）`,
           value: o.overtimeHours,
         });
       }
@@ -346,14 +346,14 @@ export class TursoStorage implements IStorage {
         alerts.push({
           employeeId: emp.id, employeeName: emp.name,
           type: "yearly_360h", severity: "danger",
-          message: `年間残業が${yearlyTotal.toFixed(1)}時間（360時間超過）`,
+          message: `年間残業が${yearlyTotal.toFixed(1)}時間（36協定年間上限360h超過）`,
           value: yearlyTotal,
         });
       } else if (yearlyTotal > 300) {
         alerts.push({
           employeeId: emp.id, employeeName: emp.name,
           type: "yearly_360h", severity: "warning",
-          message: `年間残業が${yearlyTotal.toFixed(1)}時間（360時間に接近）`,
+          message: `年間残業が${yearlyTotal.toFixed(1)}時間（36協定年間上限360hに接近）`,
           value: yearlyTotal,
         });
       }
@@ -362,7 +362,7 @@ export class TursoStorage implements IStorage {
         alerts.push({
           employeeId: emp.id, employeeName: emp.name,
           type: "yearly_720h", severity: "danger",
-          message: `年間残業が${yearlyTotal.toFixed(1)}時間（720時間超過・特別条項上限）`,
+          message: `年間残業が${yearlyTotal.toFixed(1)}時間（特別条項上限720h超過）`,
           value: yearlyTotal,
         });
       }
@@ -372,14 +372,14 @@ export class TursoStorage implements IStorage {
         alerts.push({
           employeeId: emp.id, employeeName: emp.name,
           type: "over45_count", severity: "danger",
-          message: `月45時間超過が年${over45Count}回（上限年6回を超過）`,
+          message: `月45h超過が年${over45Count}回（特別条項上限年6回を超過）`,
           value: over45Count,
         });
       } else if (over45Count >= 5) {
         alerts.push({
           employeeId: emp.id, employeeName: emp.name,
           type: "over45_count", severity: "warning",
-          message: `月45時間超過が年${over45Count}回（上限年6回まであと${6 - over45Count}回）`,
+          message: `月45h超過が年${over45Count}回（特別条項上限年6回まであと${6 - over45Count}回）`,
           value: over45Count,
         });
       }
@@ -404,7 +404,7 @@ export class TursoStorage implements IStorage {
         alerts.push({
           employeeId: emp.id, employeeName: emp.name,
           type: "multi_month_avg", severity: "danger",
-          message: `${worstWindow}ヶ月平均${worstAvg.toFixed(1)}時間（${monthsStr}）— 過労死ライン超過`,
+          message: `${worstWindow}ヶ月平均${worstAvg.toFixed(1)}h（${monthsStr}）— 過労死ライン超過（80h基準）`,
           value: worstAvg,
         });
       } else if (worstAvg > 70) {
@@ -412,15 +412,15 @@ export class TursoStorage implements IStorage {
         alerts.push({
           employeeId: emp.id, employeeName: emp.name,
           type: "multi_month_avg", severity: "warning",
-          message: `${worstWindow}ヶ月平均${worstAvg.toFixed(1)}時間（${monthsStr}）— 過労死ラインに接近`,
+          message: `${worstWindow}ヶ月平均${worstAvg.toFixed(1)}h（${monthsStr}）— 過労死ラインに接近（70h超）`,
           value: worstAvg,
         });
       } else if (worstAvg > 60) {
         const monthsStr = worstMonths.map(m => `${m}月`).join("・");
         alerts.push({
           employeeId: emp.id, employeeName: emp.name,
-          type: "multi_month_avg", severity: "info",
-          message: `${worstWindow}ヶ月平均${worstAvg.toFixed(1)}時間（${monthsStr}）— 健康障害リスク上昇域。翌月以降の残業配分の見直しを推奨`,
+          type: "multi_month_avg", severity: "caution",
+          message: `${worstWindow}ヶ月平均${worstAvg.toFixed(1)}h（${monthsStr}）— 健康障害リスク上昇域（60h超）。残業配分の見直しを推奨`,
           value: worstAvg,
         });
       }
@@ -599,7 +599,7 @@ export class TursoStorage implements IStorage {
       a => a.severity !== "notice" || !employeesWithLeaveDangerOrWarning.has(a.employeeId)
     );
 
-    const severityOrder: Record<string, number> = { danger: 0, warning: 1, info: 2, notice: 3 };
+    const severityOrder: Record<string, number> = { danger: 0, warning: 1, caution: 2, info: 3, notice: 4 };
     combined.sort((a, b) => {
       const diff = severityOrder[a.severity] - severityOrder[b.severity];
       if (diff !== 0) return diff;
@@ -629,15 +629,18 @@ export class TursoStorage implements IStorage {
 
       const dangerCount = empAlerts.filter(a => a.severity === "danger").length;
       const warningCount = empAlerts.filter(a => a.severity === "warning").length;
+      const cautionCount = empAlerts.filter(a => a.severity === "caution").length;
       const infoCount = empAlerts.filter(a => a.severity === "info").length;
       const noticeCount = empAlerts.filter(a => a.severity === "notice").length;
 
       const leaveDangerCount = leaveAlerts.filter(a => a.severity === "danger").length;
       const leaveWarningCount = leaveAlerts.filter(a => a.severity === "warning").length;
+      const leaveCautionCount = leaveAlerts.filter(a => a.severity === "caution").length;
       const leaveInfoCount = leaveAlerts.filter(a => a.severity === "info").length;
       const leaveNoticeCount = leaveAlerts.filter(a => a.severity === "notice").length;
       const overtimeDangerCount = overtimeAlerts.filter(a => a.severity === "danger").length;
       const overtimeWarningCount = overtimeAlerts.filter(a => a.severity === "warning").length;
+      const overtimeCautionCount = overtimeAlerts.filter(a => a.severity === "caution").length;
       const overtimeInfoCount = overtimeAlerts.filter(a => a.severity === "info").length;
 
       const deadline = calcLeaveDeadline(emp.joinDate, leave?.consumedDays ?? 0, now);
@@ -657,10 +660,10 @@ export class TursoStorage implements IStorage {
         deadline,
         health: { expiryRisk, consumptionPace, carryoverUtil },
         alerts: empAlerts,
-        dangerCount, warningCount, infoCount, noticeCount,
-        leaveDangerCount, leaveWarningCount, leaveInfoCount, leaveNoticeCount,
+        dangerCount, warningCount, cautionCount, infoCount, noticeCount,
+        leaveDangerCount, leaveWarningCount, leaveCautionCount, leaveInfoCount, leaveNoticeCount,
         leaveAlertCount: leaveAlerts.length,
-        overtimeDangerCount, overtimeWarningCount, overtimeInfoCount,
+        overtimeDangerCount, overtimeWarningCount, overtimeCautionCount, overtimeInfoCount,
         overtimeAlertCount: overtimeAlerts.length,
         alertCount: empAlerts.length,
       };

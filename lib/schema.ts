@@ -115,7 +115,7 @@ export type OvertimeAlert = {
   employeeId: string;
   employeeName: string;
   type: "monthly_45h" | "monthly_100h" | "yearly_360h" | "yearly_720h" | "over45_count" | "multi_month_avg";
-  severity: "danger" | "warning" | "info";
+  severity: "danger" | "warning" | "caution" | "info";
   message: string;
   value: number;
 };
@@ -125,7 +125,7 @@ export type PaidLeaveAlert = {
   employeeId: string;
   employeeName: string;
   type: "under_5days" | "low_usage_rate" | "expiring_soon" | "expiry_risk" | "carryover_risk" | "zero_remaining" | "expired_low_rate";
-  severity: "danger" | "warning" | "info" | "notice";
+  severity: "danger" | "warning" | "caution" | "info" | "notice";
   message: string;
   value: number;
 };
@@ -136,7 +136,7 @@ export type EmployeeAlert = {
   employeeName: string;
   category: "overtime" | "paid_leave";
   type: string;
-  severity: "danger" | "warning" | "info" | "notice";
+  severity: "danger" | "warning" | "caution" | "info" | "notice";
   message: string;
   value: number;
 };

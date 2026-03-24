@@ -54,21 +54,24 @@ type EmployeeSummary = {
   alerts: EmployeeAlert[];
   dangerCount: number;
   warningCount: number;
+  cautionCount: number;
   infoCount: number;
   noticeCount: number;
   leaveDangerCount: number;
   leaveWarningCount: number;
+  leaveCautionCount: number;
   leaveInfoCount: number;
   leaveNoticeCount: number;
   leaveAlertCount: number;
   overtimeDangerCount: number;
   overtimeWarningCount: number;
+  overtimeCautionCount: number;
   overtimeInfoCount: number;
   overtimeAlertCount: number;
   alertCount: number;
 };
 
-type FilterMode = "all" | "leave_danger" | "leave_warning" | "leave_info" | "leave_notice" | "ot_danger" | "ot_warning" | "ot_info" | "clear";
+type FilterMode = "all" | "leave_danger" | "leave_warning" | "leave_caution" | "leave_info" | "leave_notice" | "ot_danger" | "ot_warning" | "ot_caution" | "ot_info" | "clear";
 
 export default function Dashboard() {
   const [search, setSearch] = useState("");
@@ -95,10 +98,12 @@ export default function Dashboard() {
       avgUsageRate,
       leaveDanger: summaries.filter(e => e.leaveDangerCount > 0).length,
       leaveWarning: summaries.filter(e => e.leaveWarningCount > 0 && e.leaveDangerCount === 0).length,
+      leaveCaution: summaries.filter(e => e.leaveCautionCount > 0).length,
       leaveInfo: summaries.filter(e => e.leaveInfoCount > 0).length,
       leaveNotice: summaries.filter(e => e.leaveNoticeCount > 0).length,
       otDanger: summaries.filter(e => e.overtimeDangerCount > 0).length,
       otWarning: summaries.filter(e => e.overtimeWarningCount > 0 && e.overtimeDangerCount === 0).length,
+      otCaution: summaries.filter(e => e.overtimeCautionCount > 0).length,
       otInfo: summaries.filter(e => e.overtimeInfoCount > 0).length,
       clear: summaries.filter(e => e.alertCount === 0).length,
     };
@@ -124,6 +129,9 @@ export default function Dashboard() {
       case "leave_warning":
         list = list.filter((e) => e.leaveWarningCount > 0);
         break;
+      case "leave_caution":
+        list = list.filter((e) => e.leaveCautionCount > 0);
+        break;
       case "leave_info":
         list = list.filter((e) => e.leaveInfoCount > 0);
         break;
@@ -135,6 +143,9 @@ export default function Dashboard() {
         break;
       case "ot_warning":
         list = list.filter((e) => e.overtimeWarningCount > 0);
+        break;
+      case "ot_caution":
+        list = list.filter((e) => e.overtimeCautionCount > 0);
         break;
       case "ot_info":
         list = list.filter((e) => e.overtimeInfoCount > 0);
@@ -281,7 +292,7 @@ export default function Dashboard() {
                 onClick={() => setFilter(filter === "leave_danger" ? "all" : "leave_danger")}
                 data-testid="filter-leave-danger"
               >
-                危険 <span className="ml-1 opacity-70">{stats.leaveDanger}</span>
+                違反 <span className="ml-1 opacity-70">{stats.leaveDanger}</span>
               </Button>
             )}
             <Button
@@ -291,7 +302,7 @@ export default function Dashboard() {
               onClick={() => setFilter(filter === "leave_warning" ? "all" : "leave_warning")}
               data-testid="filter-leave-warning"
             >
-              注意 <span className="ml-1 opacity-70">{summaries.filter(e => e.leaveWarningCount > 0).length}</span>
+              警告 <span className="ml-1 opacity-70">{summaries.filter(e => e.leaveWarningCount > 0).length}</span>
             </Button>
             {stats.leaveInfo > 0 && (
               <Button
@@ -301,7 +312,7 @@ export default function Dashboard() {
                 onClick={() => setFilter(filter === "leave_info" ? "all" : "leave_info")}
                 data-testid="filter-leave-info"
               >
-                勧告 <span className="ml-1 opacity-70">{stats.leaveInfo}</span>
+                参考 <span className="ml-1 opacity-70">{stats.leaveInfo}</span>
               </Button>
             )}
             {stats.leaveNotice > 0 && (
@@ -327,7 +338,7 @@ export default function Dashboard() {
               onClick={() => setFilter(filter === "ot_danger" ? "all" : "ot_danger")}
               data-testid="filter-ot-danger"
             >
-              危険 <span className="ml-1 opacity-70">{stats.otDanger}</span>
+              違反 <span className="ml-1 opacity-70">{stats.otDanger}</span>
             </Button>
             <Button
               variant={filter === "ot_warning" ? "default" : "outline"}
@@ -336,8 +347,19 @@ export default function Dashboard() {
               onClick={() => setFilter(filter === "ot_warning" ? "all" : "ot_warning")}
               data-testid="filter-ot-warning"
             >
-              注意 <span className="ml-1 opacity-70">{summaries.filter(e => e.overtimeWarningCount > 0).length}</span>
+              警告 <span className="ml-1 opacity-70">{summaries.filter(e => e.overtimeWarningCount > 0).length}</span>
             </Button>
+            {stats.otCaution > 0 && (
+              <Button
+                variant={filter === "ot_caution" ? "default" : "outline"}
+                size="sm"
+                className={`h-8 text-xs px-2 ${filter !== "ot_caution" ? "border-cyan-200 text-cyan-700 hover:bg-cyan-50 dark:border-cyan-800 dark:text-cyan-400" : ""}`}
+                onClick={() => setFilter(filter === "ot_caution" ? "all" : "ot_caution")}
+                data-testid="filter-ot-caution"
+              >
+                注意 <span className="ml-1 opacity-70">{stats.otCaution}</span>
+              </Button>
+            )}
             {stats.otInfo > 0 && (
               <Button
                 variant={filter === "ot_info" ? "default" : "outline"}
@@ -346,7 +368,7 @@ export default function Dashboard() {
                 onClick={() => setFilter(filter === "ot_info" ? "all" : "ot_info")}
                 data-testid="filter-ot-info"
               >
-                勧告 <span className="ml-1 opacity-70">{stats.otInfo}</span>
+                参考 <span className="ml-1 opacity-70">{stats.otInfo}</span>
               </Button>
             )}
           </div>
@@ -434,7 +456,7 @@ function EmployeeCard({ emp }: { emp: EmployeeSummary }) {
                   <span className="text-xs text-muted-foreground">有給</span>
                   {emp.leaveDangerCount > 0 && (
                     <Badge variant="destructive" className="text-xs px-1.5 py-0">
-                      危険{emp.leaveDangerCount}
+                      違反{emp.leaveDangerCount}
                     </Badge>
                   )}
                   {emp.leaveWarningCount > 0 && (
@@ -442,7 +464,7 @@ function EmployeeCard({ emp }: { emp: EmployeeSummary }) {
                       variant="outline"
                       className="text-xs px-1.5 py-0 border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
                     >
-                      注意{emp.leaveWarningCount}
+                      警告{emp.leaveWarningCount}
                     </Badge>
                   )}
                   {emp.leaveInfoCount > 0 && emp.leaveDangerCount === 0 && emp.leaveWarningCount === 0 && (
@@ -450,7 +472,7 @@ function EmployeeCard({ emp }: { emp: EmployeeSummary }) {
                       variant="outline"
                       className="text-xs px-1.5 py-0 border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-400"
                     >
-                      勧告{emp.leaveInfoCount}
+                      参考{emp.leaveInfoCount}
                     </Badge>
                   )}
                   {emp.leaveNoticeCount > 0 && emp.leaveDangerCount === 0 && emp.leaveWarningCount === 0 && emp.leaveInfoCount === 0 && (
@@ -464,12 +486,12 @@ function EmployeeCard({ emp }: { emp: EmployeeSummary }) {
                 </div>
               )}
               {/* 残業バッジ */}
-              {(emp.overtimeDangerCount > 0 || emp.overtimeWarningCount > 0 || emp.overtimeInfoCount > 0) && (
+              {(emp.overtimeDangerCount > 0 || emp.overtimeWarningCount > 0 || emp.overtimeCautionCount > 0 || emp.overtimeInfoCount > 0) && (
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-muted-foreground">残業</span>
                   {emp.overtimeDangerCount > 0 && (
                     <Badge variant="destructive" className="text-xs px-1.5 py-0">
-                      危険{emp.overtimeDangerCount}
+                      違反{emp.overtimeDangerCount}
                     </Badge>
                   )}
                   {emp.overtimeWarningCount > 0 && (
@@ -477,15 +499,23 @@ function EmployeeCard({ emp }: { emp: EmployeeSummary }) {
                       variant="outline"
                       className="text-xs px-1.5 py-0 border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
                     >
-                      注意{emp.overtimeWarningCount}
+                      警告{emp.overtimeWarningCount}
                     </Badge>
                   )}
-                  {emp.overtimeInfoCount > 0 && emp.overtimeDangerCount === 0 && emp.overtimeWarningCount === 0 && (
+                  {emp.overtimeCautionCount > 0 && emp.overtimeDangerCount === 0 && emp.overtimeWarningCount === 0 && (
+                    <Badge
+                      variant="outline"
+                      className="text-xs px-1.5 py-0 border-cyan-300 bg-cyan-50 text-cyan-700 dark:border-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-400"
+                    >
+                      注意{emp.overtimeCautionCount}
+                    </Badge>
+                  )}
+                  {emp.overtimeInfoCount > 0 && emp.overtimeDangerCount === 0 && emp.overtimeWarningCount === 0 && emp.overtimeCautionCount === 0 && (
                     <Badge
                       variant="outline"
                       className="text-xs px-1.5 py-0 border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-400"
                     >
-                      勧告{emp.overtimeInfoCount}
+                      参考{emp.overtimeInfoCount}
                     </Badge>
                   )}
                 </div>
@@ -642,6 +672,10 @@ function AlertRow({ alert }: { alert: EmployeeAlert }) {
   const colorClass =
     alert.severity === "danger"
       ? "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300"
+      : alert.severity === "warning"
+      ? "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
+      : alert.severity === "caution"
+      ? "bg-cyan-100 text-cyan-800 dark:bg-cyan-950/50 dark:text-cyan-300"
       : alert.severity === "notice"
       ? "bg-slate-100 text-slate-700 dark:bg-slate-900/50 dark:text-slate-300"
       : alert.severity === "info"
@@ -651,6 +685,8 @@ function AlertRow({ alert }: { alert: EmployeeAlert }) {
   const Icon =
     alert.severity === "danger"
       ? ShieldAlert
+      : alert.severity === "caution"
+      ? TriangleAlert
       : alert.severity === "notice"
       ? FileText
       : alert.severity === "info"

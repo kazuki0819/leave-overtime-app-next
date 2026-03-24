@@ -206,8 +206,8 @@ export default function OvertimeManagement() {
 
   const filterButtons: { key: OTFilter; label: string; count: number }[] = [
     { key: "all", label: "全員", count: enriched.length },
-    { key: "danger", label: "危険", count: otDangerEmps.length },
-    { key: "warning", label: "注意", count: otAlertEmps.length - otDangerEmps.length },
+    { key: "danger", label: "違反", count: otDangerEmps.length },
+    { key: "warning", label: "警告", count: otAlertEmps.length - otDangerEmps.length },
     { key: "over360", label: "360h超", count: over360.length },
     { key: "over45", label: "45h超月あり", count: over45any.length },
     { key: "clear", label: "問題なし", count: enriched.length - otAlertEmps.length },
@@ -364,15 +364,15 @@ export default function OvertimeManagement() {
           <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
             <div className="flex items-center gap-1">
               <div className="h-2 w-2 rounded-full bg-red-400" />
-              45h超
+              違反（45h超）
             </div>
             <div className="flex items-center gap-1">
               <div className="h-2 w-2 rounded-full bg-amber-400" />
-              35-45h
+              警告（35-45h）
             </div>
             <div className="flex items-center gap-1">
               <div className="h-2 w-2 rounded-full bg-blue-400" />
-              35h以下
+              適正（35h以下）
             </div>
           </div>
         </CardContent>
