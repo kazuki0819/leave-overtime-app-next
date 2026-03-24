@@ -41,3 +41,4 @@ local.db-journal
 .env.local
 local.db
 local.db-journal
+.vercel
