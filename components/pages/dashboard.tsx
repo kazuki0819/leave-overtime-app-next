@@ -69,9 +69,11 @@ type EmployeeSummary = {
   overtimeInfoCount: number;
   overtimeAlertCount: number;
   alertCount: number;
+  compositeRisk: "high" | "medium" | null;
+  compositeComment: string | null;
 };
 
-type FilterMode = "all" | "leave_danger" | "leave_warning" | "leave_caution" | "leave_info" | "leave_notice" | "ot_danger" | "ot_warning" | "ot_caution" | "ot_info" | "clear";
+type FilterMode = "all" | "leave_danger" | "leave_warning" | "leave_caution" | "leave_info" | "leave_notice" | "ot_danger" | "ot_warning" | "ot_caution" | "ot_info" | "composite" | "clear";
 
 export default function Dashboard() {
   const [search, setSearch] = useState("");
@@ -105,6 +107,8 @@ export default function Dashboard() {
       otWarning: summaries.filter(e => e.overtimeWarningCount > 0 && e.overtimeDangerCount === 0).length,
       otCaution: summaries.filter(e => e.overtimeCautionCount > 0).length,
       otInfo: summaries.filter(e => e.overtimeInfoCount > 0).length,
+      composite: summaries.filter(e => e.compositeRisk !== null).length,
+      compositeHigh: summaries.filter(e => e.compositeRisk === "high").length,
       clear: summaries.filter(e => e.alertCount === 0).length,
     };
   }, [summaries]);
@@ -131,6 +135,9 @@ export default function Dashboard() {
         break;
       case "leave_caution":
         list = list.filter((e) => e.leaveCautionCount > 0);
+        break;
+      case "composite":
+        list = list.filter((e) => e.compositeRisk !== null);
         break;
       case "leave_info":
         list = list.filter((e) => e.leaveInfoCount > 0);
@@ -192,7 +199,7 @@ export default function Dashboard() {
       </div>
 
       {/* Top KPI strip */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Card className="border">
           <CardContent className="p-3.5">
             <div className="flex items-center justify-between">
@@ -255,6 +262,28 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
+        <Card className={`border ${stats.composite > 0 ? "border-purple-300 dark:border-purple-800" : ""}`}>
+          <CardContent className="p-3.5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">複合リスク</p>
+                <p className="text-lg font-bold mt-0.5">
+                  {stats.composite > 0 ? (
+                    <>
+                      <span className="text-purple-600 dark:text-purple-400">{stats.composite}</span>
+                      <span className="text-xs text-muted-foreground ml-1">名</span>
+                    </>
+                  ) : (
+                    <span className="text-emerald-500">0名</span>
+                  )}
+                </p>
+              </div>
+              <div className={`rounded-lg p-2 ${stats.composite > 0 ? "bg-purple-50 dark:bg-purple-950/40" : "bg-emerald-50 dark:bg-emerald-950/40"}`}>
+                <ShieldAlert className={`h-4 w-4 ${stats.composite > 0 ? "text-purple-500" : "text-emerald-500"}`} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Search + Filter bar */}
@@ -304,6 +333,17 @@ export default function Dashboard() {
             >
               警告 <span className="ml-1 opacity-70">{summaries.filter(e => e.leaveWarningCount > 0).length}</span>
             </Button>
+            {stats.leaveCaution > 0 && (
+              <Button
+                variant={filter === "leave_caution" ? "default" : "outline"}
+                size="sm"
+                className={`h-8 text-xs px-2 ${filter !== "leave_caution" ? "border-cyan-200 text-cyan-700 hover:bg-cyan-50 dark:border-cyan-800 dark:text-cyan-400" : ""}`}
+                onClick={() => setFilter(filter === "leave_caution" ? "all" : "leave_caution")}
+                data-testid="filter-leave-caution"
+              >
+                注意 <span className="ml-1 opacity-70">{stats.leaveCaution}</span>
+              </Button>
+            )}
             {stats.leaveInfo > 0 && (
               <Button
                 variant={filter === "leave_info" ? "default" : "outline"}
@@ -373,6 +413,20 @@ export default function Dashboard() {
             )}
           </div>
 
+          {stats.composite > 0 && (
+            <div className="flex items-center gap-1 border-l pl-1.5 ml-0.5">
+              <Button
+                variant={filter === "composite" ? "default" : "outline"}
+                size="sm"
+                className={`h-8 text-xs px-2 ${filter !== "composite" ? "border-purple-200 text-purple-700 hover:bg-purple-50 dark:border-purple-800 dark:text-purple-400" : ""}`}
+                onClick={() => setFilter(filter === "composite" ? "all" : "composite")}
+                data-testid="filter-composite"
+              >
+                複合リスク <span className="ml-1 opacity-70">{stats.composite}</span>
+              </Button>
+            </div>
+          )}
+
           <Button
             variant={filter === "clear" ? "default" : "outline"}
             size="sm"
@@ -410,12 +464,17 @@ export default function Dashboard() {
 function EmployeeCard({ emp }: { emp: EmployeeSummary }) {
   const hasDanger = emp.dangerCount > 0;
   const hasWarning = emp.warningCount > 0 && !hasDanger;
-  const borderColor = hasDanger
+  const hasComposite = emp.compositeRisk !== null;
+  const borderColor = hasComposite
+    ? "border-purple-300 dark:border-purple-800"
+    : hasDanger
     ? "border-red-300 dark:border-red-800"
     : hasWarning
     ? "border-amber-300 dark:border-amber-800"
     : "border-border";
-  const bgHighlight = hasDanger
+  const bgHighlight = hasComposite
+    ? "bg-purple-50/30 dark:bg-purple-950/10"
+    : hasDanger
     ? "bg-red-50/50 dark:bg-red-950/20"
     : hasWarning
     ? "bg-amber-50/30 dark:bg-amber-950/10"
@@ -451,7 +510,7 @@ function EmployeeCard({ emp }: { emp: EmployeeSummary }) {
             </div>
             <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
               {/* 有給バッジ */}
-              {(emp.leaveDangerCount > 0 || emp.leaveWarningCount > 0 || emp.leaveInfoCount > 0 || emp.leaveNoticeCount > 0) && (
+              {(emp.leaveDangerCount > 0 || emp.leaveWarningCount > 0 || emp.leaveCautionCount > 0 || emp.leaveInfoCount > 0 || emp.leaveNoticeCount > 0) && (
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-muted-foreground">有給</span>
                   {emp.leaveDangerCount > 0 && (
@@ -467,7 +526,15 @@ function EmployeeCard({ emp }: { emp: EmployeeSummary }) {
                       警告{emp.leaveWarningCount}
                     </Badge>
                   )}
-                  {emp.leaveInfoCount > 0 && emp.leaveDangerCount === 0 && emp.leaveWarningCount === 0 && (
+                  {emp.leaveCautionCount > 0 && emp.leaveDangerCount === 0 && emp.leaveWarningCount === 0 && (
+                    <Badge
+                      variant="outline"
+                      className="text-xs px-1.5 py-0 border-cyan-300 bg-cyan-50 text-cyan-700 dark:border-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-400"
+                    >
+                      注意{emp.leaveCautionCount}
+                    </Badge>
+                  )}
+                  {emp.leaveInfoCount > 0 && emp.leaveDangerCount === 0 && emp.leaveWarningCount === 0 && emp.leaveCautionCount === 0 && (
                     <Badge
                       variant="outline"
                       className="text-xs px-1.5 py-0 border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-400"
@@ -475,7 +542,7 @@ function EmployeeCard({ emp }: { emp: EmployeeSummary }) {
                       参考{emp.leaveInfoCount}
                     </Badge>
                   )}
-                  {emp.leaveNoticeCount > 0 && emp.leaveDangerCount === 0 && emp.leaveWarningCount === 0 && emp.leaveInfoCount === 0 && (
+                  {emp.leaveNoticeCount > 0 && emp.leaveDangerCount === 0 && emp.leaveWarningCount === 0 && emp.leaveCautionCount === 0 && emp.leaveInfoCount === 0 && (
                     <Badge
                       variant="outline"
                       className="text-xs px-1.5 py-0 border-slate-300 bg-slate-50 text-slate-600 dark:border-slate-600 dark:bg-slate-900/40 dark:text-slate-400"
@@ -628,6 +695,31 @@ function EmployeeCard({ emp }: { emp: EmployeeSummary }) {
                   繰越未消化
                 </span>
               )}
+            </div>
+          )}
+
+          {/* Composite risk comment */}
+          {emp.compositeRisk && emp.compositeComment && (
+            <div className={`rounded-md px-3 py-2 mb-2 border ${
+              emp.compositeRisk === "high"
+                ? "border-purple-300 bg-purple-50 dark:border-purple-700 dark:bg-purple-950/30"
+                : "border-purple-200 bg-purple-50/50 dark:border-purple-800 dark:bg-purple-950/20"
+            }`}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <ShieldAlert className={`h-3.5 w-3.5 ${
+                  emp.compositeRisk === "high" ? "text-purple-600 dark:text-purple-400" : "text-purple-500 dark:text-purple-400"
+                }`} />
+                <span className={`text-xs font-semibold ${
+                  emp.compositeRisk === "high" ? "text-purple-800 dark:text-purple-300" : "text-purple-700 dark:text-purple-300"
+                }`}>
+                  {emp.compositeRisk === "high" ? "複合リスク：高" : "複合リスク：中"}
+                </span>
+              </div>
+              {emp.compositeComment.split("\n").map((line, i) => (
+                <p key={i} className="text-xs text-purple-800 dark:text-purple-300 leading-relaxed">
+                  {line}
+                </p>
+              ))}
             </div>
           )}
 

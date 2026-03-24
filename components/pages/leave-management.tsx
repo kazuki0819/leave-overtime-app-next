@@ -79,7 +79,7 @@ type EmployeeSummary = {
 
 type SortKey = "name" | "consumed" | "remaining" | "usageRate" | "deadline" | "pace";
 type SortDir = "asc" | "desc";
-type LeaveFilter = "all" | "danger" | "warning" | "info" | "notice" | "under5" | "achieved" | "clear";
+type LeaveFilter = "all" | "danger" | "warning" | "caution" | "info" | "notice" | "under5" | "achieved" | "clear";
 
 export default function LeaveManagement() {
   const [search, setSearch] = useState("");
@@ -148,6 +148,9 @@ export default function LeaveManagement() {
         break;
       case "warning":
         list = list.filter((e) => leaveAlerts(e).some((a) => a.severity === "warning"));
+        break;
+      case "caution":
+        list = list.filter((e) => leaveAlerts(e).some((a) => a.severity === "caution"));
         break;
       case "info":
         list = list.filter((e) => leaveAlerts(e).some((a) => a.severity === "info"));
@@ -246,15 +249,19 @@ export default function LeaveManagement() {
   const warningOnlyEmps = summaries.filter((e) =>
     e.alerts.some((a) => a.category === "paid_leave" && a.severity === "warning")
   );
+  const cautionLeaveEmps = summaries.filter((e) =>
+    e.alerts.some((a) => a.category === "paid_leave" && a.severity === "caution")
+  );
   const filterButtons: { key: LeaveFilter; label: string; count: number }[] = [
     { key: "all", label: "全員", count: summaries.length },
     { key: "danger", label: "違反", count: dangerLeaveEmps.length },
     { key: "warning", label: "警告", count: warningOnlyEmps.length },
+    { key: "caution", label: "注意", count: cautionLeaveEmps.length },
     { key: "info", label: "参考", count: infoLeaveEmps.length },
     { key: "notice", label: "管理情報", count: noticeLeaveEmps.length },
     { key: "under5", label: "5日未達", count: under5.length },
     { key: "achieved", label: "5日達成", count: achieved5.length },
-    { key: "clear", label: "問題なし", count: summaries.length - leaveAlertEmps.length - infoLeaveEmps.length - noticeLeaveEmps.length },
+    { key: "clear", label: "問題なし", count: summaries.length - leaveAlertEmps.length - cautionLeaveEmps.length - infoLeaveEmps.length - noticeLeaveEmps.length },
   ];
 
   const SortIcon = ({ col }: { col: SortKey }) => {

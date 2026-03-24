@@ -41,6 +41,64 @@ export interface IStorage {
   bulkImportPaidLeaves(leaves: InsertPaidLeave[]): Promise<{ count: number; skipped: number }>;
 }
 
+// ── 複合リスク判定 + 自動コメント生成 ──
+type CompositeRiskLevel = "high" | "medium" | null;
+function generateCompositeRisk(
+  leaveAlerts: EmployeeAlert[],
+  overtimeAlerts: EmployeeAlert[],
+  leave: PaidLeave | null | undefined,
+  yearlyOT: number,
+): { compositeRisk: CompositeRiskLevel; compositeComment: string | null } {
+  const sevRank = (s: string) => ({ danger: 4, warning: 3, caution: 2, info: 1, notice: 0 }[s] ?? 0);
+  const leaveMax = leaveAlerts.reduce((mx, a) => Math.max(mx, sevRank(a.severity)), 0);
+  const otMax = overtimeAlerts.reduce((mx, a) => Math.max(mx, sevRank(a.severity)), 0);
+
+  const hasLeaveIssue = leaveMax >= 3; // warning以上
+  const hasOtIssue = otMax >= 3;
+
+  if (!hasLeaveIssue || !hasOtIssue) {
+    return { compositeRisk: null, compositeComment: null };
+  }
+
+  // 複合リスク判定
+  const level: CompositeRiskLevel = (leaveMax >= 4 || otMax >= 4) ? "high" : "medium";
+
+  // 状況説明テキスト生成
+  const usageRate = leave ? Math.round(leave.usageRate * 100) : 0;
+  const otParts: string[] = [];
+  const leaveParts: string[] = [];
+
+  for (const a of overtimeAlerts) {
+    if (a.severity === "danger") otParts.push(a.message);
+    else if (a.severity === "warning" && otParts.length === 0) otParts.push(a.message);
+  }
+  for (const a of leaveAlerts) {
+    if (a.severity === "danger" || a.severity === "warning") leaveParts.push(a.message);
+  }
+
+  const situation = level === "high"
+    ? `【安全配慮義務リスク】残業に法令違反があり、有給取得率${usageRate}%で休息も不十分。疲労蓄積が深刻な状態です。`
+    : `【複合リスク】残業が法令上限に接近中かつ有給取得率${usageRate}%。休息不足による疲労蓄積が懸念されます。`;
+
+  // 改善アクション生成
+  const actions: string[] = [];
+  if (otMax >= 4) {
+    actions.push("残業を直ちに月35h以内に抑制");
+  } else if (otMax >= 3) {
+    actions.push("残業の月45h超過を回避するよう業務調整");
+  }
+  if (usageRate < 30) {
+    actions.push("2週間以内に有給1日以上の取得を指示");
+  } else {
+    actions.push("月1日以上の計画的な有給取得を推奨");
+  }
+  actions.push("所属長との面談を実施し、業務負荷を確認");
+
+  const comment = `${situation}\n推奨アクション: ${actions.join(" / ")}`;
+
+  return { compositeRisk: level, compositeComment: comment };
+}
+
 export class TursoStorage implements IStorage {
 
   // ── Employees ──
@@ -494,21 +552,12 @@ export class TursoStorage implements IStorage {
       }
 
       if (totalAvailable > 0 && leave.usageRate < 0.3 && leave.consumedDays >= 5) {
-        if (leave.usageRate < 0.1) {
-          alerts.push({
-            employeeId: emp.id, employeeName: emp.name,
-            type: "low_usage_rate", severity: "danger",
-            message: `有給取得率が${(leave.usageRate * 100).toFixed(0)}%（極端に低い）`,
-            value: leave.usageRate,
-          });
-        } else {
-          alerts.push({
-            employeeId: emp.id, employeeName: emp.name,
-            type: "low_usage_rate", severity: "warning",
-            message: `有給取得率が${(leave.usageRate * 100).toFixed(0)}%（30%未満）`,
-            value: leave.usageRate,
-          });
-        }
+        alerts.push({
+          employeeId: emp.id, employeeName: emp.name,
+          type: "low_usage_rate", severity: "warning",
+          message: `有給取得率が${(leave.usageRate * 100).toFixed(0)}%（30%未満）。使用者の時季指定義務（労基法39条）に基づき、取得促進が必要`,
+          value: leave.usageRate,
+        });
       }
 
       const expiryRisk = calcExpiryRisk(leave.remainingDays, deadline.daysUntilDeadline, deadline.paceStatus);
@@ -547,36 +596,33 @@ export class TursoStorage implements IStorage {
         });
       }
 
-      const hasDangerOrWarning = alerts.some(
-        a => a.employeeId === emp.id && (a.severity === "danger" || a.severity === "warning")
-      );
-      if (!hasDangerOrWarning) {
-        if (leave.expiredDays > 0) {
-          if (!isHighUsageRate) {
-            const ratePercent = (leave.usageRate * 100).toFixed(0);
-            alerts.push({
-              employeeId: emp.id, employeeName: emp.name,
-              type: "expired_low_rate", severity: "info",
-              message: `時効消滅${leave.expiredDays}日・取得率${ratePercent}%。取得ペースを上げないと今期も失効が拡大します。月1日以上の計画的な取得推奨`,
-              value: leave.expiredDays,
-            });
-          } else {
-            alerts.push({
-              employeeId: emp.id, employeeName: emp.name,
-              type: "expiring_soon", severity: "notice",
-              message: `時効消滅が${leave.expiredDays}日発生（取得率${(leave.usageRate * 100).toFixed(0)}%で良好）`,
-              value: leave.expiredDays,
-            });
-          }
-        }
-        if (expiryRisk.riskLevel === "high" && isHighUsageRate) {
+      // 時効消滅アラート（他のアラートと独立して発行）
+      if (leave.expiredDays > 0) {
+        if (!isHighUsageRate) {
+          const ratePercent = (leave.usageRate * 100).toFixed(0);
           alerts.push({
             employeeId: emp.id, employeeName: emp.name,
-            type: "expiry_risk", severity: "notice",
-            message: `取得率${(leave.usageRate * 100).toFixed(0)}%で良好ですが、${expiryRisk.expiryDays}日分が失効見込み`,
-            value: expiryRisk.expiryDays,
+            type: "expired_low_rate", severity: "caution",
+            message: `時効消滅${leave.expiredDays}日・取得率${ratePercent}%。休息不足による疲労蓄積リスク（厳労働省・過重労働防止GL）。月1日以上の計画的な取得推奨`,
+            value: leave.expiredDays,
+          });
+        } else {
+          alerts.push({
+            employeeId: emp.id, employeeName: emp.name,
+            type: "expiring_soon", severity: "notice",
+            message: `時効消滅が${leave.expiredDays}日発生（取得率${(leave.usageRate * 100).toFixed(0)}%で良好）`,
+            value: leave.expiredDays,
           });
         }
+      }
+      // 失効見込み（取得率良好）— 独立発行
+      if (expiryRisk.riskLevel === "high" && isHighUsageRate) {
+        alerts.push({
+          employeeId: emp.id, employeeName: emp.name,
+          type: "expiry_risk", severity: "notice",
+          message: `取得率${(leave.usageRate * 100).toFixed(0)}%で良好ですが、${expiryRisk.expiryDays}日分が失効見込み`,
+          value: expiryRisk.expiryDays,
+        });
       }
     }
     return alerts;
@@ -587,26 +633,20 @@ export class TursoStorage implements IStorage {
     const overtimeAlerts = await this.getOvertimeAlerts(year);
     const leaveAlerts = await this.getPaidLeaveAlerts(year);
 
+    // 各アラートは独立発行—抑制なしで統合
     const all: EmployeeAlert[] = [
       ...overtimeAlerts.map(a => ({ ...a, category: "overtime" as const })),
       ...leaveAlerts.map(a => ({ ...a, category: "paid_leave" as const })),
     ];
 
-    const employeesWithLeaveDangerOrWarning = new Set(
-      all.filter(a => a.category === "paid_leave" && (a.severity === "danger" || a.severity === "warning")).map(a => a.employeeId)
-    );
-    const combined = all.filter(
-      a => a.severity !== "notice" || !employeesWithLeaveDangerOrWarning.has(a.employeeId)
-    );
-
     const severityOrder: Record<string, number> = { danger: 0, warning: 1, caution: 2, info: 3, notice: 4 };
-    combined.sort((a, b) => {
+    all.sort((a, b) => {
       const diff = severityOrder[a.severity] - severityOrder[b.severity];
       if (diff !== 0) return diff;
       return a.employeeName.localeCompare(b.employeeName, "ja");
     });
 
-    return combined;
+    return all;
   }
 
   // ── Employee Summaries ──
@@ -666,6 +706,8 @@ export class TursoStorage implements IStorage {
         overtimeDangerCount, overtimeWarningCount, overtimeCautionCount, overtimeInfoCount,
         overtimeAlertCount: overtimeAlerts.length,
         alertCount: empAlerts.length,
+        // ── 複合リスク判定 ──
+        ...generateCompositeRisk(leaveAlerts, overtimeAlerts, leave, yearlyOT),
       };
     });
   }
