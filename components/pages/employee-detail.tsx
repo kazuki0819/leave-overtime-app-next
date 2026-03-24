@@ -1819,34 +1819,31 @@ export default function EmployeeDetail() {
                           {/* Regular overtime bar */}
                           <td className="py-2 pl-2">
                             {ot && hours > 0 && (
-                              <div className="relative h-4 w-full rounded bg-muted/50 overflow-hidden" style={{minWidth: '120px'}}>
-                                {/* 45h threshold marker */}
-                                <div className="absolute top-0 h-full border-l border-dashed border-muted-foreground/40" style={{left: '45%'}} />
-                                {/* 80h threshold marker */}
-                                <div className="absolute top-0 h-full border-l border-dashed border-red-400/50" style={{left: '80%'}} />
-                                {/* Overtime bar */}
-                                <div
-                                  className={`h-full rounded transition-all ${otColor.bar}`}
-                                  style={{ width: `${otBarWidth}%` }}
-                                />
-                                {/* Hours label on bar */}
-                                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-white mix-blend-difference">
-                                  {hours}h
-                                </span>
+                              <div className="flex items-center gap-1.5">
+                                <div className="relative h-4 flex-1 rounded bg-muted/60 overflow-hidden" style={{minWidth: '100px'}}>
+                                  {/* 45h threshold marker */}
+                                  <div className="absolute top-0 h-full border-l-2 border-dashed border-yellow-500/60 z-10" style={{left: '45%'}} />
+                                  {/* 80h threshold marker */}
+                                  <div className="absolute top-0 h-full border-l-2 border-dashed border-red-500/60 z-10" style={{left: '80%'}} />
+                                  {/* Overtime bar */}
+                                  <div
+                                    className={`h-full rounded transition-all ${otColor.bar}`}
+                                    style={{ width: `${otBarWidth}%` }}
+                                  />
+                                </div>
                               </div>
                             )}
                           </td>
                           {/* Late night overtime bar */}
                           <td className="py-2 pl-2">
                             {ot && lateNight > 0 && (
-                              <div className="relative h-4 w-full rounded bg-muted/50 overflow-hidden" style={{minWidth: '60px'}}>
-                                <div
-                                  className="h-full rounded transition-all bg-purple-400"
-                                  style={{ width: `${lnBarWidth}%` }}
-                                />
-                                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-white mix-blend-difference">
-                                  {lateNight}h
-                                </span>
+                              <div className="flex items-center gap-1.5">
+                                <div className="relative h-4 flex-1 rounded bg-muted/60 overflow-hidden" style={{minWidth: '50px'}}>
+                                  <div
+                                    className="h-full rounded transition-all bg-purple-500"
+                                    style={{ width: `${lnBarWidth}%` }}
+                                  />
+                                </div>
                               </div>
                             )}
                           </td>
