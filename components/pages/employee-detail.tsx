@@ -1017,6 +1017,28 @@ export default function EmployeeDetail() {
                     </dd>
                   </div>
                 )}
+                {/* 特別休暇 */}
+                {specialLeavesData && specialLeavesData.length > 0 && (
+                  <div className="sm:col-span-2 pt-1 border-t border-border/50 mt-1">
+                    <dt className="text-xs text-muted-foreground mb-1.5">特別休暇（{specialLeavesData.length}件）</dt>
+                    <dd className="space-y-1">
+                      {[...specialLeavesData].sort((a, b) => b.startDate.localeCompare(a.startDate)).map((sl) => (
+                        <div key={sl.id} className="flex items-center gap-2 text-xs">
+                          <Badge variant="outline" className="text-[10px] px-1 py-0 border-purple-300 bg-purple-50 text-purple-700 dark:border-purple-700 dark:bg-purple-950/40 dark:text-purple-400">
+                            {sl.leaveType}
+                          </Badge>
+                          <span className="text-muted-foreground tabular-nums">
+                            {sl.startDate} 〜 {sl.endDate}
+                          </span>
+                          <span className="font-medium">{sl.days}日</span>
+                          {sl.reason && (
+                            <span className="text-muted-foreground/60 truncate max-w-[150px]">{sl.reason}</span>
+                          )}
+                        </div>
+                      ))}
+                    </dd>
+                  </div>
+                )}
               </dl>
             )}
           </CardContent>
