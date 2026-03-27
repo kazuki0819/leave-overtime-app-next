@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
-  FileSpreadsheet,
   Calendar,
   Clock,
   Settings,
@@ -16,7 +15,6 @@ const navItems = [
   { href: "/leave", label: "有給管理", icon: Calendar },
   { href: "/overtime", label: "残業管理", icon: Clock },
   { href: "/employees", label: "社員一覧", icon: Users },
-  { href: "/import", label: "Excel取込", icon: FileSpreadsheet },
   { href: "/settings", label: "設定", icon: Settings },
 ];
 
