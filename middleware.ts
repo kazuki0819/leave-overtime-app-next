@@ -16,7 +16,13 @@ export function middleware(request: NextRequest) {
       const decoded = Buffer.from(encoded, "base64").toString("utf-8");
       const [, password] = decoded.split(":");
       if (password === adminPassword) {
-        return NextResponse.next();
+        const response = NextResponse.next();
+        // APIレスポンスのブラウザキャッシュを無効化
+        if (request.nextUrl.pathname.startsWith("/api/")) {
+          response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+          response.headers.set("Pragma", "no-cache");
+        }
+        return response;
       }
     }
   }

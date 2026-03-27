@@ -43,8 +43,8 @@ export const queryClient = new QueryClient({
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
-      refetchOnWindowFocus: false,
-      staleTime: Infinity,
+      refetchOnWindowFocus: true,   // タブ復帰時に最新データを自動取得
+      staleTime: 30 * 1000,         // 30秒でデータを古いと判定→再取得
       retry: false,
     },
     mutations: {
