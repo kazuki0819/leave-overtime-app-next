@@ -946,6 +946,31 @@ export default function EmployeeDetail() {
                     <dd className="text-sm font-medium text-slate-500">{employee.retiredDate}</dd>
                   </div>
                 )}
+                {/* 配属履歴 */}
+                {sortedHistories.length > 0 && (
+                  <div className="sm:col-span-2 pt-1 border-t border-border/50 mt-1">
+                    <dt className="text-xs text-muted-foreground mb-1.5">配属履歴</dt>
+                    <dd className="space-y-1">
+                      {sortedHistories.map((h, i) => (
+                        <div key={h.id} className="flex items-center gap-2 text-xs">
+                          <span className={`font-medium ${
+                            i === 0 && !h.endDate ? "text-foreground" : "text-muted-foreground"
+                          }`}>
+                            {h.assignment === "-" ? "本社" : h.assignment}
+                          </span>
+                          <span className="text-muted-foreground tabular-nums">
+                            {h.startDate} 〜 {h.endDate || "現在"}
+                          </span>
+                          {i === 0 && !h.endDate && (
+                            <Badge variant="outline" className="text-[10px] px-1 py-0 border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
+                              現在
+                            </Badge>
+                          )}
+                        </div>
+                      ))}
+                    </dd>
+                  </div>
+                )}
               </dl>
             )}
           </CardContent>
