@@ -1019,8 +1019,8 @@ export default function EmployeeDetail() {
                   <dd className="text-sm font-medium">{employee.joinDate || "-"}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">勤続月数</dt>
-                  <dd className="text-sm font-medium">{employee.tenureMonths}ヶ月</dd>
+                  <dt className="text-xs text-muted-foreground">勤続期間</dt>
+                  <dd className="text-sm font-medium">{Math.floor(employee.tenureMonths / 12)}年{employee.tenureMonths % 12}ヶ月</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground">ステータス</dt>
