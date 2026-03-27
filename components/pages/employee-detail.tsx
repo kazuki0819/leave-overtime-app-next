@@ -1085,6 +1085,27 @@ export default function EmployeeDetail() {
                     </dd>
                   </div>
                 )}
+                {/* 休日出勤 */}
+                {holidayWorksData && holidayWorksData.length > 0 && (
+                  <div className="sm:col-span-2 pt-1 border-t border-border/50 mt-1">
+                    <dt className="text-xs text-muted-foreground mb-1.5">休日出勤（{holidayWorksData.length}件）</dt>
+                    <dd className="space-y-1">
+                      {[...holidayWorksData].sort((a, b) => b.workDate.localeCompare(a.workDate)).map((hw) => (
+                        <div key={hw.id} className="flex items-center gap-2 text-xs">
+                          <span className="text-muted-foreground tabular-nums">{hw.workDate}</span>
+                          <span className="font-medium">{hw.hours}h</span>
+                          <Badge variant="outline" className={`text-[10px] px-1 py-0 ${
+                            hw.holidayType === "法定休日"
+                              ? "border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-400"
+                              : "border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-700 dark:bg-orange-950/40 dark:text-orange-400"
+                          }`}>
+                            {hw.holidayType}
+                          </Badge>
+                        </div>
+                      ))}
+                    </dd>
+                  </div>
+                )}
               </dl>
             )}
           </CardContent>
