@@ -36,6 +36,7 @@ import {
   RotateCcw,
   Gift,
   Briefcase,
+  MessageSquare,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -93,6 +94,10 @@ export default function EmployeeDetail() {
     leaveType: "慶弔休暇",
     reason: "",
   });
+
+  // Memo inline edit state
+  const [isMemoEditing, setIsMemoEditing] = useState(false);
+  const [memoText, setMemoText] = useState("");
 
   // Holiday work state
   const [showAddHolidayWork, setShowAddHolidayWork] = useState(false);
@@ -273,6 +278,20 @@ export default function EmployeeDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/employee-summaries"] });
       queryClient.invalidateQueries({ queryKey: ["/api/alerts"] });
       toast({ title: "有給使用を削除しました" });
+    },
+  });
+
+  // Memo save mutation
+  const saveMemoMutation = useMutation({
+    mutationFn: async (memo: string) => {
+      const res = await apiRequest("PUT", `/api/employees/${id}`, { memo });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/employees/${id}`] });
+      setIsMemoEditing(false);
+      toast({ title: "メモを保存しました" });
     },
   });
 
@@ -964,6 +983,24 @@ export default function EmployeeDetail() {
             <CardTitle className="flex items-center gap-2 text-base font-semibold">
               <User className="h-4 w-4 text-blue-500" />
               社員情報
+              <Button
+                size="sm"
+                variant={isMemoEditing ? "default" : employee?.memo ? "outline" : "ghost"}
+                className={`h-6 px-2 text-xs ml-auto gap-1 ${
+                  !isMemoEditing && employee?.memo ? "border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-400" : ""
+                }`}
+                onClick={() => {
+                  if (isMemoEditing) {
+                    setIsMemoEditing(false);
+                  } else {
+                    setMemoText(employee?.memo ?? "");
+                    setIsMemoEditing(true);
+                  }
+                }}
+              >
+                <MessageSquare className="h-3 w-3" />
+                メモ
+              </Button>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -1116,11 +1153,36 @@ export default function EmployeeDetail() {
                     </dd>
                   </div>
                 )}
-                {/* メモ */}
-                {employee.memo && (
+                {/* メモ（表示モード） */}
+                {!isMemoEditing && employee.memo && (
                   <div className="sm:col-span-2 pt-1 border-t border-border/50 mt-1">
                     <dt className="text-xs text-muted-foreground mb-1">メモ</dt>
                     <dd className="text-sm text-muted-foreground whitespace-pre-wrap">{employee.memo}</dd>
+                  </div>
+                )}
+                {/* メモ（インライン編集） */}
+                {isMemoEditing && (
+                  <div className="sm:col-span-2 pt-1 border-t border-border/50 mt-1">
+                    <dt className="text-xs text-muted-foreground mb-1">メモ</dt>
+                    <dd>
+                      <textarea
+                        className="flex w-full rounded-md border border-blue-300 dark:border-blue-700 bg-background px-3 py-2 text-sm min-h-[60px] resize-y focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        value={memoText}
+                        onChange={(e) => setMemoText(e.target.value)}
+                        placeholder="フリーコメント（任意）"
+                        autoFocus
+                      />
+                      <div className="flex gap-2 mt-1.5">
+                        <Button size="sm" className="h-7 text-xs" disabled={saveMemoMutation.isPending}
+                          onClick={() => saveMemoMutation.mutate(memoText)}>
+                          {saveMemoMutation.isPending ? "保存中..." : "保存"}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 text-xs"
+                          onClick={() => setIsMemoEditing(false)}>
+                          キャンセル
+                        </Button>
+                      </div>
+                    </dd>
                   </div>
                 )}
               </dl>
