@@ -34,6 +34,7 @@ import {
   LockOpen,
   Calculator,
   RotateCcw,
+  Gift,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import type { Employee, PaidLeave, MonthlyOvertime, EmployeeAlert, LeaveUsage, AssignmentHistory } from "@/lib/schema";
+import type { Employee, PaidLeave, MonthlyOvertime, EmployeeAlert, LeaveUsage, AssignmentHistory, SpecialLeave } from "@/lib/schema";
 import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoGrantedDays, calcAutoCarryoverDays, calcAutoExpiredDays, type LeaveDeadlineInfo, type ExpiryRiskInfo, type ConsumptionPaceInfo, type CarryoverUtilInfo } from "@/lib/leave-calc";
 import { useFiscalYear } from "@/hooks/use-fiscal-year";
 import { FiscalYearSelector } from "@/components/fiscal-year-selector";
@@ -79,6 +80,16 @@ export default function EmployeeDetail() {
     startDate: "",
     endDate: "",
     days: 1,
+    reason: "",
+  });
+
+  // Special leave state
+  const [showAddSpecialLeave, setShowAddSpecialLeave] = useState(false);
+  const [newSpecialLeave, setNewSpecialLeave] = useState({
+    startDate: "",
+    endDate: "",
+    days: 1,
+    leaveType: "慶弔休暇",
     reason: "",
   });
 
@@ -164,6 +175,15 @@ export default function EmployeeDetail() {
     },
   });
 
+  // Special leave query
+  const { data: specialLeavesData } = useQuery<SpecialLeave[]>({
+    queryKey: ["/api/special-leaves", id],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/special-leaves?employeeId=${id}`);
+      return res.json();
+    },
+  });
+
   const updateEmpMutation = useMutation({
     mutationFn: async (data: Partial<Employee>) => {
       const res = await apiRequest("PATCH", `/api/employees/${id}`, data);
@@ -244,6 +264,32 @@ export default function EmployeeDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/employee-summaries"] });
       queryClient.invalidateQueries({ queryKey: ["/api/alerts"] });
       toast({ title: "有給使用を削除しました" });
+    },
+  });
+
+  // Special leave mutations
+  const createSpecialLeaveMutation = useMutation({
+    mutationFn: async (data: { employeeId: string; startDate: string; endDate: string; days: number; leaveType: string; reason: string }) => {
+      const res = await apiRequest("POST", "/api/special-leaves", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/special-leaves", id] });
+      setShowAddSpecialLeave(false);
+      setNewSpecialLeave({ startDate: "", endDate: "", days: 1, leaveType: "慶弔休暇", reason: "" });
+      toast({ title: "特別休暇を登録しました" });
+    },
+    onError: () => toast({ title: "登録に失敗しました", variant: "destructive" }),
+  });
+
+  const deleteSpecialLeaveMutation = useMutation({
+    mutationFn: async (slId: number) => {
+      const res = await apiRequest("DELETE", `/api/special-leaves/${slId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/special-leaves", id] });
+      toast({ title: "特別休暇を削除しました" });
     },
   });
 
@@ -2295,6 +2341,125 @@ export default function EmployeeDetail() {
                         disabled={deleteLeaveUsageMutation.isPending}
                         data-testid={`button-delete-leave-usage-${usage.id}`}
                       >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ─── 特別休暇 ─── */}
+      <Card className="border">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <Gift className="h-4 w-4 text-purple-500" />
+            特別休暇
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-xs ml-auto"
+              onClick={() => setShowAddSpecialLeave(!showAddSpecialLeave)}
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              追加
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {/* 追加フォーム */}
+          {showAddSpecialLeave && (
+            <div className="rounded-md bg-purple-50/50 dark:bg-purple-950/10 border border-purple-200 dark:border-purple-800 p-3 mb-3">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                <div>
+                  <Label className="text-xs">種別</Label>
+                  <select
+                    className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
+                    value={newSpecialLeave.leaveType}
+                    onChange={(e) => setNewSpecialLeave({ ...newSpecialLeave, leaveType: e.target.value })}
+                  >
+                    <option value="慶弔休暇">慶弔休暇</option>
+                    <option value="結婚休暇">結婚休暇</option>
+                    <option value="忌引休暇">忌引休暇</option>
+                    <option value="産前産後休暇">産前産後休暇</option>
+                    <option value="育児休暇">育児休暇</option>
+                    <option value="介護休暇">介護休暇</option>
+                    <option value="裁判員休暇">裁判員休暇</option>
+                    <option value="その他">その他</option>
+                  </select>
+                </div>
+                <div>
+                  <Label className="text-xs">開始日</Label>
+                  <Input type="date" className="h-8 text-xs" value={newSpecialLeave.startDate}
+                    onChange={(e) => setNewSpecialLeave({ ...newSpecialLeave, startDate: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="text-xs">終了日</Label>
+                  <Input type="date" className="h-8 text-xs" value={newSpecialLeave.endDate}
+                    onChange={(e) => setNewSpecialLeave({ ...newSpecialLeave, endDate: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="text-xs">日数</Label>
+                  <Input type="number" step="0.5" min="0.5" className="h-8 text-xs" value={newSpecialLeave.days}
+                    onChange={(e) => setNewSpecialLeave({ ...newSpecialLeave, days: parseFloat(e.target.value) || 1 })} />
+                </div>
+                <div>
+                  <Label className="text-xs">理由</Label>
+                  <Input className="h-8 text-xs" placeholder="任意" value={newSpecialLeave.reason}
+                    onChange={(e) => setNewSpecialLeave({ ...newSpecialLeave, reason: e.target.value })} />
+                </div>
+              </div>
+              <div className="flex gap-2 mt-2">
+                <Button size="sm" className="h-7 text-xs"
+                  disabled={!newSpecialLeave.startDate || !newSpecialLeave.endDate || createSpecialLeaveMutation.isPending}
+                  onClick={() => createSpecialLeaveMutation.mutate({
+                    employeeId: id, ...newSpecialLeave,
+                  })}>
+                  {createSpecialLeaveMutation.isPending ? "登録中..." : "登録"}
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowAddSpecialLeave(false)}>
+                  キャンセル
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* 一覧 */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/30 text-left text-muted-foreground">
+                  <th className="py-2 font-medium text-xs">種別</th>
+                  <th className="py-2 font-medium text-xs">期間</th>
+                  <th className="py-2 font-medium text-xs text-right">日数</th>
+                  <th className="py-2 font-medium text-xs">理由</th>
+                  <th className="py-2 font-medium text-xs text-right" />
+                </tr>
+              </thead>
+              <tbody>
+                {(!specialLeavesData || specialLeavesData.length === 0) && (
+                  <tr><td colSpan={5} className="py-4 text-center text-sm text-muted-foreground">特別休暇の記録なし</td></tr>
+                )}
+                {[...(specialLeavesData ?? [])].sort((a, b) => b.startDate.localeCompare(a.startDate)).map((sl) => (
+                  <tr key={sl.id} className="border-b">
+                    <td className="py-2">
+                      <Badge variant="outline" className="text-xs px-1.5 py-0 border-purple-300 bg-purple-50 text-purple-700 dark:border-purple-700 dark:bg-purple-950/40 dark:text-purple-400">
+                        {sl.leaveType}
+                      </Badge>
+                    </td>
+                    <td className="py-2 text-xs tabular-nums text-muted-foreground">
+                      {sl.startDate} 〜 {sl.endDate}
+                    </td>
+                    <td className="py-2 text-right tabular-nums font-medium">{sl.days}日</td>
+                    <td className="py-2 text-muted-foreground text-xs max-w-[180px] truncate">{sl.reason || "-"}</td>
+                    <td className="py-2 text-right">
+                      <Button size="icon" variant="ghost"
+                        className="h-7 w-7 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                        onClick={() => { if (window.confirm("この特別休暇を削除しますか？")) deleteSpecialLeaveMutation.mutate(sl.id); }}
+                        disabled={deleteSpecialLeaveMutation.isPending}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </td>

@@ -54,6 +54,16 @@ export async function initializeDatabase() {
       reason TEXT DEFAULT ''
     );
 
+    CREATE TABLE IF NOT EXISTS special_leaves (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id TEXT NOT NULL,
+      start_date TEXT NOT NULL,
+      end_date TEXT NOT NULL,
+      days REAL NOT NULL DEFAULT 1,
+      leave_type TEXT NOT NULL DEFAULT 'その他',
+      reason TEXT DEFAULT ''
+    );
+
     CREATE TABLE IF NOT EXISTS monthly_overtimes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       employee_id TEXT NOT NULL,

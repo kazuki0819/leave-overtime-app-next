@@ -90,6 +90,28 @@ export const insertLeaveUsageSchema = z.object({
 export type InsertLeaveUsage = z.infer<typeof insertLeaveUsageSchema>;
 export type LeaveUsage = typeof leaveUsages.$inferSelect;
 
+// ── 特別休暇テーブル ──
+export const specialLeaves = sqliteTable("special_leaves", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  employeeId: text("employee_id").notNull(),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date").notNull(),
+  days: real("days").notNull().default(1),
+  leaveType: text("leave_type").notNull().default("その他"),
+  reason: text("reason").default(""),
+});
+
+export const insertSpecialLeaveSchema = z.object({
+  employeeId: z.string(),
+  startDate: z.string(),
+  endDate: z.string(),
+  days: z.number().optional(),
+  leaveType: z.string().optional(),
+  reason: z.string().nullable().optional(),
+});
+export type InsertSpecialLeave = z.infer<typeof insertSpecialLeaveSchema>;
+export type SpecialLeave = typeof specialLeaves.$inferSelect;
+
 // ── 月別残業テーブル ──
 export const monthlyOvertimes = sqliteTable("monthly_overtimes", {
   id: integer("id").primaryKey({ autoIncrement: true }),

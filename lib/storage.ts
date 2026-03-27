@@ -4,8 +4,9 @@ import {
   type LeaveUsage, type InsertLeaveUsage,
   type MonthlyOvertime, type InsertMonthlyOvertime,
   type AssignmentHistory, type InsertAssignmentHistory,
+  type SpecialLeave, type InsertSpecialLeave,
   type OvertimeAlert, type PaidLeaveAlert, type EmployeeAlert,
-  employees, paidLeaves, leaveUsages, monthlyOvertimes, assignmentHistories,
+  employees, paidLeaves, leaveUsages, monthlyOvertimes, assignmentHistories, specialLeaves,
 } from "./schema";
 import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil } from "./leave-calc";
 import { db, client } from "./db";
@@ -37,6 +38,9 @@ export interface IStorage {
   getPaidLeaveAlerts(fiscalYear?: number): Promise<PaidLeaveAlert[]>;
   getAllAlerts(year?: number): Promise<EmployeeAlert[]>;
   getEmployeeSummaries(year?: number): Promise<any[]>;
+  getSpecialLeaves(employeeId?: string): Promise<SpecialLeave[]>;
+  createSpecialLeave(leave: InsertSpecialLeave): Promise<SpecialLeave>;
+  deleteSpecialLeave(id: number): Promise<boolean>;
   bulkImportEmployees(employees: InsertEmployee[]): Promise<{ added: number; updated: number; skipped: number; skippedNames: string[] }>;
   bulkImportPaidLeaves(leaves: InsertPaidLeave[]): Promise<{ count: number; skipped: number }>;
 }
@@ -713,6 +717,31 @@ export class TursoStorage implements IStorage {
         ...generateCompositeRisk(leaveAlerts, overtimeAlerts, leave, yearlyOT),
       };
     });
+  }
+
+  // ── Special Leaves ──
+  async getSpecialLeaves(employeeId?: string): Promise<SpecialLeave[]> {
+    if (employeeId) {
+      return await db.select().from(specialLeaves).where(eq(specialLeaves.employeeId, employeeId));
+    }
+    return await db.select().from(specialLeaves);
+  }
+
+  async createSpecialLeave(leave: InsertSpecialLeave): Promise<SpecialLeave> {
+    const rows = await db.insert(specialLeaves).values({
+      employeeId: leave.employeeId,
+      startDate: leave.startDate,
+      endDate: leave.endDate,
+      days: leave.days ?? 1,
+      leaveType: leave.leaveType ?? "その他",
+      reason: leave.reason ?? "",
+    }).returning();
+    return rows[0];
+  }
+
+  async deleteSpecialLeave(id: number): Promise<boolean> {
+    const result = await db.delete(specialLeaves).where(eq(specialLeaves.id, id));
+    return true;
   }
 
   // ── Bulk Import ──
