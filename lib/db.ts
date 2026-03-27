@@ -64,6 +64,14 @@ export async function initializeDatabase() {
       reason TEXT DEFAULT ''
     );
 
+    CREATE TABLE IF NOT EXISTS holiday_works (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id TEXT NOT NULL,
+      work_date TEXT NOT NULL,
+      hours REAL NOT NULL DEFAULT 0,
+      holiday_type TEXT NOT NULL DEFAULT '法定休日'
+    );
+
     CREATE TABLE IF NOT EXISTS monthly_overtimes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       employee_id TEXT NOT NULL,
