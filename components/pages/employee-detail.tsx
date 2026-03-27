@@ -284,7 +284,7 @@ export default function EmployeeDetail() {
   // Memo save mutation
   const saveMemoMutation = useMutation({
     mutationFn: async (memo: string) => {
-      const res = await apiRequest("PUT", `/api/employees/${id}`, { memo });
+      const res = await apiRequest("PATCH", `/api/employees/${id}`, { memo });
       return res.json();
     },
     onSuccess: () => {
