@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import Link from "next/link";
 import { useFiscalYear } from "@/hooks/use-fiscal-year";
 import { FiscalYearSelector } from "@/components/fiscal-year-selector";
@@ -26,6 +26,11 @@ import {
   Info,
   FileText,
   Download,
+  Plus,
+  Edit3,
+  Check,
+  X,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +40,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PerplexityAttribution } from "@/components/PerplexityAttribution";
-import type { EmployeeAlert, MonthlyOvertime, PaidLeave } from "@/lib/schema";
+import { useToast } from "@/hooks/use-toast";
+import type { EmployeeAlert, MonthlyOvertime, PaidLeave, LeaveUsage } from "@/lib/schema";
 import type { LeaveDeadlineInfo, ExpiryRiskInfo, ConsumptionPaceInfo, CarryoverUtilInfo } from "@/lib/leave-calc";
 
 type AssignmentStat = {
@@ -81,12 +87,537 @@ type SortKey = "name" | "consumed" | "remaining" | "usageRate" | "deadline" | "p
 type SortDir = "asc" | "desc";
 type LeaveFilter = "all" | "danger" | "warning" | "caution" | "info" | "notice" | "under5" | "achieved" | "clear";
 
+// ─── Invalidation keys shared by mutations ──────────────────────────────────
+const LEAVE_QUERY_KEYS = [
+  "/api/leave-usages",
+  "/api/paid-leaves",
+  "/api/employee-summaries",
+  "/api/overtime-alerts",
+  "/api/paid-leave-alerts",
+];
+
+function invalidateLeaveQueries() {
+  for (const key of LEAVE_QUERY_KEYS) {
+    queryClient.invalidateQueries({ queryKey: [key] });
+  }
+}
+
+// ─── LeaveEmployeeRow ────────────────────────────────────────────────────────
+
+function LeaveEmployeeRow({
+  emp,
+  isExpanded,
+  onToggle,
+  fiscalYear,
+}: {
+  emp: EmployeeSummary;
+  isExpanded: boolean;
+  onToggle: () => void;
+  fiscalYear: number;
+}) {
+  const { toast } = useToast();
+  const leave = emp.paidLeave;
+  const dl = emp.deadline;
+  const leaveAlerts = emp.alerts.filter((a) => a.category === "paid_leave");
+  const hasDanger = leaveAlerts.some((a) => a.severity === "danger");
+
+  // ── Leave usage form state ─────────────────────────────────────────────
+  const [usageStartDate, setUsageStartDate] = useState("");
+  const [usageEndDate, setUsageEndDate] = useState("");
+  const [usageDays, setUsageDays] = useState("1");
+  const [usageReason, setUsageReason] = useState("");
+
+  // ── Paid leave edit state ──────────────────────────────────────────────
+  const [editGranted, setEditGranted] = useState("");
+  const [editCarriedOver, setEditCarriedOver] = useState("");
+  const [editExpired, setEditExpired] = useState("");
+  const [isEditingLeave, setIsEditingLeave] = useState(false);
+
+  // ── Fetch leave usages when expanded ───────────────────────────────────
+  const { data: leaveUsages } = useQuery<LeaveUsage[]>({
+    queryKey: ["/api/leave-usages", emp.id],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/leave-usages?employeeId=${emp.id}`);
+      return res.json();
+    },
+    enabled: isExpanded,
+  });
+
+  // ── Create leave usage mutation ────────────────────────────────────────
+  const createUsageMutation = useMutation({
+    mutationFn: async (data: { employeeId: string; startDate: string; endDate: string; days: number; reason: string }) => {
+      const res = await apiRequest("POST", "/api/leave-usages", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      invalidateLeaveQueries();
+      setUsageStartDate("");
+      setUsageEndDate("");
+      setUsageDays("1");
+      setUsageReason("");
+      toast({ title: "有給取得履歴を追加しました" });
+    },
+    onError: (error) => {
+      toast({ title: "追加に失敗しました", description: String(error), variant: "destructive" });
+    },
+  });
+
+  // ── Delete leave usage mutation ────────────────────────────────────────
+  const deleteUsageMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/leave-usages/${id}`);
+    },
+    onSuccess: () => {
+      invalidateLeaveQueries();
+      toast({ title: "取得履歴を削除しました" });
+    },
+    onError: (error) => {
+      toast({ title: "削除に失敗しました", description: String(error), variant: "destructive" });
+    },
+  });
+
+  // ── Update paid leave mutation ─────────────────────────────────────────
+  const updatePaidLeaveMutation = useMutation({
+    mutationFn: async (data: { employeeId: string; fiscalYear: number; grantedDays?: number; carriedOverDays?: number; expiredDays?: number }) => {
+      const res = await apiRequest("PUT", "/api/paid-leaves", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      invalidateLeaveQueries();
+      setIsEditingLeave(false);
+      toast({ title: "有給データを更新しました" });
+    },
+    onError: (error) => {
+      toast({ title: "更新に失敗しました", description: String(error), variant: "destructive" });
+    },
+  });
+
+  const handleAddUsage = () => {
+    if (!usageStartDate || !usageEndDate) return;
+    createUsageMutation.mutate({
+      employeeId: emp.id,
+      startDate: usageStartDate,
+      endDate: usageEndDate,
+      days: Number(usageDays) || 1,
+      reason: usageReason,
+    });
+  };
+
+  const handleStartEdit = () => {
+    setEditGranted(String(leave?.grantedDays ?? 0));
+    setEditCarriedOver(String(leave?.carriedOverDays ?? 0));
+    setEditExpired(String(leave?.expiredDays ?? 0));
+    setIsEditingLeave(true);
+  };
+
+  const handleSaveLeave = () => {
+    updatePaidLeaveMutation.mutate({
+      employeeId: emp.id,
+      fiscalYear,
+      grantedDays: Number(editGranted) || 0,
+      carriedOverDays: Number(editCarriedOver) || 0,
+      expiredDays: Number(editExpired) || 0,
+    });
+  };
+
+  return (
+    <>
+      <tr
+        className={`border-b hover:bg-muted/20 transition-colors cursor-pointer ${hasDanger ? "bg-red-50/30 dark:bg-red-950/10" : ""} ${isExpanded ? "bg-muted/10" : ""}`}
+        data-testid={`row-leave-${emp.id}`}
+        onClick={onToggle}
+      >
+        <td className="px-3 py-2">
+          <div className="flex items-center gap-1">
+            <ChevronRight className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 shrink-0 ${isExpanded ? "rotate-90" : ""}`} />
+            <Link
+              href={`/employees/${emp.id}`}
+              className="font-medium text-primary hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {emp.name}
+            </Link>
+          </div>
+        </td>
+        <td className="px-3 py-2 text-muted-foreground text-xs">{emp.assignment}</td>
+        <td className="px-3 py-2 text-right tabular-nums">
+          <span className={`font-semibold ${leave && leave.consumedDays < 5 ? "text-red-600 dark:text-red-400" : ""}`}>
+            {leave ? leave.consumedDays : "-"}
+          </span>
+        </td>
+        <td className="px-3 py-2 text-right tabular-nums font-medium text-primary">
+          {leave ? leave.remainingDays : "-"}
+        </td>
+        <td className="px-3 py-2 text-right tabular-nums">
+          <span
+            className={`font-semibold ${
+              leave && leave.usageRate >= 0.7
+                ? "text-emerald-600 dark:text-emerald-400"
+                : leave && leave.usageRate >= 0.3
+                ? "text-amber-600 dark:text-amber-400"
+                : "text-red-600 dark:text-red-400"
+            }`}
+          >
+            {leave ? `${(leave.usageRate * 100).toFixed(0)}%` : "-"}
+          </span>
+        </td>
+        <td className="px-3 py-2 text-center">
+          {leave ? (
+            <div className="flex items-center justify-center gap-1">
+              <div className="h-2 w-16 rounded-full bg-muted overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    leave.consumedDays >= 5
+                      ? "bg-emerald-500"
+                      : leave.consumedDays >= 3
+                      ? "bg-amber-500"
+                      : "bg-red-500"
+                  }`}
+                  style={{ width: `${Math.min(100, (leave.consumedDays / 5) * 100)}%` }}
+                />
+              </div>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {Math.min(leave.consumedDays, 5)}/5
+              </span>
+            </div>
+          ) : (
+            "-"
+          )}
+        </td>
+        <td className="px-3 py-2 text-right tabular-nums">
+          {dl.paceStatus !== "not_eligible" ? (
+            <span
+              className={`font-medium ${
+                dl.daysUntilDeadline <= 30
+                  ? "text-red-600 dark:text-red-400"
+                  : dl.daysUntilDeadline <= 90
+                  ? "text-amber-600 dark:text-amber-400"
+                  : ""
+              }`}
+            >
+              {dl.daysUntilDeadline > 0 ? `${dl.daysUntilDeadline}日` : "超過"}
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground">-</span>
+          )}
+        </td>
+        <td className="px-3 py-2 text-center">
+          {dl.paceStatus === "ok" && leave && leave.consumedDays >= 5 && (
+            <div className="flex flex-col items-center gap-0.5">
+              <Badge variant="outline" className="text-xs px-1.5 py-0 border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                達成
+              </Badge>
+              {emp.health?.expiryRisk && (emp.health.expiryRisk.riskLevel === "high" || emp.health.expiryRisk.riskLevel === "medium") && (
+                <span className="text-xs text-amber-600 dark:text-amber-400">消化遅れ</span>
+              )}
+            </div>
+          )}
+          {dl.paceStatus === "ok" && (!leave || leave.consumedDays < 5) && (
+            <Badge variant="outline" className="text-xs px-1.5 py-0 border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-950/40 dark:text-sky-400">
+              余裕
+            </Badge>
+          )}
+          {dl.paceStatus === "tight" && (
+            <Badge variant="outline" className="text-xs px-1.5 py-0 border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
+              注意
+            </Badge>
+          )}
+          {dl.paceStatus === "danger" && (
+            <Badge variant="destructive" className="text-xs px-1.5 py-0">
+              危険
+            </Badge>
+          )}
+          {dl.paceStatus === "overdue" && (
+            <Badge variant="destructive" className="text-xs px-1.5 py-0">
+              超過
+            </Badge>
+          )}
+          {dl.paceStatus === "not_eligible" && (
+            <span className="text-xs text-muted-foreground">-</span>
+          )}
+        </td>
+        <td className="px-3 py-2 text-center">
+          <div className="flex flex-wrap justify-center gap-0.5">
+            {emp.health?.expiryRisk && emp.health.expiryRisk.riskLevel !== "none" && (
+              <span className={`inline-block rounded px-1 py-0 text-xs font-medium ${
+                emp.health.expiryRisk.riskLevel === "high"
+                  ? "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400"
+                  : "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400"
+              }`} title={emp.health.expiryRisk.message}>
+                失効
+              </span>
+            )}
+            {emp.health?.consumptionPace && emp.health.consumptionPace.paceLevel !== "not_applicable" && emp.health.consumptionPace.paceLevel !== "good" && (
+              <span className={`inline-block rounded px-1 py-0 text-xs font-medium ${
+                emp.health.consumptionPace.paceLevel === "very_slow"
+                  ? "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400"
+                  : "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400"
+              }`} title={emp.health.consumptionPace.message}>
+                ペース
+              </span>
+            )}
+            {emp.health?.carryoverUtil && (emp.health.carryoverUtil.utilLevel === "warning" || emp.health.carryoverUtil.utilLevel === "danger") && (
+              <span className={`inline-block rounded px-1 py-0 text-xs font-medium ${
+                emp.health.carryoverUtil.utilLevel === "danger"
+                  ? "bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-400"
+                  : "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400"
+              }`} title={emp.health.carryoverUtil.message}>
+                繰越
+              </span>
+            )}
+            {(!emp.health?.expiryRisk || emp.health.expiryRisk.riskLevel === "none") &&
+             (!emp.health?.consumptionPace || emp.health.consumptionPace.paceLevel === "good" || emp.health.consumptionPace.paceLevel === "not_applicable") &&
+             (!emp.health?.carryoverUtil || emp.health.carryoverUtil.utilLevel === "good" || emp.health.carryoverUtil.utilLevel === "not_applicable") && (
+              <span className="text-xs text-emerald-600 dark:text-emerald-400">良好</span>
+            )}
+          </div>
+        </td>
+        <td className="px-3 py-2">
+          {leaveAlerts.length > 0 ? (
+            <div className="space-y-0.5">
+              {leaveAlerts.map((a, i) => (
+                <div key={i} className="flex items-center gap-1 text-xs">
+                  {a.severity === "danger" ? (
+                    <ShieldAlert className="h-3 w-3 text-red-500 shrink-0" />
+                  ) : a.severity === "notice" ? (
+                    <FileText className="h-3 w-3 text-slate-400 shrink-0" />
+                  ) : a.severity === "info" ? (
+                    <Info className="h-3 w-3 text-blue-500 shrink-0" />
+                  ) : (
+                    <TriangleAlert className="h-3 w-3 text-amber-500 shrink-0" />
+                  )}
+                  <span className={`${
+                    a.severity === "danger" ? "text-red-700 dark:text-red-400" :
+                    a.severity === "notice" ? "text-slate-500 dark:text-slate-400" :
+                    a.severity === "info" ? "text-blue-700 dark:text-blue-400" :
+                    "text-amber-700 dark:text-amber-400"
+                  }`}>
+                    {a.message}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <span className="text-xs text-emerald-600 dark:text-emerald-400">問題なし</span>
+          )}
+        </td>
+      </tr>
+
+      {/* Expanded Panel */}
+      {isExpanded && (
+        <tr>
+          <td colSpan={10} className="p-0">
+            <div className="bg-muted/5 border-l-2 border-primary/30 px-4 py-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Section A: 有給取得履歴の追加 */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-1.5">
+                    <Plus className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-sm font-medium">有給取得履歴の追加</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-muted-foreground">開始日</label>
+                      <Input
+                        type="date"
+                        className="h-8 text-sm"
+                        value={usageStartDate}
+                        onChange={(e) => setUsageStartDate(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">終了日</label>
+                      <Input
+                        type="date"
+                        className="h-8 text-sm"
+                        value={usageEndDate}
+                        onChange={(e) => setUsageEndDate(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">日数</label>
+                      <Input
+                        type="number"
+                        step="0.5"
+                        min="0.5"
+                        className="h-8 text-sm"
+                        value={usageDays}
+                        onChange={(e) => setUsageDays(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">理由</label>
+                      <Input
+                        type="text"
+                        className="h-8 text-sm"
+                        placeholder="任意"
+                        value={usageReason}
+                        onChange={(e) => setUsageReason(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={handleAddUsage}
+                    disabled={!usageStartDate || !usageEndDate || createUsageMutation.isPending}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    {createUsageMutation.isPending ? "追加中..." : "追加"}
+                  </Button>
+
+                  {/* Existing leave usages list */}
+                  {leaveUsages && leaveUsages.length > 0 && (
+                    <div className="space-y-1 mt-2">
+                      <p className="text-xs text-muted-foreground font-medium">取得履歴</p>
+                      {leaveUsages.map((u) => (
+                        <div key={u.id} className="flex items-center gap-2 text-xs bg-background rounded px-2 py-1.5 border">
+                          <span className="tabular-nums">{u.startDate} 〜 {u.endDate}</span>
+                          <Badge variant="outline" className="text-xs px-1 py-0">{u.days}日</Badge>
+                          {u.reason && <span className="text-muted-foreground truncate">{u.reason}</span>}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 w-5 p-0 ml-auto shrink-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => deleteUsageMutation.mutate(u.id)}
+                            disabled={deleteUsageMutation.isPending}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {leaveUsages && leaveUsages.length === 0 && (
+                    <p className="text-xs text-muted-foreground">取得履歴なし</p>
+                  )}
+                </div>
+
+                {/* Section B: 有給データ修正 */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-1.5">
+                    <Edit3 className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-sm font-medium">有給データ修正</span>
+                    {!isEditingLeave && leave && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-xs ml-auto"
+                        onClick={handleStartEdit}
+                      >
+                        <Edit3 className="h-3 w-3 mr-1" />
+                        編集
+                      </Button>
+                    )}
+                  </div>
+
+                  {leave ? (
+                    <div className="space-y-2">
+                      {/* Editable fields */}
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="text-xs text-muted-foreground">付与日数</label>
+                          {isEditingLeave ? (
+                            <Input
+                              type="number"
+                              step="0.5"
+                              className="h-8 text-sm"
+                              value={editGranted}
+                              onChange={(e) => setEditGranted(e.target.value)}
+                            />
+                          ) : (
+                            <p className="text-sm font-medium tabular-nums">{leave.grantedDays}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">繰越日数</label>
+                          {isEditingLeave ? (
+                            <Input
+                              type="number"
+                              step="0.5"
+                              className="h-8 text-sm"
+                              value={editCarriedOver}
+                              onChange={(e) => setEditCarriedOver(e.target.value)}
+                            />
+                          ) : (
+                            <p className="text-sm font-medium tabular-nums">{leave.carriedOverDays}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">失効日数</label>
+                          {isEditingLeave ? (
+                            <Input
+                              type="number"
+                              step="0.5"
+                              className="h-8 text-sm"
+                              value={editExpired}
+                              onChange={(e) => setEditExpired(e.target.value)}
+                            />
+                          ) : (
+                            <p className="text-sm font-medium tabular-nums">{leave.expiredDays}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Read-only fields */}
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="text-xs text-muted-foreground">消化日数 <span className="text-xs text-muted-foreground/60">（自動）</span></label>
+                          <p className="text-sm font-medium tabular-nums text-muted-foreground">{leave.consumedDays}</p>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">残日数 <span className="text-xs text-muted-foreground/60">（自動）</span></label>
+                          <p className="text-sm font-medium tabular-nums text-muted-foreground">{leave.remainingDays}</p>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">取得率 <span className="text-xs text-muted-foreground/60">（自動）</span></label>
+                          <p className="text-sm font-medium tabular-nums text-muted-foreground">{(leave.usageRate * 100).toFixed(1)}%</p>
+                        </div>
+                      </div>
+
+                      {isEditingLeave && (
+                        <div className="flex gap-2 mt-1">
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={handleSaveLeave}
+                            disabled={updatePaidLeaveMutation.isPending}
+                          >
+                            <Check className="h-3 w-3 mr-1" />
+                            {updatePaidLeaveMutation.isPending ? "保存中..." : "保存"}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => setIsEditingLeave(false)}
+                          >
+                            <X className="h-3 w-3 mr-1" />
+                            キャンセル
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">有給データなし</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
 export default function LeaveManagement() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<LeaveFilter>("all");
   const [assignmentFilter, setAssignmentFilter] = useState<string>("all");
   const [sortKey, setSortKey] = useState<SortKey>("pace");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const { fiscalYear } = useFiscalYear();
 
   const { data: summaries, isLoading } = useQuery<EmployeeSummary[]>({
@@ -590,191 +1121,15 @@ export default function LeaveManagement() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((emp) => {
-                  const leave = emp.paidLeave;
-                  const dl = emp.deadline;
-                  const leaveAlerts = emp.alerts.filter((a) => a.category === "paid_leave");
-                  const hasDanger = leaveAlerts.some((a) => a.severity === "danger");
-
-                  return (
-                    <tr
-                      key={emp.id}
-                      className={`border-b hover:bg-muted/20 transition-colors ${hasDanger ? "bg-red-50/30 dark:bg-red-950/10" : ""}`}
-                      data-testid={`row-leave-${emp.id}`}
-                    >
-                      <td className="px-3 py-2">
-                        <Link
-                          href={`/employees/${emp.id}`}
-                          className="font-medium text-primary hover:underline"
-                        >
-                          {emp.name}
-                        </Link>
-                      </td>
-                      <td className="px-3 py-2 text-muted-foreground text-xs">{emp.assignment}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">
-                        <span className={`font-semibold ${leave && leave.consumedDays < 5 ? "text-red-600 dark:text-red-400" : ""}`}>
-                          {leave ? leave.consumedDays : "-"}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums font-medium text-primary">
-                        {leave ? leave.remainingDays : "-"}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums">
-                        <span
-                          className={`font-semibold ${
-                            leave && leave.usageRate >= 0.7
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : leave && leave.usageRate >= 0.3
-                              ? "text-amber-600 dark:text-amber-400"
-                              : "text-red-600 dark:text-red-400"
-                          }`}
-                        >
-                          {leave ? `${(leave.usageRate * 100).toFixed(0)}%` : "-"}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-center">
-                        {leave ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <div className="h-2 w-16 rounded-full bg-muted overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all ${
-                                  leave.consumedDays >= 5
-                                    ? "bg-emerald-500"
-                                    : leave.consumedDays >= 3
-                                    ? "bg-amber-500"
-                                    : "bg-red-500"
-                                }`}
-                                style={{ width: `${Math.min(100, (leave.consumedDays / 5) * 100)}%` }}
-                              />
-                            </div>
-                            <span className="text-xs tabular-nums text-muted-foreground">
-                              {Math.min(leave.consumedDays, 5)}/5
-                            </span>
-                          </div>
-                        ) : (
-                          "-"
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums">
-                        {dl.paceStatus !== "not_eligible" ? (
-                          <span
-                            className={`font-medium ${
-                              dl.daysUntilDeadline <= 30
-                                ? "text-red-600 dark:text-red-400"
-                                : dl.daysUntilDeadline <= 90
-                                ? "text-amber-600 dark:text-amber-400"
-                                : ""
-                            }`}
-                          >
-                            {dl.daysUntilDeadline > 0 ? `${dl.daysUntilDeadline}日` : "超過"}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-center">
-                        {dl.paceStatus === "ok" && leave && leave.consumedDays >= 5 && (
-                          <div className="flex flex-col items-center gap-0.5">
-                            <Badge variant="outline" className="text-xs px-1.5 py-0 border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
-                              達成
-                            </Badge>
-                            {emp.health?.expiryRisk && (emp.health.expiryRisk.riskLevel === "high" || emp.health.expiryRisk.riskLevel === "medium") && (
-                              <span className="text-xs text-amber-600 dark:text-amber-400">消化遅れ</span>
-                            )}
-                          </div>
-                        )}
-                        {dl.paceStatus === "ok" && (!leave || leave.consumedDays < 5) && (
-                          <Badge variant="outline" className="text-xs px-1.5 py-0 border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-950/40 dark:text-sky-400">
-                            余裕
-                          </Badge>
-                        )}
-                        {dl.paceStatus === "tight" && (
-                          <Badge variant="outline" className="text-xs px-1.5 py-0 border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
-                            注意
-                          </Badge>
-                        )}
-                        {dl.paceStatus === "danger" && (
-                          <Badge variant="destructive" className="text-xs px-1.5 py-0">
-                            危険
-                          </Badge>
-                        )}
-                        {dl.paceStatus === "overdue" && (
-                          <Badge variant="destructive" className="text-xs px-1.5 py-0">
-                            超過
-                          </Badge>
-                        )}
-                        {dl.paceStatus === "not_eligible" && (
-                          <span className="text-xs text-muted-foreground">-</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-center">
-                        <div className="flex flex-wrap justify-center gap-0.5">
-                          {emp.health?.expiryRisk && emp.health.expiryRisk.riskLevel !== "none" && (
-                            <span className={`inline-block rounded px-1 py-0 text-xs font-medium ${
-                              emp.health.expiryRisk.riskLevel === "high"
-                                ? "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400"
-                                : "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400"
-                            }`} title={emp.health.expiryRisk.message}>
-                              失効
-                            </span>
-                          )}
-                          {emp.health?.consumptionPace && emp.health.consumptionPace.paceLevel !== "not_applicable" && emp.health.consumptionPace.paceLevel !== "good" && (
-                            <span className={`inline-block rounded px-1 py-0 text-xs font-medium ${
-                              emp.health.consumptionPace.paceLevel === "very_slow"
-                                ? "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400"
-                                : "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400"
-                            }`} title={emp.health.consumptionPace.message}>
-                              ペース
-                            </span>
-                          )}
-                          {emp.health?.carryoverUtil && (emp.health.carryoverUtil.utilLevel === "warning" || emp.health.carryoverUtil.utilLevel === "danger") && (
-                            <span className={`inline-block rounded px-1 py-0 text-xs font-medium ${
-                              emp.health.carryoverUtil.utilLevel === "danger"
-                                ? "bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-400"
-                                : "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400"
-                            }`} title={emp.health.carryoverUtil.message}>
-                              繰越
-                            </span>
-                          )}
-                          {(!emp.health?.expiryRisk || emp.health.expiryRisk.riskLevel === "none") &&
-                           (!emp.health?.consumptionPace || emp.health.consumptionPace.paceLevel === "good" || emp.health.consumptionPace.paceLevel === "not_applicable") &&
-                           (!emp.health?.carryoverUtil || emp.health.carryoverUtil.utilLevel === "good" || emp.health.carryoverUtil.utilLevel === "not_applicable") && (
-                            <span className="text-xs text-emerald-600 dark:text-emerald-400">良好</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2">
-                        {leaveAlerts.length > 0 ? (
-                          <div className="space-y-0.5">
-                            {leaveAlerts.map((a, i) => (
-                              <div key={i} className="flex items-center gap-1 text-xs">
-                                {a.severity === "danger" ? (
-                                  <ShieldAlert className="h-3 w-3 text-red-500 shrink-0" />
-                                ) : a.severity === "notice" ? (
-                                  <FileText className="h-3 w-3 text-slate-400 shrink-0" />
-                                ) : a.severity === "info" ? (
-                                  <Info className="h-3 w-3 text-blue-500 shrink-0" />
-                                ) : (
-                                  <TriangleAlert className="h-3 w-3 text-amber-500 shrink-0" />
-                                )}
-                                <span className={`${
-                                  a.severity === "danger" ? "text-red-700 dark:text-red-400" :
-                                  a.severity === "notice" ? "text-slate-500 dark:text-slate-400" :
-                                  a.severity === "info" ? "text-blue-700 dark:text-blue-400" :
-                                  "text-amber-700 dark:text-amber-400"
-                                }`}>
-                                  {a.message}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-emerald-600 dark:text-emerald-400">問題なし</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {filtered.map((emp) => (
+                  <LeaveEmployeeRow
+                    key={emp.id}
+                    emp={emp}
+                    isExpanded={expandedId === emp.id}
+                    onToggle={() => setExpandedId(expandedId === emp.id ? null : emp.id)}
+                    fiscalYear={fiscalYear}
+                  />
+                ))}
               </tbody>
             </table>
           </div>
