@@ -146,6 +146,7 @@ export class TursoStorage implements IStorage {
       retiredDate: emp.retiredDate ?? "",
       status: emp.status ?? "active",
       tenureMonths: emp.tenureMonths ?? 0,
+      memo: emp.memo ?? "",
     }).returning();
     return rows[0];
   }

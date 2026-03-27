@@ -21,7 +21,8 @@ export async function initializeDatabase() {
       join_date TEXT NOT NULL DEFAULT '',
       retired_date TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL DEFAULT 'active',
-      tenure_months INTEGER NOT NULL DEFAULT 0
+      tenure_months INTEGER NOT NULL DEFAULT 0,
+      memo TEXT NOT NULL DEFAULT ''
     );
 
     CREATE TABLE IF NOT EXISTS assignment_histories (
@@ -86,4 +87,7 @@ export async function initializeDatabase() {
       value TEXT NOT NULL
     );
   `);
+
+  // 既存テーブルへのカラム追加（既に存在する場合はスキップ）
+  try { await client.execute("ALTER TABLE employees ADD COLUMN memo TEXT NOT NULL DEFAULT ''"); } catch {}
 }

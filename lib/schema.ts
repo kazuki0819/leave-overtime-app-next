@@ -10,6 +10,7 @@ export const employees = sqliteTable("employees", {
   retiredDate: text("retired_date").notNull().default(""),
   status: text("status").notNull().default("active"),
   tenureMonths: integer("tenure_months").notNull().default(0),
+  memo: text("memo").notNull().default(""),
 });
 
 export const insertEmployeeSchema = z.object({
@@ -20,6 +21,7 @@ export const insertEmployeeSchema = z.object({
   retiredDate: z.string().optional(),
   status: z.string().optional(),
   tenureMonths: z.number().optional(),
+  memo: z.string().optional(),
 });
 export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
 export type Employee = typeof employees.$inferSelect;

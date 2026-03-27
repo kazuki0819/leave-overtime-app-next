@@ -1003,6 +1003,16 @@ export default function EmployeeDetail() {
                     data-testid="input-tenure"
                   />
                 </div>
+                <div className="sm:col-span-2">
+                  <Label className="text-xs">メモ</Label>
+                  <textarea
+                    className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[60px] resize-y"
+                    value={editForm.memo ?? ""}
+                    onChange={(e) => setEditForm({ ...editForm, memo: e.target.value })}
+                    placeholder="フリーコメント（任意）"
+                    data-testid="input-memo"
+                  />
+                </div>
               </div>
             ) : (
               <dl className="grid gap-3 sm:grid-cols-2">
@@ -1104,6 +1114,13 @@ export default function EmployeeDetail() {
                         </div>
                       ))}
                     </dd>
+                  </div>
+                )}
+                {/* メモ */}
+                {employee.memo && (
+                  <div className="sm:col-span-2 pt-1 border-t border-border/50 mt-1">
+                    <dt className="text-xs text-muted-foreground mb-1">メモ</dt>
+                    <dd className="text-sm text-muted-foreground whitespace-pre-wrap">{employee.memo}</dd>
                   </div>
                 )}
               </dl>
