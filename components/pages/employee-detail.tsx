@@ -41,6 +41,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -995,10 +996,9 @@ export default function EmployeeDetail() {
                 </div>
                 <div>
                   <Label className="text-xs">入社日</Label>
-                  <Input
-                    type="date"
+                  <DateInput
                     value={editForm.joinDate ?? ""}
-                    onChange={(e) => setEditForm({ ...editForm, joinDate: e.target.value })}
+                    onChange={(v) => setEditForm({ ...editForm, joinDate: v })}
                     data-testid="input-join-date"
                   />
                 </div>
@@ -2256,20 +2256,17 @@ export default function EmployeeDetail() {
                       />
                     </td>
                     <td className="py-1 pr-2">
-                      <Input
-                        type="date"
+                      <DateInput
                         value={historyForm.startDate}
-                        onChange={(e) => setHistoryForm({ ...historyForm, startDate: e.target.value })}
+                        onChange={(v) => setHistoryForm({ ...historyForm, startDate: v })}
                         className="h-7 text-xs"
-                        required
                         data-testid="input-new-history-start-date"
                       />
                     </td>
                     <td className="py-1 pr-2">
-                      <Input
-                        type="date"
+                      <DateInput
                         value={historyForm.endDate}
-                        onChange={(e) => setHistoryForm({ ...historyForm, endDate: e.target.value })}
+                        onChange={(v) => setHistoryForm({ ...historyForm, endDate: v })}
                         className="h-7 text-xs"
                         placeholder="空欄=現在"
                         data-testid="input-new-history-end-date"
@@ -2333,19 +2330,17 @@ export default function EmployeeDetail() {
                             />
                           </td>
                           <td className="py-1 pr-2">
-                            <Input
-                              type="date"
+                            <DateInput
                               value={historyForm.startDate}
-                              onChange={(e) => setHistoryForm({ ...historyForm, startDate: e.target.value })}
+                              onChange={(v) => setHistoryForm({ ...historyForm, startDate: v })}
                               className="h-7 text-xs"
                               data-testid={`input-edit-history-start-${h.id}`}
                             />
                           </td>
                           <td className="py-1 pr-2">
-                            <Input
-                              type="date"
+                            <DateInput
                               value={historyForm.endDate}
-                              onChange={(e) => setHistoryForm({ ...historyForm, endDate: e.target.value })}
+                              onChange={(v) => setHistoryForm({ ...historyForm, endDate: v })}
                               className="h-7 text-xs"
                               data-testid={`input-edit-history-end-${h.id}`}
                             />
@@ -2474,22 +2469,18 @@ export default function EmployeeDetail() {
                 {showAddLeaveUsage && (
                   <tr className="border-b bg-muted/30">
                     <td className="py-1 pr-2">
-                      <Input
-                        type="date"
+                      <DateInput
                         value={newLeaveUsage.startDate}
-                        onChange={(e) => setNewLeaveUsage({ ...newLeaveUsage, startDate: e.target.value })}
+                        onChange={(v) => setNewLeaveUsage({ ...newLeaveUsage, startDate: v })}
                         className="h-7 text-xs"
-                        required
                         data-testid="input-new-leave-start-date"
                       />
                     </td>
                     <td className="py-1 pr-2">
-                      <Input
-                        type="date"
+                      <DateInput
                         value={newLeaveUsage.endDate}
-                        onChange={(e) => setNewLeaveUsage({ ...newLeaveUsage, endDate: e.target.value })}
+                        onChange={(v) => setNewLeaveUsage({ ...newLeaveUsage, endDate: v })}
                         className="h-7 text-xs"
-                        required
                         data-testid="input-new-leave-end-date"
                       />
                     </td>
@@ -2616,13 +2607,13 @@ export default function EmployeeDetail() {
                 </div>
                 <div>
                   <Label className="text-xs">開始日</Label>
-                  <Input type="date" className="h-8 text-xs" value={newSpecialLeave.startDate}
-                    onChange={(e) => setNewSpecialLeave({ ...newSpecialLeave, startDate: e.target.value })} />
+                  <DateInput className="h-8 text-xs" value={newSpecialLeave.startDate}
+                    onChange={(v) => setNewSpecialLeave({ ...newSpecialLeave, startDate: v })} />
                 </div>
                 <div>
                   <Label className="text-xs">終了日</Label>
-                  <Input type="date" className="h-8 text-xs" value={newSpecialLeave.endDate}
-                    onChange={(e) => setNewSpecialLeave({ ...newSpecialLeave, endDate: e.target.value })} />
+                  <DateInput className="h-8 text-xs" value={newSpecialLeave.endDate}
+                    onChange={(v) => setNewSpecialLeave({ ...newSpecialLeave, endDate: v })} />
                 </div>
                 <div>
                   <Label className="text-xs">日数</Label>
@@ -2710,13 +2701,10 @@ export default function EmployeeDetail() {
               <Label htmlFor="retire-date">
                 退職日 <span className="text-destructive">＊</span>
               </Label>
-              <Input
+              <DateInput
                 id="retire-date"
-                type="date"
                 value={retireDate}
-                onChange={(e) => setRetireDate(e.target.value)}
-                min={employee.joinDate || undefined}
-                required
+                onChange={(v) => setRetireDate(v)}
                 data-testid="input-retire-date"
               />
               {retireDate && employee.joinDate && retireDate < employee.joinDate && (

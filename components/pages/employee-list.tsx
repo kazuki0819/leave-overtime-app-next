@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -561,12 +562,10 @@ export default function EmployeeList() {
               <Label htmlFor="new-employee-joinDate">
                 入社日 <span className="text-destructive">＊</span>
               </Label>
-              <Input
+              <DateInput
                 id="new-employee-joinDate"
-                type="date"
                 value={form.joinDate}
-                onChange={(e) => setForm((f) => ({ ...f, joinDate: e.target.value }))}
-                required
+                onChange={(v) => setForm((f) => ({ ...f, joinDate: v }))}
                 data-testid="input-new-employee-joinDate"
               />
             </div>

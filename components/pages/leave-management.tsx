@@ -35,6 +35,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -418,20 +419,18 @@ function LeaveEmployeeRow({
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="text-xs text-muted-foreground">開始日</label>
-                      <Input
-                        type="date"
+                      <DateInput
                         className="h-8 text-sm"
                         value={usageStartDate}
-                        onChange={(e) => setUsageStartDate(e.target.value)}
+                        onChange={(v) => setUsageStartDate(v)}
                       />
                     </div>
                     <div>
                       <label className="text-xs text-muted-foreground">終了日</label>
-                      <Input
-                        type="date"
+                      <DateInput
                         className="h-8 text-sm"
                         value={usageEndDate}
-                        onChange={(e) => setUsageEndDate(e.target.value)}
+                        onChange={(v) => setUsageEndDate(v)}
                       />
                     </div>
                     <div>
