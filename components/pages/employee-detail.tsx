@@ -69,17 +69,20 @@ export default function EmployeeDetail() {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Employee & PaidLeave>>({});
 
-  // Feature A: Overtime inline editing state
+  // Feature A: Overtime inline editing state (string-based for clean keyboard input)
   const [editingMonth, setEditingMonth] = useState<number | null>(null);
   const [editOT, setEditOT] = useState<{
-    overtimeHours: number; lateNightOvertime: number;
-    holidayWorkLegal: number; holidayWorkNonLegal: number;
-    holidayWorkLegalCount: number; holidayWorkNonLegalCount: number;
+    overtimeHours: string; lateNightOvertime: string;
+    holidayWorkLegal: string; holidayWorkNonLegal: string;
+    holidayWorkLegalCount: string; holidayWorkNonLegalCount: string;
   }>({
-    overtimeHours: 0, lateNightOvertime: 0,
-    holidayWorkLegal: 0, holidayWorkNonLegal: 0,
-    holidayWorkLegalCount: 0, holidayWorkNonLegalCount: 0,
+    overtimeHours: "", lateNightOvertime: "",
+    holidayWorkLegal: "", holidayWorkNonLegal: "",
+    holidayWorkLegalCount: "", holidayWorkNonLegalCount: "",
   });
+  // Helper: parse editOT string to number (empty/invalid → 0)
+  const parseOT = (v: string) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+  const parseOTInt = (v: string) => { const n = parseInt(v); return isNaN(n) ? 0 : n; };
 
   // Feature B: Leave usage history state
   const [showAddLeaveUsage, setShowAddLeaveUsage] = useState(false);
@@ -624,12 +627,12 @@ export default function EmployeeDetail() {
   const startEditMonth = (month: number, existing?: MonthlyOvertime) => {
     setEditingMonth(month);
     setEditOT({
-      overtimeHours: existing?.overtimeHours ?? 0,
-      lateNightOvertime: existing?.lateNightOvertime ?? 0,
-      holidayWorkLegal: existing?.holidayWorkLegal ?? 0,
-      holidayWorkNonLegal: existing?.holidayWorkNonLegal ?? 0,
-      holidayWorkLegalCount: existing?.holidayWorkLegalCount ?? 0,
-      holidayWorkNonLegalCount: existing?.holidayWorkNonLegalCount ?? 0,
+      overtimeHours: (existing?.overtimeHours ?? 0).toFixed(2),
+      lateNightOvertime: (existing?.lateNightOvertime ?? 0).toFixed(2),
+      holidayWorkLegal: (existing?.holidayWorkLegal ?? 0).toFixed(2),
+      holidayWorkNonLegal: (existing?.holidayWorkNonLegal ?? 0).toFixed(2),
+      holidayWorkLegalCount: String(existing?.holidayWorkLegalCount ?? 0),
+      holidayWorkNonLegalCount: String(existing?.holidayWorkNonLegalCount ?? 0),
     });
   };
 
@@ -638,12 +641,12 @@ export default function EmployeeDetail() {
     if (editingMonth === null) return;
     upsertOvertimeMutation.mutate({
       month: editingMonth,
-      overtimeHours: editOT.overtimeHours,
-      lateNightOvertime: editOT.lateNightOvertime,
-      holidayWorkLegal: editOT.holidayWorkLegal,
-      holidayWorkNonLegal: editOT.holidayWorkNonLegal,
-      holidayWorkLegalCount: editOT.holidayWorkLegalCount,
-      holidayWorkNonLegalCount: editOT.holidayWorkNonLegalCount,
+      overtimeHours: parseOT(editOT.overtimeHours),
+      lateNightOvertime: parseOT(editOT.lateNightOvertime),
+      holidayWorkLegal: parseOT(editOT.holidayWorkLegal),
+      holidayWorkNonLegal: parseOT(editOT.holidayWorkNonLegal),
+      holidayWorkLegalCount: parseOTInt(editOT.holidayWorkLegalCount),
+      holidayWorkNonLegalCount: parseOTInt(editOT.holidayWorkNonLegalCount),
     });
   };
 
@@ -1136,7 +1139,7 @@ export default function EmployeeDetail() {
                           <span className="text-muted-foreground tabular-nums">
                             {sl.startDate} 〜 {sl.endDate}
                           </span>
-                          <span className="font-medium">{sl.days}日</span>
+                          <span className="font-medium">{Number(sl.days).toFixed(2)}日</span>
                           {sl.reason && (
                             <span className="text-muted-foreground/60 truncate max-w-[150px]">{sl.reason}</span>
                           )}
@@ -1498,7 +1501,7 @@ export default function EmployeeDetail() {
                         ? "text-amber-600 dark:text-amber-400"
                         : "text-emerald-600 dark:text-emerald-400"
                     }`} data-testid="computed-usageRate">
-                      {(computedUsageRate * 100).toFixed(0)}%
+                      {(computedUsageRate * 100).toFixed(2)}%
                     </div>
                   </div>
                   <div className="col-span-2 text-xs text-muted-foreground">
@@ -1524,18 +1527,18 @@ export default function EmployeeDetail() {
                 <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   <div>
                     <dt className="text-xs text-muted-foreground">付与日数</dt>
-                    <dd className="text-lg font-bold tabular-nums">{paidLeave.grantedDays}</dd>
+                    <dd className="text-lg font-bold tabular-nums">{Number(paidLeave.grantedDays).toFixed(2)}</dd>
                   </div>
                   <div>
                     <dt className="text-xs text-muted-foreground">繰越日数</dt>
-                    <dd className="text-lg font-bold tabular-nums">{paidLeave.carriedOverDays}</dd>
+                    <dd className="text-lg font-bold tabular-nums">{Number(paidLeave.carriedOverDays).toFixed(2)}</dd>
                   </div>
                   <div>
                     <dt className="text-xs text-muted-foreground">消化日数</dt>
                     <dd className={`text-lg font-bold tabular-nums ${
                       paidLeave.consumedDays < 5 ? "text-red-600 dark:text-red-400" : ""
                     }`}>
-                      {paidLeave.consumedDays}
+                      {Number(paidLeave.consumedDays).toFixed(2)}
                       {paidLeave.consumedDays < 5 && (
                         <span className="text-xs font-normal ml-1 text-red-500">※5日未満</span>
                       )}
@@ -1543,11 +1546,11 @@ export default function EmployeeDetail() {
                   </div>
                   <div>
                     <dt className="text-xs text-muted-foreground">残日数</dt>
-                    <dd className="text-lg font-bold tabular-nums text-primary">{paidLeave.remainingDays}</dd>
+                    <dd className="text-lg font-bold tabular-nums text-primary">{Number(paidLeave.remainingDays).toFixed(2)}</dd>
                   </div>
                   <div>
                     <dt className="text-xs text-muted-foreground">時効日数</dt>
-                    <dd className="text-lg font-bold tabular-nums">{paidLeave.expiredDays}</dd>
+                    <dd className="text-lg font-bold tabular-nums">{Number(paidLeave.expiredDays).toFixed(2)}</dd>
                   </div>
                   <div>
                     <dt className="text-xs text-muted-foreground">取得率</dt>
@@ -1558,7 +1561,7 @@ export default function EmployeeDetail() {
                         ? "text-amber-600 dark:text-amber-400"
                         : "text-emerald-600 dark:text-emerald-400"
                     }`}>
-                      {(paidLeave.usageRate * 100).toFixed(0)}%
+                      {(paidLeave.usageRate * 100).toFixed(2)}%
                     </dd>
                   </div>
                 </dl>
@@ -1567,7 +1570,7 @@ export default function EmployeeDetail() {
                   <div className="flex justify-between text-xs text-muted-foreground mb-1">
                     <span>年5日義務達成状況</span>
                     <span className="tabular-nums font-medium">
-                      {Math.min(paidLeave.consumedDays, 5)}/5日
+                      {Math.min(paidLeave.consumedDays, 5).toFixed(2)}/5.00日
                     </span>
                   </div>
                   <div className="h-2.5 rounded-full bg-muted overflow-hidden">
@@ -1886,16 +1889,16 @@ export default function EmployeeDetail() {
                 totalOvertime > 360 ? "text-red-600 dark:text-red-400" : 
                 totalOvertime > 300 ? "text-amber-600 dark:text-amber-400" : ""
               }`}>
-                {totalOvertime.toFixed(1)}h
+                {totalOvertime.toFixed(2)}h
               </strong>
               {totalOvertime > 0 && (
                 <span className="text-xs text-muted-foreground ml-1">
-                  / 360h上限（{((totalOvertime / 360) * 100).toFixed(0)}%）
+                  / 360h上限（{((totalOvertime / 360) * 100).toFixed(2)}%）
                 </span>
               )}
             </span>
             <span>
-              平均: <strong className="tabular-nums">{avgOvertime.toFixed(1)}h</strong>
+              平均: <strong className="tabular-nums">{avgOvertime.toFixed(2)}h</strong>
             </span>
           </div>
           {/* Year progress bar */}
@@ -1982,12 +1985,12 @@ export default function EmployeeDetail() {
                 {MONTHS_FY.map((m) => {
                   const ot = overtimeMap.get(m);
                   const isEditing = editingMonth === m;
-                  const hours = isEditing ? editOT.overtimeHours : (ot?.overtimeHours ?? 0);
-                  const lateNight = isEditing ? editOT.lateNightOvertime : (ot?.lateNightOvertime ?? 0);
-                  const hwLegal = isEditing ? editOT.holidayWorkLegal : (ot?.holidayWorkLegal ?? 0);
-                  const hwNonLegal = isEditing ? editOT.holidayWorkNonLegal : (ot?.holidayWorkNonLegal ?? 0);
-                  const hwLegalCount = isEditing ? editOT.holidayWorkLegalCount : (ot?.holidayWorkLegalCount ?? 0);
-                  const hwNonLegalCount = isEditing ? editOT.holidayWorkNonLegalCount : (ot?.holidayWorkNonLegalCount ?? 0);
+                  const hours = isEditing ? parseOT(editOT.overtimeHours) : (ot?.overtimeHours ?? 0);
+                  const lateNight = isEditing ? parseOT(editOT.lateNightOvertime) : (ot?.lateNightOvertime ?? 0);
+                  const hwLegal = isEditing ? parseOT(editOT.holidayWorkLegal) : (ot?.holidayWorkLegal ?? 0);
+                  const hwNonLegal = isEditing ? parseOT(editOT.holidayWorkNonLegal) : (ot?.holidayWorkNonLegal ?? 0);
+                  const hwLegalCount = isEditing ? parseOTInt(editOT.holidayWorkLegalCount) : (ot?.holidayWorkLegalCount ?? 0);
+                  const hwNonLegalCount = isEditing ? parseOTInt(editOT.holidayWorkNonLegalCount) : (ot?.holidayWorkNonLegalCount ?? 0);
                   // 3-level color aligned with backend alert severity
                   const getOvertimeColor = (h: number) => {
                     if (h > 45) return { bar: "bg-red-500", text: "text-red-600 dark:text-red-400 font-semibold", label: "違反", badge: "destructive" as const };
@@ -2012,23 +2015,23 @@ export default function EmployeeDetail() {
                                 min="0"
                                 value={editOT.overtimeHours}
                                 onChange={(e) =>
-                                  setEditOT({ ...editOT, overtimeHours: parseFloat(e.target.value) || 0 })
+                                  setEditOT({ ...editOT, overtimeHours: e.target.value })
                                 }
                                 className={`h-7 w-20 text-right ${
-                                  editOT.overtimeHours > 45
+                                  parseOT(editOT.overtimeHours) > 45
                                     ? "border-red-500 focus-visible:ring-red-500"
-                                    : editOT.overtimeHours > 35
+                                    : parseOT(editOT.overtimeHours) > 35
                                     ? "border-amber-400 focus-visible:ring-amber-400"
                                     : ""
                                 }`}
                                 data-testid={`input-overtime-hours-${m}`}
                               />
-                              {editOT.overtimeHours > 45 && (
+                              {parseOT(editOT.overtimeHours) > 45 && (
                                 <Badge variant="destructive" className="text-xs px-1 py-0" data-testid={`badge-overtime-danger-${m}`}>
                                   違反（45h超）
                                 </Badge>
                               )}
-                              {editOT.overtimeHours > 35 && editOT.overtimeHours <= 45 && (
+                              {parseOT(editOT.overtimeHours) > 35 && parseOT(editOT.overtimeHours) <= 45 && (
                                 <Badge variant="outline" className="text-xs px-1 py-0 border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-400">
                                   警告（36協定上限接近）
                                 </Badge>
@@ -2042,7 +2045,7 @@ export default function EmployeeDetail() {
                               min="0"
                               value={editOT.lateNightOvertime}
                               onChange={(e) =>
-                                setEditOT({ ...editOT, lateNightOvertime: parseFloat(e.target.value) || 0 })
+                                setEditOT({ ...editOT, lateNightOvertime: e.target.value })
                               }
                               className="h-7 w-20 text-right ml-auto"
                               data-testid={`input-late-night-overtime-${m}`}
@@ -2057,7 +2060,7 @@ export default function EmployeeDetail() {
                                 min="0"
                                 value={editOT.holidayWorkLegalCount}
                                 onChange={(e) =>
-                                  setEditOT({ ...editOT, holidayWorkLegalCount: parseInt(e.target.value) || 0 })
+                                  setEditOT({ ...editOT, holidayWorkLegalCount: e.target.value })
                                 }
                                 className="h-7 w-12 text-right"
                                 data-testid={`input-hw-legal-count-${m}`}
@@ -2069,7 +2072,7 @@ export default function EmployeeDetail() {
                                 min="0"
                                 value={editOT.holidayWorkLegal}
                                 onChange={(e) =>
-                                  setEditOT({ ...editOT, holidayWorkLegal: parseFloat(e.target.value) || 0 })
+                                  setEditOT({ ...editOT, holidayWorkLegal: e.target.value })
                                 }
                                 className="h-7 w-14 text-right"
                                 data-testid={`input-hw-legal-hours-${m}`}
@@ -2086,7 +2089,7 @@ export default function EmployeeDetail() {
                                 min="0"
                                 value={editOT.holidayWorkNonLegalCount}
                                 onChange={(e) =>
-                                  setEditOT({ ...editOT, holidayWorkNonLegalCount: parseInt(e.target.value) || 0 })
+                                  setEditOT({ ...editOT, holidayWorkNonLegalCount: e.target.value })
                                 }
                                 className="h-7 w-12 text-right"
                                 data-testid={`input-hw-nonlegal-count-${m}`}
@@ -2098,7 +2101,7 @@ export default function EmployeeDetail() {
                                 min="0"
                                 value={editOT.holidayWorkNonLegal}
                                 onChange={(e) =>
-                                  setEditOT({ ...editOT, holidayWorkNonLegal: parseFloat(e.target.value) || 0 })
+                                  setEditOT({ ...editOT, holidayWorkNonLegal: e.target.value })
                                 }
                                 className="h-7 w-14 text-right"
                                 data-testid={`input-hw-nonlegal-hours-${m}`}
@@ -2135,17 +2138,17 @@ export default function EmployeeDetail() {
                       ) : (
                         <>
                           <td className={`py-2 text-right tabular-nums ${otColor.text}`}>
-                            {ot ? `${hours}h` : "-"}
+                            {ot ? `${hours.toFixed(2)}h` : "-"}
                           </td>
                           <td className="py-2 text-right tabular-nums text-purple-600 dark:text-purple-400">
-                            {ot ? `${lateNight}h` : "-"}
+                            {ot ? `${lateNight.toFixed(2)}h` : "-"}
                           </td>
                           {/* 法定休日出勤 */}
                           <td className="py-2 text-center tabular-nums">
                             {ot ? (
                               (hwLegalCount > 0 || hwLegal > 0) ? (
                                 <span className="text-orange-600 dark:text-orange-400">
-                                  {hwLegalCount}回 / {hwLegal}h
+                                  {hwLegalCount}回 / {hwLegal.toFixed(2)}h
                                 </span>
                               ) : (
                                 <span className="text-muted-foreground">-</span>
@@ -2157,7 +2160,7 @@ export default function EmployeeDetail() {
                             {ot ? (
                               (hwNonLegalCount > 0 || hwNonLegal > 0) ? (
                                 <span className="text-teal-600 dark:text-teal-400">
-                                  {hwNonLegalCount}回 / {hwNonLegal}h
+                                  {hwNonLegalCount}回 / {hwNonLegal.toFixed(2)}h
                                 </span>
                               ) : (
                                 <span className="text-muted-foreground">-</span>
@@ -2590,7 +2593,7 @@ export default function EmployeeDetail() {
                   <tr key={usage.id} className="border-b" data-testid={`row-leave-usage-${usage.id}`}>
                     <td className="py-2 tabular-nums">{usage.startDate}</td>
                     <td className="py-2 tabular-nums">{usage.endDate}</td>
-                    <td className="py-2 text-right tabular-nums font-medium">{usage.days}日</td>
+                    <td className="py-2 text-right tabular-nums font-medium">{Number(usage.days).toFixed(2)}日</td>
                     <td className="py-2 text-muted-foreground text-xs max-w-[180px] truncate">
                       {usage.reason || "-"}
                     </td>
@@ -2715,7 +2718,7 @@ export default function EmployeeDetail() {
                     <td className="py-2 text-xs tabular-nums text-muted-foreground">
                       {sl.startDate} 〜 {sl.endDate}
                     </td>
-                    <td className="py-2 text-right tabular-nums font-medium">{sl.days}日</td>
+                    <td className="py-2 text-right tabular-nums font-medium">{Number(sl.days).toFixed(2)}日</td>
                     <td className="py-2 text-muted-foreground text-xs max-w-[180px] truncate">{sl.reason || "-"}</td>
                     <td className="py-2 text-right">
                       <Button size="icon" variant="ghost"
@@ -2807,7 +2810,7 @@ export default function EmployeeDetail() {
                 {[...(holidayWorksData ?? [])].sort((a, b) => b.workDate.localeCompare(a.workDate)).map((hw) => (
                   <tr key={hw.id} className="border-b">
                     <td className="py-2 text-xs tabular-nums">{hw.workDate}</td>
-                    <td className="py-2 text-right tabular-nums font-medium">{hw.hours}h</td>
+                    <td className="py-2 text-right tabular-nums font-medium">{Number(hw.hours).toFixed(2)}h</td>
                     <td className="py-2">
                       <Badge variant="outline" className={`text-xs px-1.5 py-0 ${
                         hw.holidayType === "法定休日"

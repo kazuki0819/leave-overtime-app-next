@@ -219,7 +219,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-muted-foreground">平均有給取得率</p>
-                <p className="text-lg font-bold mt-0.5">{(stats.avgUsageRate * 100).toFixed(1)}%</p>
+                <p className="text-lg font-bold mt-0.5">{(stats.avgUsageRate * 100).toFixed(2)}%</p>
               </div>
               <div className={`rounded-lg p-2 ${stats.avgUsageRate < 0.5 ? "bg-amber-50 dark:bg-amber-950/40" : "bg-emerald-50 dark:bg-emerald-950/40"}`}>
                 <Calendar className={`h-4 w-4 ${stats.avgUsageRate < 0.5 ? "text-amber-500" : "text-emerald-500"}`} />
@@ -483,7 +483,7 @@ function EmployeeCard({ emp }: { emp: EmployeeSummary }) {
 
   const leave = emp.paidLeave;
   const dl = emp.deadline;
-  const usagePercent = leave ? (leave.usageRate * 100).toFixed(0) : "-";
+  const usagePercent = leave ? (leave.usageRate * 100).toFixed(2) : "-";
   const usageColor =
     leave && leave.usageRate >= 0.7
       ? "text-emerald-600 dark:text-emerald-400"
@@ -626,13 +626,13 @@ function EmployeeCard({ emp }: { emp: EmployeeSummary }) {
                     : "text-foreground"
                 }`}
               >
-                {emp.overtime.yearlyTotal.toFixed(0)}h
+                {emp.overtime.yearlyTotal.toFixed(2)}h
               </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">有給残日数</p>
               <p className="text-sm font-bold tabular-nums">
-                {leave ? `${leave.remainingDays}日` : "-"}
+                {leave ? `${Number(leave.remainingDays).toFixed(2)}日` : "-"}
               </p>
             </div>
           </div>

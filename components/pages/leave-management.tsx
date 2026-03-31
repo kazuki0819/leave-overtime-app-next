@@ -242,11 +242,11 @@ function LeaveEmployeeRow({
         <td className="px-3 py-2 text-muted-foreground text-xs">{emp.assignment}</td>
         <td className="px-3 py-2 text-right tabular-nums">
           <span className={`font-semibold ${leave && leave.consumedDays < 5 ? "text-red-600 dark:text-red-400" : ""}`}>
-            {leave ? leave.consumedDays : "-"}
+            {leave ? Number(leave.consumedDays).toFixed(2) : "-"}
           </span>
         </td>
         <td className="px-3 py-2 text-right tabular-nums font-medium text-primary">
-          {leave ? leave.remainingDays : "-"}
+          {leave ? Number(leave.remainingDays).toFixed(2) : "-"}
         </td>
         <td className="px-3 py-2 text-right tabular-nums">
           <span
@@ -258,7 +258,7 @@ function LeaveEmployeeRow({
                 : "text-red-600 dark:text-red-400"
             }`}
           >
-            {leave ? `${(leave.usageRate * 100).toFixed(0)}%` : "-"}
+            {leave ? `${(leave.usageRate * 100).toFixed(2)}%` : "-"}
           </span>
         </td>
         <td className="px-3 py-2 text-center">
@@ -473,7 +473,7 @@ function LeaveEmployeeRow({
                       {leaveUsages.map((u) => (
                         <div key={u.id} className="flex items-center gap-2 text-xs bg-background rounded px-2 py-1.5 border">
                           <span className="tabular-nums">{u.startDate} 〜 {u.endDate}</span>
-                          <Badge variant="outline" className="text-xs px-1 py-0">{u.days}日</Badge>
+                          <Badge variant="outline" className="text-xs px-1 py-0">{Number(u.days).toFixed(2)}日</Badge>
                           {u.reason && <span className="text-muted-foreground truncate">{u.reason}</span>}
                           <Button
                             variant="ghost"
@@ -526,7 +526,7 @@ function LeaveEmployeeRow({
                               onChange={(e) => setEditGranted(e.target.value)}
                             />
                           ) : (
-                            <p className="text-sm font-medium tabular-nums">{leave.grantedDays}</p>
+                            <p className="text-sm font-medium tabular-nums">{Number(leave.grantedDays).toFixed(2)}</p>
                           )}
                         </div>
                         <div>
@@ -540,7 +540,7 @@ function LeaveEmployeeRow({
                               onChange={(e) => setEditCarriedOver(e.target.value)}
                             />
                           ) : (
-                            <p className="text-sm font-medium tabular-nums">{leave.carriedOverDays}</p>
+                            <p className="text-sm font-medium tabular-nums">{Number(leave.carriedOverDays).toFixed(2)}</p>
                           )}
                         </div>
                         <div>
@@ -554,7 +554,7 @@ function LeaveEmployeeRow({
                               onChange={(e) => setEditExpired(e.target.value)}
                             />
                           ) : (
-                            <p className="text-sm font-medium tabular-nums">{leave.expiredDays}</p>
+                            <p className="text-sm font-medium tabular-nums">{Number(leave.expiredDays).toFixed(2)}</p>
                           )}
                         </div>
                       </div>
@@ -563,15 +563,15 @@ function LeaveEmployeeRow({
                       <div className="grid grid-cols-3 gap-2">
                         <div>
                           <label className="text-xs text-muted-foreground">消化日数 <span className="text-xs text-muted-foreground/60">（自動）</span></label>
-                          <p className="text-sm font-medium tabular-nums text-muted-foreground">{leave.consumedDays}</p>
+                          <p className="text-sm font-medium tabular-nums text-muted-foreground">{Number(leave.consumedDays).toFixed(2)}</p>
                         </div>
                         <div>
                           <label className="text-xs text-muted-foreground">残日数 <span className="text-xs text-muted-foreground/60">（自動）</span></label>
-                          <p className="text-sm font-medium tabular-nums text-muted-foreground">{leave.remainingDays}</p>
+                          <p className="text-sm font-medium tabular-nums text-muted-foreground">{Number(leave.remainingDays).toFixed(2)}</p>
                         </div>
                         <div>
                           <label className="text-xs text-muted-foreground">取得率 <span className="text-xs text-muted-foreground/60">（自動）</span></label>
-                          <p className="text-sm font-medium tabular-nums text-muted-foreground">{(leave.usageRate * 100).toFixed(1)}%</p>
+                          <p className="text-sm font-medium tabular-nums text-muted-foreground">{(leave.usageRate * 100).toFixed(2)}%</p>
                         </div>
                       </div>
 
@@ -864,7 +864,7 @@ export default function LeaveManagement() {
               <div>
                 <p className="text-xs font-medium text-muted-foreground">平均取得率</p>
                 <p className={`text-lg font-bold mt-0.5 ${avgUsageRate < 0.3 ? "text-red-600 dark:text-red-400" : avgUsageRate < 0.5 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                  {(avgUsageRate * 100).toFixed(1)}%
+                  {(avgUsageRate * 100).toFixed(2)}%
                 </p>
               </div>
               <div className="rounded-lg p-2 bg-blue-50 dark:bg-blue-950/40">
@@ -1038,7 +1038,7 @@ export default function LeaveManagement() {
                               stat.avgUsageRate < 0.3 ? "text-amber-600 dark:text-amber-400" :
                               "text-emerald-600 dark:text-emerald-400"
                             }`}>
-                              {(stat.avgUsageRate * 100).toFixed(1)}%
+                              {(stat.avgUsageRate * 100).toFixed(2)}%
                             </span>
                           </td>
                           <td className="px-3 py-2">

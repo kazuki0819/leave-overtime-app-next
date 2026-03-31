@@ -282,7 +282,7 @@ export default function OvertimeManagement() {
               <div>
                 <p className="text-xs font-medium text-muted-foreground">平均年間残業</p>
                 <p className={`text-lg font-bold mt-0.5 tabular-nums ${avgYearly > 360 ? "text-red-600 dark:text-red-400" : avgYearly > 300 ? "text-amber-600 dark:text-amber-400" : ""}`}>
-                  {avgYearly.toFixed(0)}h
+                  {avgYearly.toFixed(2)}h
                 </p>
               </div>
               <div className="rounded-lg p-2 bg-blue-50 dark:bg-blue-950/40">
@@ -342,7 +342,7 @@ export default function OvertimeManagement() {
               return (
                 <div key={m} className="flex-1 flex flex-col items-center gap-0.5">
                   <span className="text-xs tabular-nums text-muted-foreground">
-                    {avg > 0 ? avg.toFixed(0) : ""}
+                    {avg > 0 ? avg.toFixed(2) : ""}
                   </span>
                   <div className="w-full flex justify-center">
                     <div
@@ -484,15 +484,15 @@ export default function OvertimeManagement() {
                               : ""
                           }`}
                         >
-                          {emp.overtime.yearlyTotal.toFixed(1)}h
+                          {emp.overtime.yearlyTotal.toFixed(2)}h
                         </span>
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums font-medium">
-                        {emp.avgMonth.toFixed(1)}h
+                        {emp.avgMonth.toFixed(2)}h
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">
                         <span className={`font-medium ${emp.maxMonth > 45 ? "text-red-600 dark:text-red-400" : emp.maxMonth > 35 ? "text-amber-600 dark:text-amber-400" : ""}`}>
-                          {emp.maxMonth.toFixed(1)}h
+                          {emp.maxMonth.toFixed(2)}h
                         </span>
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">
@@ -519,7 +519,7 @@ export default function OvertimeManagement() {
                             />
                           </div>
                           <span className="text-xs tabular-nums text-muted-foreground whitespace-nowrap">
-                            {yearlyPct.toFixed(0)}%
+                            {yearlyPct.toFixed(2)}%
                           </span>
                         </div>
                       </td>
@@ -536,7 +536,7 @@ export default function OvertimeManagement() {
                             : "text-muted-foreground/50";
                         return (
                           <td key={m} className={`px-0.5 py-2 text-center text-xs tabular-nums ${bg}`}>
-                            {hours > 0 ? hours.toFixed(0) : "-"}
+                            {hours > 0 ? hours.toFixed(2) : "-"}
                           </td>
                         );
                       })}
