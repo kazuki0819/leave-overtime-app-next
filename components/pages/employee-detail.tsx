@@ -1972,11 +1972,11 @@ export default function EmployeeDetail() {
                 <tr className="border-b text-left text-muted-foreground">
                   <th className="pb-2 font-medium">月</th>
                   <th className="pb-2 font-medium text-right">残業</th>
+                  <th className="pb-2 font-medium pl-2" style={{minWidth: '160px'}}>残業バー</th>
                   <th className="pb-2 font-medium text-right">深夜</th>
+                  <th className="pb-2 font-medium pl-2" style={{minWidth: '80px'}}>深夜バー</th>
                   <th className="pb-2 font-medium text-center" style={{minWidth: '80px'}}>法定休日</th>
                   <th className="pb-2 font-medium text-center" style={{minWidth: '80px'}}>法定外休日</th>
-                  <th className="pb-2 font-medium pl-2" style={{minWidth: '160px'}}>残業バー</th>
-                  <th className="pb-2 font-medium pl-2" style={{minWidth: '80px'}}>深夜バー</th>
                   <th className="pb-2 font-medium text-right">判定</th>
                   <th className="pb-2 font-medium text-right">操作</th>
                 </tr>
@@ -2038,6 +2038,7 @@ export default function EmployeeDetail() {
                               )}
                             </div>
                           </td>
+                          <td className="py-1 px-2" />{/* 残業バー空欄 */}
                           <td className="py-1 text-right">
                             <Input
                               type="number"
@@ -2051,6 +2052,7 @@ export default function EmployeeDetail() {
                               data-testid={`input-late-night-overtime-${m}`}
                             />
                           </td>
+                          <td className="py-1 px-2" />{/* 深夜バー空欄 */}
                           {/* 法定休日: 回数 + 時間 */}
                           <td className="py-1">
                             <div className="flex items-center gap-1 justify-center">
@@ -2109,8 +2111,7 @@ export default function EmployeeDetail() {
                               <span className="text-xs text-muted-foreground">h</span>
                             </div>
                           </td>
-                          <td className="py-1 px-2" colSpan={2} />
-                          <td className="py-1 text-right" />
+                          <td className="py-1 text-right" />{/* 判定空欄 */}
                           <td className="py-1 text-right">
                             <div className="flex items-center justify-end gap-1">
                               <Button
@@ -2137,11 +2138,44 @@ export default function EmployeeDetail() {
                         </>
                       ) : (
                         <>
+                          {/* 残業時間 */}
                           <td className={`py-2 text-right tabular-nums ${otColor.text}`}>
                             {ot ? `${hours.toFixed(2)}h` : "-"}
                           </td>
+                          {/* 残業バー */}
+                          <td className="py-2 pl-2">
+                            {ot && hours > 0 && (
+                              <div className="flex items-center gap-1.5">
+                                <div className="relative h-4 flex-1 rounded bg-muted/60 overflow-hidden" style={{minWidth: '100px'}}>
+                                  {/* 45h threshold marker */}
+                                  <div className="absolute top-0 h-full border-l-2 border-dashed border-yellow-500/60 z-10" style={{left: '45%'}} />
+                                  {/* 80h threshold marker */}
+                                  <div className="absolute top-0 h-full border-l-2 border-dashed border-red-500/60 z-10" style={{left: '80%'}} />
+                                  {/* Overtime bar */}
+                                  <div
+                                    className={`h-full rounded transition-all ${otColor.bar}`}
+                                    style={{ width: `${otBarWidth}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                          {/* 深夜時間 */}
                           <td className="py-2 text-right tabular-nums text-purple-600 dark:text-purple-400">
                             {ot ? `${lateNight.toFixed(2)}h` : "-"}
+                          </td>
+                          {/* 深夜バー */}
+                          <td className="py-2 pl-2">
+                            {ot && lateNight > 0 && (
+                              <div className="flex items-center gap-1.5">
+                                <div className="relative h-4 flex-1 rounded bg-muted/60 overflow-hidden" style={{minWidth: '50px'}}>
+                                  <div
+                                    className="h-full rounded transition-all bg-purple-500"
+                                    style={{ width: `${lnBarWidth}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )}
                           </td>
                           {/* 法定休日出勤 */}
                           <td className="py-2 text-center tabular-nums">
@@ -2166,37 +2200,6 @@ export default function EmployeeDetail() {
                                 <span className="text-muted-foreground">-</span>
                               )
                             ) : "-"}
-                          </td>
-                          {/* Regular overtime bar */}
-                          <td className="py-2 pl-2">
-                            {ot && hours > 0 && (
-                              <div className="flex items-center gap-1.5">
-                                <div className="relative h-4 flex-1 rounded bg-muted/60 overflow-hidden" style={{minWidth: '100px'}}>
-                                  {/* 45h threshold marker */}
-                                  <div className="absolute top-0 h-full border-l-2 border-dashed border-yellow-500/60 z-10" style={{left: '45%'}} />
-                                  {/* 80h threshold marker */}
-                                  <div className="absolute top-0 h-full border-l-2 border-dashed border-red-500/60 z-10" style={{left: '80%'}} />
-                                  {/* Overtime bar */}
-                                  <div
-                                    className={`h-full rounded transition-all ${otColor.bar}`}
-                                    style={{ width: `${otBarWidth}%` }}
-                                  />
-                                </div>
-                              </div>
-                            )}
-                          </td>
-                          {/* Late night overtime bar */}
-                          <td className="py-2 pl-2">
-                            {ot && lateNight > 0 && (
-                              <div className="flex items-center gap-1.5">
-                                <div className="relative h-4 flex-1 rounded bg-muted/60 overflow-hidden" style={{minWidth: '50px'}}>
-                                  <div
-                                    className="h-full rounded transition-all bg-purple-500"
-                                    style={{ width: `${lnBarWidth}%` }}
-                                  />
-                                </div>
-                              </div>
-                            )}
                           </td>
                           <td className="py-2 text-right">
                             {ot && otColor.label ? (
