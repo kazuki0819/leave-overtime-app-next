@@ -140,11 +140,19 @@ export const monthlyOvertimes = sqliteTable("monthly_overtimes", {
   month: integer("month").notNull(),
   overtimeHours: real("overtime_hours").notNull().default(0),
   lateNightOvertime: real("late_night_overtime").notNull().default(0),
+  holidayWorkLegal: real("holiday_work_legal").notNull().default(0),
+  holidayWorkNonLegal: real("holiday_work_non_legal").notNull().default(0),
+  holidayWorkLegalCount: integer("holiday_work_legal_count").notNull().default(0),
+  holidayWorkNonLegalCount: integer("holiday_work_non_legal_count").notNull().default(0),
 });
 
 export const insertMonthlyOvertimeSchema = z.object({
   employeeId: z.string(),
   year: z.number(),
+  holidayWorkLegal: z.number().optional(),
+  holidayWorkNonLegal: z.number().optional(),
+  holidayWorkLegalCount: z.number().optional(),
+  holidayWorkNonLegalCount: z.number().optional(),
   month: z.number(),
   overtimeHours: z.number().optional(),
   lateNightOvertime: z.number().optional(),

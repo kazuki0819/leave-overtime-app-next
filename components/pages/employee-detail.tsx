@@ -71,9 +71,14 @@ export default function EmployeeDetail() {
 
   // Feature A: Overtime inline editing state
   const [editingMonth, setEditingMonth] = useState<number | null>(null);
-  const [editOT, setEditOT] = useState<{ overtimeHours: number; lateNightOvertime: number }>({
-    overtimeHours: 0,
-    lateNightOvertime: 0,
+  const [editOT, setEditOT] = useState<{
+    overtimeHours: number; lateNightOvertime: number;
+    holidayWorkLegal: number; holidayWorkNonLegal: number;
+    holidayWorkLegalCount: number; holidayWorkNonLegalCount: number;
+  }>({
+    overtimeHours: 0, lateNightOvertime: 0,
+    holidayWorkLegal: 0, holidayWorkNonLegal: 0,
+    holidayWorkLegalCount: 0, holidayWorkNonLegalCount: 0,
   });
 
   // Feature B: Leave usage history state
@@ -230,7 +235,7 @@ export default function EmployeeDetail() {
   });
 
   const upsertOvertimeMutation = useMutation({
-    mutationFn: async (data: { month: number; overtimeHours: number; lateNightOvertime: number }) => {
+    mutationFn: async (data: { month: number; overtimeHours: number; lateNightOvertime: number; holidayWorkLegal?: number; holidayWorkNonLegal?: number; holidayWorkLegalCount?: number; holidayWorkNonLegalCount?: number }) => {
       const res = await apiRequest("PUT", "/api/monthly-overtimes", {
         employeeId: id,
         year: fiscalYear,
@@ -621,6 +626,10 @@ export default function EmployeeDetail() {
     setEditOT({
       overtimeHours: existing?.overtimeHours ?? 0,
       lateNightOvertime: existing?.lateNightOvertime ?? 0,
+      holidayWorkLegal: existing?.holidayWorkLegal ?? 0,
+      holidayWorkNonLegal: existing?.holidayWorkNonLegal ?? 0,
+      holidayWorkLegalCount: existing?.holidayWorkLegalCount ?? 0,
+      holidayWorkNonLegalCount: existing?.holidayWorkNonLegalCount ?? 0,
     });
   };
 
@@ -631,6 +640,10 @@ export default function EmployeeDetail() {
       month: editingMonth,
       overtimeHours: editOT.overtimeHours,
       lateNightOvertime: editOT.lateNightOvertime,
+      holidayWorkLegal: editOT.holidayWorkLegal,
+      holidayWorkNonLegal: editOT.holidayWorkNonLegal,
+      holidayWorkLegalCount: editOT.holidayWorkLegalCount,
+      holidayWorkNonLegalCount: editOT.holidayWorkNonLegalCount,
     });
   };
 
@@ -1932,6 +1945,20 @@ export default function EmployeeDetail() {
                   ※ 割増率 50%以上（深夜25%＋時間外25%）
                 </div>
               </div>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5">
+                  <div className="h-2.5 w-4 rounded-sm bg-orange-500" />
+                  <span className="text-xs text-muted-foreground">法定休日出勤（回数 / 時間）</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-2.5 w-4 rounded-sm bg-teal-500" />
+                  <span className="text-xs text-muted-foreground">法定外休日出勤（回数 / 時間）</span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  ※ 法定休日：労基法35条による週休日（割増率35%以上）<br />
+                  ※ 法定外休日：会社所定の休日（割増率25%以上）
+                </div>
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -1943,6 +1970,8 @@ export default function EmployeeDetail() {
                   <th className="pb-2 font-medium">月</th>
                   <th className="pb-2 font-medium text-right">残業</th>
                   <th className="pb-2 font-medium text-right">深夜</th>
+                  <th className="pb-2 font-medium text-center" style={{minWidth: '80px'}}>法定休日</th>
+                  <th className="pb-2 font-medium text-center" style={{minWidth: '80px'}}>法定外休日</th>
                   <th className="pb-2 font-medium pl-2" style={{minWidth: '160px'}}>残業バー</th>
                   <th className="pb-2 font-medium pl-2" style={{minWidth: '80px'}}>深夜バー</th>
                   <th className="pb-2 font-medium text-right">判定</th>
@@ -1955,6 +1984,10 @@ export default function EmployeeDetail() {
                   const isEditing = editingMonth === m;
                   const hours = isEditing ? editOT.overtimeHours : (ot?.overtimeHours ?? 0);
                   const lateNight = isEditing ? editOT.lateNightOvertime : (ot?.lateNightOvertime ?? 0);
+                  const hwLegal = isEditing ? editOT.holidayWorkLegal : (ot?.holidayWorkLegal ?? 0);
+                  const hwNonLegal = isEditing ? editOT.holidayWorkNonLegal : (ot?.holidayWorkNonLegal ?? 0);
+                  const hwLegalCount = isEditing ? editOT.holidayWorkLegalCount : (ot?.holidayWorkLegalCount ?? 0);
+                  const hwNonLegalCount = isEditing ? editOT.holidayWorkNonLegalCount : (ot?.holidayWorkNonLegalCount ?? 0);
                   // 3-level color aligned with backend alert severity
                   const getOvertimeColor = (h: number) => {
                     if (h > 45) return { bar: "bg-red-500", text: "text-red-600 dark:text-red-400 font-semibold", label: "違反", badge: "destructive" as const };
@@ -2015,6 +2048,64 @@ export default function EmployeeDetail() {
                               data-testid={`input-late-night-overtime-${m}`}
                             />
                           </td>
+                          {/* 法定休日: 回数 + 時間 */}
+                          <td className="py-1">
+                            <div className="flex items-center gap-1 justify-center">
+                              <Input
+                                type="number"
+                                step="1"
+                                min="0"
+                                value={editOT.holidayWorkLegalCount}
+                                onChange={(e) =>
+                                  setEditOT({ ...editOT, holidayWorkLegalCount: parseInt(e.target.value) || 0 })
+                                }
+                                className="h-7 w-12 text-right"
+                                data-testid={`input-hw-legal-count-${m}`}
+                              />
+                              <span className="text-xs text-muted-foreground">回</span>
+                              <Input
+                                type="number"
+                                step="0.5"
+                                min="0"
+                                value={editOT.holidayWorkLegal}
+                                onChange={(e) =>
+                                  setEditOT({ ...editOT, holidayWorkLegal: parseFloat(e.target.value) || 0 })
+                                }
+                                className="h-7 w-14 text-right"
+                                data-testid={`input-hw-legal-hours-${m}`}
+                              />
+                              <span className="text-xs text-muted-foreground">h</span>
+                            </div>
+                          </td>
+                          {/* 法定外休日: 回数 + 時間 */}
+                          <td className="py-1">
+                            <div className="flex items-center gap-1 justify-center">
+                              <Input
+                                type="number"
+                                step="1"
+                                min="0"
+                                value={editOT.holidayWorkNonLegalCount}
+                                onChange={(e) =>
+                                  setEditOT({ ...editOT, holidayWorkNonLegalCount: parseInt(e.target.value) || 0 })
+                                }
+                                className="h-7 w-12 text-right"
+                                data-testid={`input-hw-nonlegal-count-${m}`}
+                              />
+                              <span className="text-xs text-muted-foreground">回</span>
+                              <Input
+                                type="number"
+                                step="0.5"
+                                min="0"
+                                value={editOT.holidayWorkNonLegal}
+                                onChange={(e) =>
+                                  setEditOT({ ...editOT, holidayWorkNonLegal: parseFloat(e.target.value) || 0 })
+                                }
+                                className="h-7 w-14 text-right"
+                                data-testid={`input-hw-nonlegal-hours-${m}`}
+                              />
+                              <span className="text-xs text-muted-foreground">h</span>
+                            </div>
+                          </td>
                           <td className="py-1 px-2" colSpan={2} />
                           <td className="py-1 text-right" />
                           <td className="py-1 text-right">
@@ -2048,6 +2139,30 @@ export default function EmployeeDetail() {
                           </td>
                           <td className="py-2 text-right tabular-nums text-purple-600 dark:text-purple-400">
                             {ot ? `${lateNight}h` : "-"}
+                          </td>
+                          {/* 法定休日出勤 */}
+                          <td className="py-2 text-center tabular-nums">
+                            {ot ? (
+                              (hwLegalCount > 0 || hwLegal > 0) ? (
+                                <span className="text-orange-600 dark:text-orange-400">
+                                  {hwLegalCount}回 / {hwLegal}h
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )
+                            ) : "-"}
+                          </td>
+                          {/* 法定外休日出勤 */}
+                          <td className="py-2 text-center tabular-nums">
+                            {ot ? (
+                              (hwNonLegalCount > 0 || hwNonLegal > 0) ? (
+                                <span className="text-teal-600 dark:text-teal-400">
+                                  {hwNonLegalCount}回 / {hwNonLegal}h
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )
+                            ) : "-"}
                           </td>
                           {/* Regular overtime bar */}
                           <td className="py-2 pl-2">

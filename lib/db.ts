@@ -79,7 +79,11 @@ export async function initializeDatabase() {
       year INTEGER NOT NULL,
       month INTEGER NOT NULL,
       overtime_hours REAL NOT NULL DEFAULT 0,
-      late_night_overtime REAL NOT NULL DEFAULT 0
+      late_night_overtime REAL NOT NULL DEFAULT 0,
+      holiday_work_legal REAL NOT NULL DEFAULT 0,
+      holiday_work_non_legal REAL NOT NULL DEFAULT 0,
+      holiday_work_legal_count INTEGER NOT NULL DEFAULT 0,
+      holiday_work_non_legal_count INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS _meta (
@@ -90,4 +94,8 @@ export async function initializeDatabase() {
 
   // 既存テーブルへのカラム追加（既に存在する場合はスキップ）
   try { await client.execute("ALTER TABLE employees ADD COLUMN memo TEXT NOT NULL DEFAULT ''"); } catch {}
+  try { await client.execute("ALTER TABLE monthly_overtimes ADD COLUMN holiday_work_legal REAL NOT NULL DEFAULT 0"); } catch {}
+  try { await client.execute("ALTER TABLE monthly_overtimes ADD COLUMN holiday_work_non_legal REAL NOT NULL DEFAULT 0"); } catch {}
+  try { await client.execute("ALTER TABLE monthly_overtimes ADD COLUMN holiday_work_legal_count INTEGER NOT NULL DEFAULT 0"); } catch {}
+  try { await client.execute("ALTER TABLE monthly_overtimes ADD COLUMN holiday_work_non_legal_count INTEGER NOT NULL DEFAULT 0"); } catch {}
 }

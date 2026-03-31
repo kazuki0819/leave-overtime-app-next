@@ -345,8 +345,12 @@ export class TursoStorage implements IStorage {
     const existing = existingRows[0];
     if (existing) {
       await db.update(monthlyOvertimes).set({
-        overtimeHours: ot.overtimeHours ?? 0,
-        lateNightOvertime: ot.lateNightOvertime ?? 0,
+        overtimeHours: ot.overtimeHours ?? existing.overtimeHours,
+        lateNightOvertime: ot.lateNightOvertime ?? existing.lateNightOvertime,
+        holidayWorkLegal: ot.holidayWorkLegal ?? existing.holidayWorkLegal,
+        holidayWorkNonLegal: ot.holidayWorkNonLegal ?? existing.holidayWorkNonLegal,
+        holidayWorkLegalCount: ot.holidayWorkLegalCount ?? existing.holidayWorkLegalCount,
+        holidayWorkNonLegalCount: ot.holidayWorkNonLegalCount ?? existing.holidayWorkNonLegalCount,
       }).where(eq(monthlyOvertimes.id, existing.id));
       const rows = await db.select().from(monthlyOvertimes).where(eq(monthlyOvertimes.id, existing.id)).limit(1);
       return rows[0]!;
@@ -357,6 +361,10 @@ export class TursoStorage implements IStorage {
       month: ot.month,
       overtimeHours: ot.overtimeHours ?? 0,
       lateNightOvertime: ot.lateNightOvertime ?? 0,
+      holidayWorkLegal: ot.holidayWorkLegal ?? 0,
+      holidayWorkNonLegal: ot.holidayWorkNonLegal ?? 0,
+      holidayWorkLegalCount: ot.holidayWorkLegalCount ?? 0,
+      holidayWorkNonLegalCount: ot.holidayWorkNonLegalCount ?? 0,
     }).returning();
     return rows[0];
   }
