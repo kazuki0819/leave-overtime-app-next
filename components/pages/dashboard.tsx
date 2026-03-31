@@ -71,7 +71,6 @@ type EmployeeSummary = {
   alertCount: number;
   compositeRisk: "high" | "medium" | null;
   compositeComment: string | null;
-  holidayWorkCount: number;
 };
 
 type FilterMode = "all" | "leave_danger" | "leave_warning" | "leave_caution" | "leave_info" | "leave_notice" | "ot_danger" | "ot_warning" | "ot_caution" | "ot_info" | "composite" | "clear";
@@ -588,15 +587,7 @@ function EmployeeCard({ emp }: { emp: EmployeeSummary }) {
                   )}
                 </div>
               )}
-              {emp.holidayWorkCount > 0 && (
-                <Badge
-                  variant="outline"
-                  className="text-xs px-1.5 py-0 border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-700 dark:bg-orange-950/40 dark:text-orange-400"
-                >
-                  休日出勤記録あり
-                </Badge>
-              )}
-              {emp.alertCount === 0 && emp.holidayWorkCount === 0 && (
+              {emp.alertCount === 0 && (
                 <Badge
                   variant="outline"
                   className="text-xs px-1.5 py-0 border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"

@@ -114,24 +114,6 @@ export const insertSpecialLeaveSchema = z.object({
 export type InsertSpecialLeave = z.infer<typeof insertSpecialLeaveSchema>;
 export type SpecialLeave = typeof specialLeaves.$inferSelect;
 
-// ── 休日出勤テーブル ──
-export const holidayWorks = sqliteTable("holiday_works", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  employeeId: text("employee_id").notNull(),
-  workDate: text("work_date").notNull(),
-  hours: real("hours").notNull().default(0),
-  holidayType: text("holiday_type").notNull().default("法定休日"),
-});
-
-export const insertHolidayWorkSchema = z.object({
-  employeeId: z.string(),
-  workDate: z.string(),
-  hours: z.number().optional(),
-  holidayType: z.string().optional(),
-});
-export type InsertHolidayWork = z.infer<typeof insertHolidayWorkSchema>;
-export type HolidayWork = typeof holidayWorks.$inferSelect;
-
 // ── 月別残業テーブル ──
 export const monthlyOvertimes = sqliteTable("monthly_overtimes", {
   id: integer("id").primaryKey({ autoIncrement: true }),

@@ -5,9 +5,8 @@ import {
   type MonthlyOvertime, type InsertMonthlyOvertime,
   type AssignmentHistory, type InsertAssignmentHistory,
   type SpecialLeave, type InsertSpecialLeave,
-  type HolidayWork, type InsertHolidayWork,
   type OvertimeAlert, type PaidLeaveAlert, type EmployeeAlert,
-  employees, paidLeaves, leaveUsages, monthlyOvertimes, assignmentHistories, specialLeaves, holidayWorks,
+  employees, paidLeaves, leaveUsages, monthlyOvertimes, assignmentHistories, specialLeaves,
 } from "./schema";
 import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil } from "./leave-calc";
 import { db, client } from "./db";
@@ -42,9 +41,6 @@ export interface IStorage {
   getSpecialLeaves(employeeId?: string): Promise<SpecialLeave[]>;
   createSpecialLeave(leave: InsertSpecialLeave): Promise<SpecialLeave>;
   deleteSpecialLeave(id: number): Promise<boolean>;
-  getHolidayWorks(employeeId?: string): Promise<HolidayWork[]>;
-  createHolidayWork(hw: InsertHolidayWork): Promise<HolidayWork>;
-  deleteHolidayWork(id: number): Promise<boolean>;
   bulkImportEmployees(employees: InsertEmployee[]): Promise<{ added: number; updated: number; skipped: number; skippedNames: string[] }>;
   bulkImportPaidLeaves(leaves: InsertPaidLeave[]): Promise<{ count: number; skipped: number }>;
 }
@@ -675,8 +671,6 @@ export class TursoStorage implements IStorage {
     const leaves = await this.getPaidLeaves(year);
     const overtimes = await this.getMonthlyOvertimes(undefined, year);
     const allAlerts = await this.getAllAlerts(year);
-    const allHolidayWorks = await this.getHolidayWorks();
-
     const leaveMap = new Map(leaves.map(l => [l.employeeId, l]));
     const now = new Date();
 
@@ -727,8 +721,6 @@ export class TursoStorage implements IStorage {
         overtimeDangerCount, overtimeWarningCount, overtimeCautionCount, overtimeInfoCount,
         overtimeAlertCount: overtimeAlerts.length,
         alertCount: empAlerts.length,
-        // ── 休日出勤 ──
-        holidayWorkCount: allHolidayWorks.filter(h => h.employeeId === emp.id).length,
         // ── 複合リスク判定 ──
         ...generateCompositeRisk(leaveAlerts, overtimeAlerts, leave, yearlyOT),
       };
@@ -761,28 +753,6 @@ export class TursoStorage implements IStorage {
   }
 
   // ── Holiday Works ──
-  async getHolidayWorks(employeeId?: string): Promise<HolidayWork[]> {
-    if (employeeId) {
-      return await db.select().from(holidayWorks).where(eq(holidayWorks.employeeId, employeeId));
-    }
-    return await db.select().from(holidayWorks);
-  }
-
-  async createHolidayWork(hw: InsertHolidayWork): Promise<HolidayWork> {
-    const rows = await db.insert(holidayWorks).values({
-      employeeId: hw.employeeId,
-      workDate: hw.workDate,
-      hours: hw.hours ?? 0,
-      holidayType: hw.holidayType ?? "法定休日",
-    }).returning();
-    return rows[0];
-  }
-
-  async deleteHolidayWork(id: number): Promise<boolean> {
-    await db.delete(holidayWorks).where(eq(holidayWorks.id, id));
-    return true;
-  }
-
   // ── Bulk Import ──
   async bulkImportEmployees(emps: InsertEmployee[]): Promise<{ added: number; updated: number; skipped: number; skippedNames: string[] }> {
     let added = 0, updated = 0, skipped = 0;

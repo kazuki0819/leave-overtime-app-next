@@ -54,7 +54,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import type { Employee, PaidLeave, MonthlyOvertime, EmployeeAlert, LeaveUsage, AssignmentHistory, SpecialLeave, HolidayWork } from "@/lib/schema";
+import type { Employee, PaidLeave, MonthlyOvertime, EmployeeAlert, LeaveUsage, AssignmentHistory, SpecialLeave } from "@/lib/schema";
 import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoGrantedDays, calcAutoCarryoverDays, calcAutoExpiredDays, type LeaveDeadlineInfo, type ExpiryRiskInfo, type ConsumptionPaceInfo, type CarryoverUtilInfo } from "@/lib/leave-calc";
 import { useFiscalYear } from "@/hooks/use-fiscal-year";
 import { FiscalYearSelector } from "@/components/fiscal-year-selector";
@@ -106,14 +106,6 @@ export default function EmployeeDetail() {
   // Memo inline edit state
   const [isMemoEditing, setIsMemoEditing] = useState(false);
   const [memoText, setMemoText] = useState("");
-
-  // Holiday work state
-  const [showAddHolidayWork, setShowAddHolidayWork] = useState(false);
-  const [newHolidayWork, setNewHolidayWork] = useState({
-    workDate: "",
-    hours: 8,
-    holidayType: "法定休日",
-  });
 
   // Manual override state for auto-calculated fields
   const [manualOverrides, setManualOverrides] = useState<{
@@ -300,43 +292,6 @@ export default function EmployeeDetail() {
       queryClient.invalidateQueries({ queryKey: [`/api/employees/${id}`] });
       setIsMemoEditing(false);
       toast({ title: "メモを保存しました" });
-    },
-  });
-
-  // Holiday work query
-  const { data: holidayWorksData } = useQuery<HolidayWork[]>({
-    queryKey: ["/api/holiday-works", id],
-    queryFn: async () => {
-      const res = await apiRequest("GET", `/api/holiday-works?employeeId=${id}`);
-      return res.json();
-    },
-  });
-
-  // Holiday work mutations
-  const createHolidayWorkMutation = useMutation({
-    mutationFn: async (data: { employeeId: string; workDate: string; hours: number; holidayType: string }) => {
-      const res = await apiRequest("POST", "/api/holiday-works", data);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/holiday-works", id] });
-      queryClient.invalidateQueries({ queryKey: ["/api/employee-summaries"] });
-      setShowAddHolidayWork(false);
-      setNewHolidayWork({ workDate: "", hours: 8, holidayType: "法定休日" });
-      toast({ title: "休日出勤を登録しました" });
-    },
-    onError: () => toast({ title: "登録に失敗しました", variant: "destructive" }),
-  });
-
-  const deleteHolidayWorkMutation = useMutation({
-    mutationFn: async (hwId: number) => {
-      const res = await apiRequest("DELETE", `/api/holiday-works/${hwId}`);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/holiday-works", id] });
-      queryClient.invalidateQueries({ queryKey: ["/api/employee-summaries"] });
-      toast({ title: "休日出勤を削除しました" });
     },
   });
 
@@ -2739,105 +2694,7 @@ export default function EmployeeDetail() {
         </CardContent>
       </Card>
 
-      {/* ─── 休日出勤 ─── */}
-      <Card className="border">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <Briefcase className="h-4 w-4 text-orange-500" />
-            休日出勤
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-6 px-2 text-xs ml-auto"
-              onClick={() => setShowAddHolidayWork(!showAddHolidayWork)}
-            >
-              <Plus className="h-3 w-3 mr-1" />
-              追加
-            </Button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          {showAddHolidayWork && (
-            <div className="rounded-md bg-orange-50/50 dark:bg-orange-950/10 border border-orange-200 dark:border-orange-800 p-3 mb-3">
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <Label className="text-xs">休日出勤日</Label>
-                  <Input type="date" className="h-8 text-xs" value={newHolidayWork.workDate}
-                    onChange={(e) => setNewHolidayWork({ ...newHolidayWork, workDate: e.target.value })} />
-                </div>
-                <div>
-                  <Label className="text-xs">時間</Label>
-                  <Input type="number" step="0.5" min="0.5" className="h-8 text-xs" value={newHolidayWork.hours}
-                    onChange={(e) => setNewHolidayWork({ ...newHolidayWork, hours: parseFloat(e.target.value) || 8 })} />
-                </div>
-                <div>
-                  <Label className="text-xs">区分</Label>
-                  <select
-                    className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
-                    value={newHolidayWork.holidayType}
-                    onChange={(e) => setNewHolidayWork({ ...newHolidayWork, holidayType: e.target.value })}
-                  >
-                    <option value="法定休日">法定休日</option>
-                    <option value="法定外休日">法定外休日</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex gap-2 mt-2">
-                <Button size="sm" className="h-7 text-xs"
-                  disabled={!newHolidayWork.workDate || createHolidayWorkMutation.isPending}
-                  onClick={() => createHolidayWorkMutation.mutate({
-                    employeeId: id, ...newHolidayWork,
-                  })}>
-                  {createHolidayWorkMutation.isPending ? "登録中..." : "登録"}
-                </Button>
-                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowAddHolidayWork(false)}>
-                  キャンセル
-                </Button>
-              </div>
-            </div>
-          )}
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/30 text-left text-muted-foreground">
-                  <th className="py-2 font-medium text-xs">日付</th>
-                  <th className="py-2 font-medium text-xs text-right">時間</th>
-                  <th className="py-2 font-medium text-xs">区分</th>
-                  <th className="py-2 font-medium text-xs text-right" />
-                </tr>
-              </thead>
-              <tbody>
-                {(!holidayWorksData || holidayWorksData.length === 0) && (
-                  <tr><td colSpan={4} className="py-4 text-center text-sm text-muted-foreground">休日出勤の記録なし</td></tr>
-                )}
-                {[...(holidayWorksData ?? [])].sort((a, b) => b.workDate.localeCompare(a.workDate)).map((hw) => (
-                  <tr key={hw.id} className="border-b">
-                    <td className="py-2 text-xs tabular-nums">{hw.workDate}</td>
-                    <td className="py-2 text-right tabular-nums font-medium">{Number(hw.hours).toFixed(2)}h</td>
-                    <td className="py-2">
-                      <Badge variant="outline" className={`text-xs px-1.5 py-0 ${
-                        hw.holidayType === "法定休日"
-                          ? "border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-400"
-                          : "border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-700 dark:bg-orange-950/40 dark:text-orange-400"
-                      }`}>
-                        {hw.holidayType}
-                      </Badge>
-                    </td>
-                    <td className="py-2 text-right">
-                      <Button size="icon" variant="ghost"
-                        className="h-7 w-7 text-muted-foreground hover:text-red-600 hover:bg-red-50"
-                        onClick={() => { if (window.confirm("この休日出勤を削除しますか？")) deleteHolidayWorkMutation.mutate(hw.id); }}
-                        disabled={deleteHolidayWorkMutation.isPending}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+
 
       {/* ─── 退職処理ダイアログ ─── */}
       <Dialog open={retireDialogOpen} onOpenChange={setRetireDialogOpen}>
