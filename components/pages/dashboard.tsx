@@ -11,7 +11,6 @@ import {
   AlertTriangle,
   Clock,
   Calendar,
-  Search,
   ChevronRight,
   ShieldAlert,
   TriangleAlert,
@@ -21,9 +20,9 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SearchWithHistory } from "@/components/search-with-history";
 import { FooterAttribution } from "@/components/FooterAttribution";
 import type { EmployeeAlert, MonthlyOvertime } from "@/lib/schema";
 import type { LeaveDeadlineInfo, ExpiryRiskInfo, ConsumptionPaceInfo, CarryoverUtilInfo } from "@/lib/leave-calc";
@@ -288,17 +287,12 @@ export default function Dashboard() {
 
       {/* Search + Filter bar */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="氏名・配属先で検索..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-9"
-            data-testid="input-search"
-          />
-        </div>
+        <SearchWithHistory
+          value={search}
+          onChange={setSearch}
+          className="pl-9 h-9"
+          data-testid="input-search"
+        />
         <div className="flex gap-1.5 flex-wrap">
           <Button
             variant={filter === "all" ? "default" : "outline"}

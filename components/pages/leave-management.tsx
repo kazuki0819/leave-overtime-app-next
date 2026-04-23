@@ -8,7 +8,6 @@ import { useFiscalYear } from "@/hooks/use-fiscal-year";
 import { FiscalYearSelector } from "@/components/fiscal-year-selector";
 import {
   Calendar,
-  Search,
   ChevronRight,
   ShieldAlert,
   TriangleAlert,
@@ -40,6 +39,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { SearchWithHistory } from "@/components/search-with-history";
 import { FooterAttribution } from "@/components/FooterAttribution";
 import { useToast } from "@/hooks/use-toast";
 import type { EmployeeAlert, MonthlyOvertime, PaidLeave, LeaveUsage } from "@/lib/schema";
@@ -956,17 +956,12 @@ export default function LeaveManagement() {
       {/* Search + Filter */}
       <div className="flex flex-col gap-3">
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="氏名・配属先で検索..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 h-9"
-              data-testid="input-search-leave"
-            />
-          </div>
+          <SearchWithHistory
+            value={search}
+            onChange={setSearch}
+            className="pl-9 h-9"
+            data-testid="input-search-leave"
+          />
           <Select value={assignmentFilter} onValueChange={setAssignmentFilter}>
             <SelectTrigger className="h-9 w-[220px] text-sm" data-testid="select-assignment-filter">
               <Building2 className="h-3.5 w-3.5 text-muted-foreground mr-1.5 shrink-0" />
