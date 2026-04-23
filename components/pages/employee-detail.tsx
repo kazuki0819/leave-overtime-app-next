@@ -2095,7 +2095,7 @@ export default function EmployeeDetail() {
                         <>
                           {/* 残業時間 */}
                           <td className={`py-2 text-right tabular-nums ${otColor.text}`}>
-                            {ot && hours > 0 ? `${hours.toFixed(2)}h` : "-"}
+                            {ot ? `${hours.toFixed(2)}h` : "-"}
                           </td>
                           {/* 残業バー */}
                           <td className="py-2 pl-2">
@@ -2117,7 +2117,7 @@ export default function EmployeeDetail() {
                           </td>
                           {/* 深夜時間 */}
                           <td className="py-2 text-right tabular-nums text-purple-600 dark:text-purple-400">
-                            {ot && lateNight > 0 ? `${lateNight.toFixed(2)}h` : "-"}
+                            {ot ? `${lateNight.toFixed(2)}h` : "-"}
                           </td>
                           {/* 深夜バー */}
                           <td className="py-2 pl-2">
