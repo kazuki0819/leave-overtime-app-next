@@ -35,7 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { PerplexityAttribution } from "@/components/PerplexityAttribution";
+import { FooterAttribution } from "@/components/FooterAttribution";
 
 // ── 型定義 ──
 
@@ -502,7 +502,7 @@ export default function Settings() {
         </DialogContent>
       </Dialog>
 
-      <PerplexityAttribution />
+      <FooterAttribution />
     </div>
   );
 }

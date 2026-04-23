@@ -40,7 +40,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { PerplexityAttribution } from "@/components/PerplexityAttribution";
+import { FooterAttribution } from "@/components/FooterAttribution";
 import { useToast } from "@/hooks/use-toast";
 import type { EmployeeAlert, MonthlyOvertime, PaidLeave, LeaveUsage } from "@/lib/schema";
 import type { LeaveDeadlineInfo, ExpiryRiskInfo, ConsumptionPaceInfo, CarryoverUtilInfo } from "@/lib/leave-calc";
@@ -1142,7 +1142,7 @@ export default function LeaveManagement() {
         </div>
       )}
 
-      <PerplexityAttribution />
+      <FooterAttribution />
     </div>
   );
 }

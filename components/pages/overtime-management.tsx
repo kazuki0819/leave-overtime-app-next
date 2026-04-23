@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PerplexityAttribution } from "@/components/PerplexityAttribution";
+import { FooterAttribution } from "@/components/FooterAttribution";
 import type { EmployeeAlert, MonthlyOvertime } from "@/lib/schema";
 import type { LeaveDeadlineInfo } from "@/lib/leave-calc";
 
@@ -579,7 +579,7 @@ export default function OvertimeManagement() {
         </div>
       )}
 
-      <PerplexityAttribution />
+      <FooterAttribution />
     </div>
   );
 }
