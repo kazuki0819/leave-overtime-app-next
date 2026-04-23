@@ -18,8 +18,16 @@ export async function PUT(request: NextRequest) {
     const data = insertPaidLeaveSchema.parse(body) as any;
     const granted = data.grantedDays ?? 0;
     const carriedOver = data.carriedOverDays ?? 0;
-    const consumed = data.consumedDays ?? 0;
     const expired = data.expiredDays ?? 0;
+
+    const existing = await storage.getPaidLeaveByEmployee(data.employeeId, data.fiscalYear);
+    const adjustment = data.adjustmentDays ?? existing?.adjustmentDays ?? 0;
+
+    const usages = await storage.getLeaveUsages(data.employeeId);
+    const autoConsumed = usages.reduce((sum: number, u: { days: number }) => sum + u.days, 0);
+    const consumed = autoConsumed + adjustment;
+
+    data.consumedDays = consumed;
     data.remainingDays = Math.max(0, granted + carriedOver - consumed - expired);
     data.usageRate = granted > 0 ? Math.round((consumed / granted) * 10000) / 10000 : 0;
     const leave = await storage.upsertPaidLeave(data);

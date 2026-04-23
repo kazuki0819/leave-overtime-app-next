@@ -121,6 +121,11 @@ export default function EmployeeDetail() {
   const [retireDialogOpen, setRetireDialogOpen] = useState(false);
   const [retireDate, setRetireDate] = useState("");
 
+  // Adjustment dialog state
+  const [adjustmentDialogOpen, setAdjustmentDialogOpen] = useState(false);
+  const [editAdjustmentDays, setEditAdjustmentDays] = useState(0);
+  const [editAdjustmentNote, setEditAdjustmentNote] = useState("");
+
   // Collapsible section state
   const [historyOpen, setHistoryOpen] = useState(false);
   const [leaveUsageOpen, setLeaveUsageOpen] = useState(false);
@@ -493,10 +498,13 @@ export default function EmployeeDetail() {
   const leaveAlerts = empAlerts.filter((a) => a.category === "paid_leave");
 
   // 有給取得履歴から消化日数を自動算出
-  const computedConsumedDays = useMemo(() => {
+  const autoConsumedDays = useMemo(() => {
     if (!leaveUsages || leaveUsages.length === 0) return paidLeave?.consumedDays ?? 0;
     return leaveUsages.reduce((sum, u) => sum + u.days, 0);
   }, [leaveUsages, paidLeave?.consumedDays]);
+
+  const currentAdjustmentDays = isEditing ? editAdjustmentDays : (paidLeave?.adjustmentDays ?? 0);
+  const computedConsumedDays = autoConsumedDays + currentAdjustmentDays;
 
   // 自動計算値
   const autoGrantedDays = useMemo(() => {
@@ -540,11 +548,12 @@ export default function EmployeeDetail() {
       remainingDays: paidLeave?.remainingDays ?? 0,
       expiredDays: currentExpired !== 0 ? currentExpired : expectedExpired,
     });
+    setEditAdjustmentDays(paidLeave?.adjustmentDays ?? 0);
+    setEditAdjustmentNote(paidLeave?.adjustmentNote ?? "");
     setIsEditing(true);
   };
 
   // Computed values for paid leave edit form
-  // 消化日数は常に取得履歴合計から算出（編集モードでも手動変更不可）
   const computedRemainingDays = Math.max(
     0,
     (editForm.grantedDays ?? 0) +
@@ -579,10 +588,9 @@ export default function EmployeeDetail() {
     updateLeaveMutation.mutate({
       grantedDays: editForm.grantedDays,
       carriedOverDays: editForm.carriedOverDays,
-      consumedDays: computedConsumedDays,
-      remainingDays: computedRemainingDays,
       expiredDays: editForm.expiredDays,
-      usageRate: computedUsageRate,
+      adjustmentDays: editAdjustmentDays,
+      adjustmentNote: editAdjustmentNote,
     });
   };
 
@@ -1345,21 +1353,32 @@ export default function EmployeeDetail() {
                     )}
                   </div>
 
-                  {/* 消化日数（有給取得履歴から自動算出・編集不可） */}
+                  {/* 消化日数（自動算出 + 補正） */}
                   <div>
-                    <Label className="text-xs flex items-center gap-1 mb-1">
-                      <Calculator className="h-3 w-3 text-blue-500" />
-                      消化日数
-                      <span className="text-[10px] text-blue-600 dark:text-blue-400 ml-auto flex items-center gap-0.5">
-                        <Lock className="h-2.5 w-2.5" /> 取得履歴から自動算出
-                      </span>
-                    </Label>
+                    <div className="flex items-center justify-between mb-1">
+                      <Label className="text-xs flex items-center gap-1">
+                        <Calculator className="h-3 w-3 text-blue-500" />
+                        消化日数
+                      </Label>
+                      <button
+                        type="button"
+                        className="text-xs flex items-center gap-0.5 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 transition-colors"
+                        onClick={() => setAdjustmentDialogOpen(true)}
+                        data-testid="btn-adjustment"
+                      >
+                        <LockOpen className="h-3 w-3" /> 補正{editAdjustmentDays !== 0 ? `(${editAdjustmentDays >= 0 ? "+" : ""}${editAdjustmentDays})` : ""}
+                      </button>
+                    </div>
                     <div
                       className="h-9 px-3 flex items-center justify-between rounded-md border bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800"
                       data-testid="auto-consumedDays"
                     >
-                      <span className="text-sm font-bold tabular-nums">{computedConsumedDays}</span>
-                      <span className="text-[10px] text-blue-600 dark:text-blue-400">履歴合計</span>
+                      <span className="text-sm font-bold tabular-nums">{computedConsumedDays.toFixed(2)}</span>
+                      <span className="text-[10px] text-blue-600 dark:text-blue-400">
+                        {editAdjustmentDays !== 0
+                          ? `自動${autoConsumedDays.toFixed(1)} ${editAdjustmentDays >= 0 ? "+" : "−"} ${Math.abs(editAdjustmentDays).toFixed(1)}`
+                          : "履歴合計"}
+                      </span>
                     </div>
                   </div>
 
@@ -1500,7 +1519,24 @@ export default function EmployeeDetail() {
                     <dd className={`text-lg font-bold tabular-nums ${
                       paidLeave.consumedDays < 5 ? "text-red-600 dark:text-red-400" : ""
                     }`}>
-                      {Number(paidLeave.consumedDays).toFixed(2)}
+                      {paidLeave.adjustmentDays !== 0 ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-help border-b border-dashed border-current">
+                                {Number(paidLeave.consumedDays).toFixed(2)}
+                                <Badge variant="outline" className="ml-1.5 text-[10px] px-1 py-0 h-4 align-middle font-normal">補正あり</Badge>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              <div>自動 {Number(autoConsumedDays).toFixed(2)}日 {paidLeave.adjustmentDays >= 0 ? "+" : "−"} 補正 {Math.abs(paidLeave.adjustmentDays).toFixed(2)}日 = 合計 {Number(paidLeave.consumedDays).toFixed(2)}日</div>
+                              {paidLeave.adjustmentNote && <div className="mt-0.5 text-muted-foreground">理由: {paidLeave.adjustmentNote}</div>}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : (
+                        Number(paidLeave.consumedDays).toFixed(2)
+                      )}
                       {paidLeave.consumedDays < 5 && (
                         <span className="text-xs font-normal ml-1 text-red-500">※5日未満</span>
                       )}
@@ -2796,6 +2832,59 @@ export default function EmployeeDetail() {
             >
               {retireMutation.isPending ? "処理中..." : "退職処理を実行"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── 消化日数補正ダイアログ ─── */}
+      <Dialog open={adjustmentDialogOpen} onOpenChange={setAdjustmentDialogOpen}>
+        <DialogContent data-testid="dialog-adjustment" className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>消化日数の補正</DialogTitle>
+            <DialogDescription>
+              取得履歴の自動合計（{autoConsumedDays.toFixed(2)}日）に対して補正値を設定します。
+              最終消化日数 = 自動 + 補正 = {(autoConsumedDays + editAdjustmentDays).toFixed(2)}日
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="adjustment-days">補正値（日）</Label>
+              <Input
+                id="adjustment-days"
+                type="number"
+                step="0.5"
+                value={editAdjustmentDays}
+                onChange={(e) => setEditAdjustmentDays(parseFloat(e.target.value) || 0)}
+                data-testid="input-adjustment-days"
+              />
+              <p className="text-xs text-muted-foreground">正の値で加算、負の値で減算</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="adjustment-note">補正理由（任意）</Label>
+              <Input
+                id="adjustment-note"
+                type="text"
+                placeholder="例: 前職からの振替、システム移行差分"
+                value={editAdjustmentNote}
+                onChange={(e) => setEditAdjustmentNote(e.target.value)}
+                data-testid="input-adjustment-note"
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => { setEditAdjustmentDays(0); setEditAdjustmentNote(""); }}
+              data-testid="btn-adjustment-reset"
+            >
+              補正をリセット（0に戻す）
+            </Button>
+            <div className="flex gap-2 ml-auto">
+              <Button variant="ghost" onClick={() => setAdjustmentDialogOpen(false)}>キャンセル</Button>
+              <Button onClick={() => setAdjustmentDialogOpen(false)} data-testid="btn-adjustment-confirm">確定</Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
