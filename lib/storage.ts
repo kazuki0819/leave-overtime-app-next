@@ -133,7 +133,7 @@ export class TursoStorage implements IStorage {
   }
 
   async createEmployee(emp: InsertEmployee): Promise<Employee> {
-    const id = emp.id || await this.getNextEmployeeId();
+    const id = await this.getNextEmployeeId();
     const rows = await db.insert(employees).values({
       id,
       name: emp.name,

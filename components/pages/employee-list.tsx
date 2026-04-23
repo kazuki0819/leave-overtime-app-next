@@ -70,7 +70,6 @@ export default function EmployeeList() {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<NewEmployeeForm>(defaultForm);
-  const [nextId, setNextId] = useState<string>("");
   const [includeRetired, setIncludeRetired] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
@@ -98,7 +97,6 @@ export default function EmployeeList() {
 
   const addEmployeeMutation = useMutation({
     mutationFn: async (payload: {
-      id: string;
       name: string;
       assignment: string;
       joinDate: string;
@@ -115,7 +113,6 @@ export default function EmployeeList() {
       toast({ title: "社員を追加しました" });
       setDialogOpen(false);
       setForm(defaultForm);
-      setNextId("");
       queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
       queryClient.invalidateQueries({ queryKey: ["/api/employee-summaries"] });
     },
@@ -159,9 +156,7 @@ export default function EmployeeList() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) return;
-    const id = nextId || String(Date.now());
     addEmployeeMutation.mutate({
-      id,
       name: form.name.trim(),
       assignment: form.assignment.trim() || "-",
       joinDate: form.joinDate || "",
@@ -299,12 +294,7 @@ export default function EmployeeList() {
           </Button>
           <Button
             size="sm"
-            onClick={async () => {
-              try {
-                const res = await apiRequest("GET", "/api/employees/next-id");
-                const { nextId: nid } = await res.json();
-                setNextId(nid);
-              } catch { setNextId(""); }
+            onClick={() => {
               setForm(defaultForm);
               setDialogOpen(true);
             }}
@@ -509,18 +499,10 @@ export default function EmployeeList() {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-            {/* 社員番号（自動付与） */}
+            {/* 社員番号（自動採番） */}
             <div className="space-y-1.5">
               <Label>社員番号</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  value={nextId}
-                  readOnly
-                  className="w-24 bg-muted text-center font-mono"
-                  data-testid="input-new-employee-id"
-                />
-                <span className="text-xs text-muted-foreground">自動付与</span>
-              </div>
+              <p className="text-sm text-muted-foreground" data-testid="auto-id-notice">保存時に自動採番されます</p>
             </div>
 
             {/* 氏名 */}
@@ -592,7 +574,6 @@ export default function EmployeeList() {
                 onClick={() => {
                   setDialogOpen(false);
                   setForm(defaultForm);
-                  setNextId("");
                 }}
                 data-testid="button-cancel-add-employee"
               >
