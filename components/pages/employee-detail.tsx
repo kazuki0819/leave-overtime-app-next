@@ -37,6 +37,7 @@ import {
   Gift,
   Briefcase,
   MessageSquare,
+  ChevronDown,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import type { Employee, PaidLeave, MonthlyOvertime, EmployeeAlert, LeaveUsage, AssignmentHistory, SpecialLeave } from "@/lib/schema";
 import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoGrantedDays, calcAutoCarryoverDays, calcAutoExpiredDays, type LeaveDeadlineInfo, type ExpiryRiskInfo, type ConsumptionPaceInfo, type CarryoverUtilInfo } from "@/lib/leave-calc";
@@ -118,6 +120,11 @@ export default function EmployeeDetail() {
   // Retirement dialog state
   const [retireDialogOpen, setRetireDialogOpen] = useState(false);
   const [retireDate, setRetireDate] = useState("");
+
+  // Collapsible section state
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [leaveUsageOpen, setLeaveUsageOpen] = useState(false);
+  const [specialLeaveOpen, setSpecialLeaveOpen] = useState(false);
 
   // Assignment history state
   const [showAddHistory, setShowAddHistory] = useState(false);
@@ -2095,7 +2102,7 @@ export default function EmployeeDetail() {
                         <>
                           {/* 残業時間 */}
                           <td className={`py-2 text-right tabular-nums ${otColor.text}`}>
-                            {ot && hours > 0 ? `${hours.toFixed(2)}h` : "-"}
+                            {ot ? `${hours.toFixed(2)}h` : "-"}
                           </td>
                           {/* 残業バー */}
                           <td className="py-2 pl-2">
@@ -2117,7 +2124,7 @@ export default function EmployeeDetail() {
                           </td>
                           {/* 深夜時間 */}
                           <td className="py-2 text-right tabular-nums text-purple-600 dark:text-purple-400">
-                            {ot && lateNight > 0 ? `${lateNight.toFixed(2)}h` : "-"}
+                            {ot ? `${lateNight.toFixed(2)}h` : "-"}
                           </td>
                           {/* 深夜バー */}
                           <td className="py-2 pl-2">
@@ -2204,20 +2211,28 @@ export default function EmployeeDetail() {
       </Card>
 
       {/* ─── 配属履歴 ─── */}
+      <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
       <Card className="border">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <Building2 className="h-4 w-4 text-indigo-500" />
-            配属履歴
-            <span className="text-xs font-normal text-muted-foreground">
-              {sortedHistories.length}件
-            </span>
+            <CollapsibleTrigger asChild>
+              <button type="button" className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
+                <Building2 className="h-4 w-4 text-indigo-500" />
+                配属履歴
+                <span className="text-xs font-normal text-muted-foreground">
+                  {sortedHistories.length}件
+                </span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+              </button>
+            </CollapsibleTrigger>
             {!isRetired && (
               <Button
                 size="sm"
                 variant="outline"
                 className="ml-auto h-7 text-xs gap-1"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setHistoryOpen(true);
                   setShowAddHistory(true);
                   setEditingHistoryId(null);
                   setHistoryForm({ assignment: "", startDate: "", endDate: "", note: "" });
@@ -2230,6 +2245,7 @@ export default function EmployeeDetail() {
             )}
           </CardTitle>
         </CardHeader>
+        <CollapsibleContent>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full text-sm" data-testid="assignment-history-table">
@@ -2429,19 +2445,32 @@ export default function EmployeeDetail() {
             </table>
           </div>
         </CardContent>
+        </CollapsibleContent>
       </Card>
+      </Collapsible>
 
       {/* ─── Feature B: 有給使用履歴 ─── */}
+      <Collapsible open={leaveUsageOpen} onOpenChange={setLeaveUsageOpen}>
       <Card className="border">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <CalendarDays className="h-4 w-4 text-emerald-500" />
-            有給使用履歴
+            <CollapsibleTrigger asChild>
+              <button type="button" className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
+                <CalendarDays className="h-4 w-4 text-emerald-500" />
+                有給使用履歴
+                <span className="text-xs font-normal text-muted-foreground">
+                  {sortedLeaveUsages.length}件
+                </span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+              </button>
+            </CollapsibleTrigger>
             <Button
               size="sm"
               variant="outline"
               className="ml-auto h-7 text-xs gap-1"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
+                setLeaveUsageOpen(true);
                 setShowAddLeaveUsage(true);
                 setNewLeaveUsage({ startDate: "", endDate: "", days: 1, reason: "" });
               }}
@@ -2452,6 +2481,7 @@ export default function EmployeeDetail() {
             </Button>
           </CardTitle>
         </CardHeader>
+        <CollapsibleContent>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full text-sm" data-testid="leave-usage-table">
@@ -2564,25 +2594,41 @@ export default function EmployeeDetail() {
             </table>
           </div>
         </CardContent>
+        </CollapsibleContent>
       </Card>
+      </Collapsible>
 
       {/* ─── 特別休暇 ─── */}
+      <Collapsible open={specialLeaveOpen} onOpenChange={setSpecialLeaveOpen}>
       <Card className="border">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <Gift className="h-4 w-4 text-purple-500" />
-            特別休暇
+            <CollapsibleTrigger asChild>
+              <button type="button" className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
+                <Gift className="h-4 w-4 text-purple-500" />
+                特別休暇
+                <span className="text-xs font-normal text-muted-foreground">
+                  {(specialLeavesData ?? []).length}件
+                </span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+              </button>
+            </CollapsibleTrigger>
             <Button
               size="sm"
               variant="ghost"
               className="h-6 px-2 text-xs ml-auto"
-              onClick={() => setShowAddSpecialLeave(!showAddSpecialLeave)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSpecialLeaveOpen(true);
+                setShowAddSpecialLeave(!showAddSpecialLeave);
+              }}
             >
               <Plus className="h-3 w-3 mr-1" />
               追加
             </Button>
           </CardTitle>
         </CardHeader>
+        <CollapsibleContent>
         <CardContent className="pt-0">
           {/* 追加フォーム */}
           {showAddSpecialLeave && (
@@ -2683,7 +2729,9 @@ export default function EmployeeDetail() {
             </table>
           </div>
         </CardContent>
+        </CollapsibleContent>
       </Card>
+      </Collapsible>
 
 
 

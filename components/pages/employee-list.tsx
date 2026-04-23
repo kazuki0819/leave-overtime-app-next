@@ -6,7 +6,6 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import Link from "next/link";
 import { useFiscalYear } from "@/hooks/use-fiscal-year";
 import {
-  Search,
   UserPlus,
   ChevronUp,
   ChevronDown,
@@ -34,6 +33,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { SearchWithHistory } from "@/components/search-with-history";
 import { useToast } from "@/hooks/use-toast";
 import type { Employee, PaidLeave, AssignmentHistory } from "@/lib/schema";
 
@@ -318,17 +318,12 @@ export default function EmployeeList() {
 
       {/* 検索バー + フィルタ */}
       <div className="flex items-center gap-4 flex-wrap">
-        <div className="relative max-w-sm flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="氏名・配属先で検索..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-            data-testid="input-search"
-          />
-        </div>
+        <SearchWithHistory
+          value={search}
+          onChange={setSearch}
+          className="pl-9"
+          data-testid="input-search"
+        />
         <div className="flex items-center gap-2">
           <Switch
             id="include-retired"

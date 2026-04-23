@@ -8,7 +8,6 @@ import { useFiscalYear } from "@/hooks/use-fiscal-year";
 import { FiscalYearSelector } from "@/components/fiscal-year-selector";
 import {
   Clock,
-  Search,
   ShieldAlert,
   TriangleAlert,
   ArrowUpDown,
@@ -23,10 +22,10 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { SearchWithHistory } from "@/components/search-with-history";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PerplexityAttribution } from "@/components/PerplexityAttribution";
+import { FooterAttribution } from "@/components/FooterAttribution";
 import type { EmployeeAlert, MonthlyOvertime } from "@/lib/schema";
 import type { LeaveDeadlineInfo } from "@/lib/leave-calc";
 
@@ -380,17 +379,12 @@ export default function OvertimeManagement() {
 
       {/* Search + Filter */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="氏名・配属先で検索..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-9"
-            data-testid="input-search-overtime"
-          />
-        </div>
+        <SearchWithHistory
+          value={search}
+          onChange={setSearch}
+          className="pl-9 h-9"
+          data-testid="input-search-overtime"
+        />
         <div className="flex gap-1.5 flex-wrap">
           {filterButtons.map((fb) => (
             <Button
@@ -579,7 +573,7 @@ export default function OvertimeManagement() {
         </div>
       )}
 
-      <PerplexityAttribution />
+      <FooterAttribution />
     </div>
   );
 }
