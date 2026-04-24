@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureDbInitialized } from "@/lib/init-db";
 import { storage } from "@/lib/storage";
 import { insertPaidLeaveSchema } from "@/lib/schema";
+import { recalcConsumedDays } from "@/lib/recalc-consumed";
 
 export async function GET(request: NextRequest) {
   await ensureDbInitialized();
@@ -16,6 +17,16 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
     const data = insertPaidLeaveSchema.parse(body) as any;
+
+    const hasDate = data.manualBaselineDate !== undefined && data.manualBaselineDate !== null;
+    const hasRemaining = data.manualBaselineRemaining !== undefined && data.manualBaselineRemaining !== null;
+    if (hasDate !== hasRemaining) {
+      return NextResponse.json(
+        { message: "manual_baseline_date と manual_baseline_remaining はセットで指定してください" },
+        { status: 400 },
+      );
+    }
+
     const granted = data.grantedDays ?? 0;
     const carriedOver = data.carriedOverDays ?? 0;
     const consumed = data.consumedDays ?? 0;
@@ -23,7 +34,11 @@ export async function PUT(request: NextRequest) {
     data.remainingDays = Math.max(0, granted + carriedOver - consumed - expired);
     data.usageRate = granted > 0 ? Math.round((consumed / granted) * 10000) / 10000 : 0;
     const leave = await storage.upsertPaidLeave(data);
-    return NextResponse.json(leave);
+
+    await recalcConsumedDays(data.employeeId);
+    const updated = await storage.getPaidLeaveByEmployee(data.employeeId, data.fiscalYear);
+
+    return NextResponse.json(updated ?? leave);
   } catch (e) {
     return NextResponse.json({ message: "入力データが不正です", error: String(e) }, { status: 400 });
   }

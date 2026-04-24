@@ -90,4 +90,7 @@ export async function initializeDatabase() {
   try { await client.execute("ALTER TABLE monthly_overtimes ADD COLUMN holiday_work_non_legal REAL NOT NULL DEFAULT 0"); } catch {}
   try { await client.execute("ALTER TABLE monthly_overtimes ADD COLUMN holiday_work_legal_count INTEGER NOT NULL DEFAULT 0"); } catch {}
   try { await client.execute("ALTER TABLE monthly_overtimes ADD COLUMN holiday_work_non_legal_count INTEGER NOT NULL DEFAULT 0"); } catch {}
+  try { await client.execute("ALTER TABLE paid_leaves ADD COLUMN manual_baseline_date TEXT"); } catch {}
+  try { await client.execute("ALTER TABLE paid_leaves ADD COLUMN manual_baseline_remaining REAL"); } catch {}
+  try { await client.execute("ALTER TABLE paid_leaves ADD COLUMN manual_baseline_note TEXT"); } catch {}
 }
