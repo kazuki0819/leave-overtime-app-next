@@ -38,7 +38,6 @@ import {
   Briefcase,
   MessageSquare,
   ChevronDown,
-  MoreHorizontal,
   PencilLine,
   Undo2,
 } from "lucide-react";
@@ -59,12 +58,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import type { Employee, PaidLeave, MonthlyOvertime, EmployeeAlert, LeaveUsage, AssignmentHistory, SpecialLeave } from "@/lib/schema";
@@ -1214,32 +1207,26 @@ export default function EmployeeDetail() {
                 </Badge>
               )}
               {!isEditing && paidLeave && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className={`h-7 w-7 ${leaveAlerts.length === 0 ? "ml-auto" : ""}`}>
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onClick={() => {
-                        const today = new Date();
-                        const yyyy = today.getFullYear();
-                        const mm = String(today.getMonth() + 1).padStart(2, "0");
-                        const dd = String(today.getDate()).padStart(2, "0");
-                        setManualAdjustForm({
-                          baselineDate: `${yyyy}-${mm}-${dd}`,
-                          baselineRemaining: paidLeave.remainingDays,
-                          baselineNote: paidLeave.manualBaselineNote ?? "",
-                        });
-                        setManualAdjustDialogOpen(true);
-                      }}
-                    >
-                      <PencilLine className="h-4 w-4 mr-2" />
-                      残日数を手動修正
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className={`h-6 px-2 text-xs gap-1 ${leaveAlerts.length === 0 ? "ml-auto" : ""}`}
+                  onClick={() => {
+                    const today = new Date();
+                    const yyyy = today.getFullYear();
+                    const mm = String(today.getMonth() + 1).padStart(2, "0");
+                    const dd = String(today.getDate()).padStart(2, "0");
+                    setManualAdjustForm({
+                      baselineDate: `${yyyy}-${mm}-${dd}`,
+                      baselineRemaining: paidLeave.remainingDays,
+                      baselineNote: paidLeave.manualBaselineNote ?? "",
+                    });
+                    setManualAdjustDialogOpen(true);
+                  }}
+                >
+                  <PencilLine className="h-3 w-3" />
+                  残日数修正
+                </Button>
               )}
             </CardTitle>
           </CardHeader>
@@ -1588,12 +1575,14 @@ export default function EmployeeDetail() {
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Badge
-                                variant="outline"
-                                className="ml-1.5 text-[10px] px-1.5 py-0 border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-400 cursor-help align-middle"
-                              >
-                                手動修正
-                              </Badge>
+                              <button type="button" className="inline-flex cursor-help align-middle">
+                                <Badge
+                                  variant="outline"
+                                  className="ml-1.5 text-[10px] px-1.5 py-0 border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
+                                >
+                                  手動修正
+                                </Badge>
+                              </button>
                             </TooltipTrigger>
                             <TooltipContent side="bottom" className="max-w-xs">
                               <p className="text-xs font-medium">起点日: {paidLeave.manualBaselineDate}</p>
