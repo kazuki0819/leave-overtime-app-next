@@ -278,6 +278,9 @@ export class TursoStorage implements IStorage {
         remainingDays: hasUsages ? existing.remainingDays : (leave.remainingDays ?? existing.remainingDays),
         expiredDays: leave.expiredDays ?? existing.expiredDays,
         usageRate: hasUsages ? existing.usageRate : (leave.usageRate ?? existing.usageRate),
+        manualBaselineDate: leave.manualBaselineDate !== undefined ? leave.manualBaselineDate : existing.manualBaselineDate,
+        manualBaselineRemaining: leave.manualBaselineRemaining !== undefined ? leave.manualBaselineRemaining : existing.manualBaselineRemaining,
+        manualBaselineNote: leave.manualBaselineNote !== undefined ? leave.manualBaselineNote : existing.manualBaselineNote,
       };
       await db.update(paidLeaves).set(updated).where(eq(paidLeaves.id, existing.id));
       const rows = await db.select().from(paidLeaves).where(eq(paidLeaves.id, existing.id)).limit(1);
@@ -292,6 +295,9 @@ export class TursoStorage implements IStorage {
       remainingDays: leave.remainingDays ?? 0,
       expiredDays: leave.expiredDays ?? 0,
       usageRate: leave.usageRate ?? 0,
+      manualBaselineDate: leave.manualBaselineDate ?? null,
+      manualBaselineRemaining: leave.manualBaselineRemaining ?? null,
+      manualBaselineNote: leave.manualBaselineNote ?? null,
     }).returning();
     return rows[0];
   }
