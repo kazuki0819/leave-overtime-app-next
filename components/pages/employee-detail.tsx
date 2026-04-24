@@ -38,6 +38,9 @@ import {
   Briefcase,
   MessageSquare,
   ChevronDown,
+  MoreHorizontal,
+  PencilLine,
+  Undo2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,6 +59,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import type { Employee, PaidLeave, MonthlyOvertime, EmployeeAlert, LeaveUsage, AssignmentHistory, SpecialLeave } from "@/lib/schema";
 import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoGrantedDays, calcAutoCarryoverDays, calcAutoExpiredDays, type LeaveDeadlineInfo, type ExpiryRiskInfo, type ConsumptionPaceInfo, type CarryoverUtilInfo } from "@/lib/leave-calc";
@@ -116,6 +126,14 @@ export default function EmployeeDetail() {
     carriedOverDays: boolean;
     expiredDays: boolean;
   }>({ grantedDays: false, carriedOverDays: false, expiredDays: false });
+
+  // Remaining days manual adjustment dialog state
+  const [manualAdjustDialogOpen, setManualAdjustDialogOpen] = useState(false);
+  const [manualAdjustForm, setManualAdjustForm] = useState({
+    baselineDate: "",
+    baselineRemaining: 0,
+    baselineNote: "",
+  });
 
   // Retirement dialog state
   const [retireDialogOpen, setRetireDialogOpen] = useState(false);
@@ -417,6 +435,34 @@ export default function EmployeeDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/employees", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
       toast({ title: "配属履歴を削除しました" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "エラー", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const manualAdjustMutation = useMutation({
+    mutationFn: async (payload: {
+      manualBaselineDate: string | null;
+      manualBaselineRemaining: number | null;
+      manualBaselineNote: string | null;
+    }) => {
+      const res = await apiRequest("PUT", "/api/paid-leaves", {
+        employeeId: id,
+        fiscalYear,
+        ...(paidLeave ? {
+          grantedDays: paidLeave.grantedDays,
+          carriedOverDays: paidLeave.carriedOverDays,
+          consumedDays: paidLeave.consumedDays,
+          expiredDays: paidLeave.expiredDays,
+        } : {}),
+        ...payload,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/paid-leaves", id, fiscalYear] });
+      setManualAdjustDialogOpen(false);
     },
     onError: (error: Error) => {
       toast({ title: "エラー", description: error.message, variant: "destructive" });
@@ -1167,6 +1213,34 @@ export default function EmployeeDetail() {
                   {leaveAlerts.length}件のアラート
                 </Badge>
               )}
+              {!isEditing && paidLeave && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className={`h-7 w-7 ${leaveAlerts.length === 0 ? "ml-auto" : ""}`}>
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => {
+                        const today = new Date();
+                        const yyyy = today.getFullYear();
+                        const mm = String(today.getMonth() + 1).padStart(2, "0");
+                        const dd = String(today.getDate()).padStart(2, "0");
+                        setManualAdjustForm({
+                          baselineDate: `${yyyy}-${mm}-${dd}`,
+                          baselineRemaining: paidLeave.remainingDays,
+                          baselineNote: paidLeave.manualBaselineNote ?? "",
+                        });
+                        setManualAdjustDialogOpen(true);
+                      }}
+                    >
+                      <PencilLine className="h-4 w-4 mr-2" />
+                      残日数を手動修正
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -1508,7 +1582,30 @@ export default function EmployeeDetail() {
                   </div>
                   <div>
                     <dt className="text-xs text-muted-foreground">残日数</dt>
-                    <dd className="text-lg font-bold tabular-nums text-primary">{Number(paidLeave.remainingDays).toFixed(2)}</dd>
+                    <dd className="text-lg font-bold tabular-nums text-primary">
+                      {Number(paidLeave.remainingDays).toFixed(2)}
+                      {paidLeave.manualBaselineDate && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge
+                                variant="outline"
+                                className="ml-1.5 text-[10px] px-1.5 py-0 border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-400 cursor-help align-middle"
+                              >
+                                手動修正
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-xs">
+                              <p className="text-xs font-medium">起点日: {paidLeave.manualBaselineDate}</p>
+                              <p className="text-xs">基準残日数: {paidLeave.manualBaselineRemaining}日</p>
+                              {paidLeave.manualBaselineNote && (
+                                <p className="text-xs text-muted-foreground mt-0.5">理由: {paidLeave.manualBaselineNote}</p>
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-xs text-muted-foreground">時効日数</dt>
@@ -2734,6 +2831,123 @@ export default function EmployeeDetail() {
       </Collapsible>
 
 
+
+      {/* ─── 残日数手動修正ダイアログ ─── */}
+      <Dialog open={manualAdjustDialogOpen} onOpenChange={setManualAdjustDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>残日数を手動修正</DialogTitle>
+            <DialogDescription>
+              自動計算では合わない場合に、残日数の基準値を手動で設定します。修正後は、この起点日より後の使用履歴のみが差し引かれます。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="manual-baseline-date">
+                起点日 <span className="text-destructive">＊</span>
+              </Label>
+              <DateInput
+                id="manual-baseline-date"
+                value={manualAdjustForm.baselineDate}
+                onChange={(v) => setManualAdjustForm((f) => ({ ...f, baselineDate: v }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="manual-baseline-remaining">
+                修正後の残日数 <span className="text-destructive">＊</span>
+              </Label>
+              <Input
+                id="manual-baseline-remaining"
+                type="number"
+                step="0.5"
+                min="0"
+                value={manualAdjustForm.baselineRemaining}
+                onChange={(e) =>
+                  setManualAdjustForm((f) => ({
+                    ...f,
+                    baselineRemaining: parseFloat(e.target.value) || 0,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="manual-baseline-note">
+                修正理由メモ <span className="text-destructive">＊</span>
+              </Label>
+              <Textarea
+                id="manual-baseline-note"
+                value={manualAdjustForm.baselineNote}
+                onChange={(e) => setManualAdjustForm((f) => ({ ...f, baselineNote: e.target.value }))}
+                placeholder="例: 前職からの繰越調整、労務士確認済み"
+                className="min-h-[60px]"
+              />
+            </div>
+            {paidLeave?.manualBaselineDate && (
+              <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300">
+                <div className="flex items-start gap-2">
+                  <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium">現在の手動修正</p>
+                    <p className="text-xs mt-0.5">
+                      起点日: {paidLeave.manualBaselineDate} / 残日数: {paidLeave.manualBaselineRemaining}日
+                    </p>
+                    {paidLeave.manualBaselineNote && (
+                      <p className="text-xs mt-0.5">理由: {paidLeave.manualBaselineNote}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="pt-2 flex-col sm:flex-row gap-2">
+            {paidLeave?.manualBaselineDate && (
+              <Button
+                type="button"
+                variant="outline"
+                className="border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/30 sm:mr-auto"
+                onClick={() => {
+                  if (window.confirm("手動修正を解除し、自動計算に戻しますか？")) {
+                    manualAdjustMutation.mutate({
+                      manualBaselineDate: null,
+                      manualBaselineRemaining: null,
+                      manualBaselineNote: null,
+                    });
+                    toast({ title: "手動修正を解除しました" });
+                  }
+                }}
+                disabled={manualAdjustMutation.isPending}
+              >
+                <Undo2 className="h-3.5 w-3.5 mr-1" />
+                修正を解除
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setManualAdjustDialogOpen(false)}
+            >
+              キャンセル
+            </Button>
+            <Button
+              onClick={() => {
+                manualAdjustMutation.mutate({
+                  manualBaselineDate: manualAdjustForm.baselineDate,
+                  manualBaselineRemaining: manualAdjustForm.baselineRemaining,
+                  manualBaselineNote: manualAdjustForm.baselineNote,
+                });
+                toast({ title: "残日数を手動修正しました" });
+              }}
+              disabled={
+                manualAdjustMutation.isPending ||
+                !manualAdjustForm.baselineDate ||
+                !manualAdjustForm.baselineNote.trim()
+              }
+            >
+              {manualAdjustMutation.isPending ? "保存中..." : "保存"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ─── 退職処理ダイアログ ─── */}
       <Dialog open={retireDialogOpen} onOpenChange={setRetireDialogOpen}>
