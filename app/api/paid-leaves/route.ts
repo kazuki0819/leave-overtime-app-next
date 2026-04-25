@@ -30,7 +30,13 @@ export async function PUT(request: NextRequest) {
     const carriedOver = data.carriedOverDays ?? 0;
     const consumed = data.consumedDays ?? 0;
     const expired = data.expiredDays ?? 0;
-    data.remainingDays = Math.max(0, granted + carriedOver - consumed - expired);
+
+    if (data.manualBaselineDate != null && data.manualBaselineRemaining != null) {
+      data.remainingDays = data.manualBaselineRemaining;
+    } else {
+      data.remainingDays = Math.max(0, granted + carriedOver - consumed - expired);
+    }
+
     data.usageRate = granted > 0 ? Math.round((consumed / granted) * 10000) / 10000 : 0;
     const leave = await storage.upsertPaidLeave(data);
     const updated = await storage.getPaidLeaveByEmployee(data.employeeId, data.fiscalYear);
