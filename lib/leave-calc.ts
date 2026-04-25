@@ -515,3 +515,62 @@ export function calcCarryoverUtil(
 
   return { carriedOverDays, unusedCarryover, utilLevel, message };
 }
+
+/**
+ * 入社日から指定日までの全付与日を時系列順で返す。
+ * 初回付与は入社日の6ヶ月後、以降は毎年同月同日。
+ *
+ * @param hireDate 入社日(Date | string YYYY-MM-DD)
+ * @param until 検索範囲の終端(Date | string、省略時は今日)
+ * @returns 付与日の配列(時系列昇順、空配列の可能性あり)
+ *
+ * @example
+ * calcAllGrantDates("2020-04-01", "2024-04-01")
+ * // → [2020-10-01, 2021-10-01, 2022-10-01, 2023-10-01]
+ */
+export function calcAllGrantDates(
+  hireDate: Date | string,
+  until?: Date | string,
+): Date[] {
+  const join = typeof hireDate === "string" ? new Date(hireDate) : new Date(hireDate);
+  if (isNaN(join.getTime())) return [];
+
+  const end = until
+    ? (typeof until === "string" ? new Date(until) : new Date(until))
+    : new Date();
+
+  const firstGrantDate = addMonths(join, 6);
+  const results: Date[] = [];
+
+  let grantIndex = 0;
+  let current = firstGrantDate;
+  while (current <= end) {
+    results.push(current);
+    grantIndex++;
+    current = addYears(firstGrantDate, grantIndex);
+  }
+
+  return results;
+}
+
+/**
+ * 指定された年・月に付与日が含まれるかを判定する。
+ *
+ * @param hireDate 入社日(Date | string YYYY-MM-DD)
+ * @param year 西暦年
+ * @param month 月(1-12)
+ * @returns その年月に付与日があれば true
+ *
+ * @example
+ * isGrantedInMonth("2020-04-01", 2024, 10) // → true
+ * isGrantedInMonth("2020-04-01", 2024, 9)  // → false
+ */
+export function isGrantedInMonth(
+  hireDate: Date | string,
+  year: number,
+  month: number,
+): boolean {
+  const endOfMonth = new Date(year, month, 0);
+  const grants = calcAllGrantDates(hireDate, endOfMonth);
+  return grants.some(d => d.getFullYear() === year && d.getMonth() + 1 === month);
+}
