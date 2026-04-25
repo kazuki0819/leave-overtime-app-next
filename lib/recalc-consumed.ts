@@ -3,6 +3,14 @@ import { calcAutoExpiredDays } from "./leave-calc";
 
 export async function recalcConsumedDays(employeeId: string) {
   const usages = await storage.getLeaveUsages(employeeId);
+
+  // leave_usagesが0件なら何もしない
+  // 本番運用ではleave_usagesが空のまま、consumed_daysは
+  // paid_leavesに直接手入力されるため、0で上書きしてはならない
+  if (usages.length === 0) {
+    return;
+  }
+
   const totalConsumed = usages.reduce((sum, u) => sum + u.days, 0);
   const leave = await storage.getPaidLeaveByEmployee(employeeId);
   if (!leave) return;

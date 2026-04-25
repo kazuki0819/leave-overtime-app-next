@@ -124,7 +124,7 @@ export default function EmployeeDetail() {
   const [manualAdjustDialogOpen, setManualAdjustDialogOpen] = useState(false);
   const [manualAdjustForm, setManualAdjustForm] = useState({
     baselineDate: "",
-    baselineRemaining: 0,
+    baselineRemaining: "",
     baselineNote: "",
   });
 
@@ -1218,7 +1218,7 @@ export default function EmployeeDetail() {
                     const dd = String(today.getDate()).padStart(2, "0");
                     setManualAdjustForm({
                       baselineDate: `${yyyy}-${mm}-${dd}`,
-                      baselineRemaining: paidLeave.remainingDays,
+                      baselineRemaining: String(paidLeave.remainingDays),
                       baselineNote: paidLeave.manualBaselineNote ?? "",
                     });
                     setManualAdjustDialogOpen(true);
@@ -2854,7 +2854,7 @@ export default function EmployeeDetail() {
                 onChange={(e) =>
                   setManualAdjustForm((f) => ({
                     ...f,
-                    baselineRemaining: parseFloat(e.target.value) || 0,
+                    baselineRemaining: e.target.value,
                   }))
                 }
               />
@@ -2921,7 +2921,7 @@ export default function EmployeeDetail() {
               onClick={() => {
                 manualAdjustMutation.mutate({
                   manualBaselineDate: manualAdjustForm.baselineDate,
-                  manualBaselineRemaining: manualAdjustForm.baselineRemaining,
+                  manualBaselineRemaining: parseFloat(manualAdjustForm.baselineRemaining),
                   manualBaselineNote: manualAdjustForm.baselineNote,
                 });
                 toast({ title: "残日数を手動修正しました" });
@@ -2929,7 +2929,10 @@ export default function EmployeeDetail() {
               disabled={
                 manualAdjustMutation.isPending ||
                 !manualAdjustForm.baselineDate ||
-                !manualAdjustForm.baselineNote.trim()
+                !manualAdjustForm.baselineNote.trim() ||
+                !manualAdjustForm.baselineRemaining.trim() ||
+                isNaN(parseFloat(manualAdjustForm.baselineRemaining)) ||
+                parseFloat(manualAdjustForm.baselineRemaining) < 0
               }
             >
               {manualAdjustMutation.isPending ? "保存中..." : "保存"}
