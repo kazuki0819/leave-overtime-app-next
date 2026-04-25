@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureDbInitialized } from "@/lib/init-db";
 import { storage } from "@/lib/storage";
 import { insertPaidLeaveSchema } from "@/lib/schema";
-import { recalcConsumedDays } from "@/lib/recalc-consumed";
 
 export async function GET(request: NextRequest) {
   await ensureDbInitialized();
@@ -34,8 +33,6 @@ export async function PUT(request: NextRequest) {
     data.remainingDays = Math.max(0, granted + carriedOver - consumed - expired);
     data.usageRate = granted > 0 ? Math.round((consumed / granted) * 10000) / 10000 : 0;
     const leave = await storage.upsertPaidLeave(data);
-
-    await recalcConsumedDays(data.employeeId);
     const updated = await storage.getPaidLeaveByEmployee(data.employeeId, data.fiscalYear);
 
     return NextResponse.json(updated ?? leave);
