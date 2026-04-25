@@ -464,7 +464,8 @@ export class TursoStorage implements IStorage {
         });
       }
 
-      const sortedOT = [...empOT].sort((a, b) => a.month - b.month);
+      const fiscalIndex = (month: number) => (month - 4 + 12) % 12;
+      const sortedOT = [...empOT].sort((a, b) => fiscalIndex(a.month) - fiscalIndex(b.month));
       let worstAvg = 0;
       let worstWindow = 0;
       let worstMonths: number[] = [];
