@@ -7,12 +7,14 @@ import {
   Users,
   Calendar,
   Clock,
+  History,
   Settings,
 } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "ダッシュボード", icon: LayoutDashboard },
   { href: "/leave", label: "有給管理", icon: Calendar },
+  { href: "/grant-cycle-review", label: "有給サイクル集計", icon: History },
   { href: "/overtime", label: "残業管理", icon: Clock },
   { href: "/employees", label: "社員一覧", icon: Users },
   { href: "/settings", label: "設定", icon: Settings },
