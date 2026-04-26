@@ -197,7 +197,10 @@ export default function GrantCycleReview() {
               ))}
             </SelectContent>
           </Select>
-          <Button disabled variant="outline">
+          <Button
+            onClick={() => window.open(`/api/export/grant-cycle-review?year=${year}&month=${month}`, "_blank")}
+            variant="outline"
+          >
             <Download className="mr-2 h-4 w-4" />
             CSV出力
           </Button>
