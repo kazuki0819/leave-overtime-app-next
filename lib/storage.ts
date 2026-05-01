@@ -6,11 +6,24 @@ import {
   type AssignmentHistory, type InsertAssignmentHistory,
   type SpecialLeave, type InsertSpecialLeave,
   type OvertimeAlert, type PaidLeaveAlert, type EmployeeAlert,
+  type LeaveUsageHistoryRecord,
   employees, paidLeaves, leaveUsages, monthlyOvertimes, assignmentHistories, specialLeaves,
+  leaveUsageHistory,
 } from "./schema";
+import { adjustmentDaysSchema, voidLeaveUsageSchema } from "./validations/leave-usage";
 import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil } from "./leave-calc";
 import { db, client } from "./db";
 import { eq, and, sql } from "drizzle-orm";
+
+// PR-1: getPaidLeaveByEmployee の拡張戻り値型
+export interface PaidLeaveExtended extends PaidLeave {
+  adjustedRemainingDays: number;
+  autoRemainingDays: number;
+  carriedOverBreakdown: {
+    auto: number;
+    adjustmentDerived: number;
+  };
+}
 
 export interface IStorage {
   getEmployees(includeRetired?: boolean): Promise<Employee[]>;
@@ -27,11 +40,13 @@ export interface IStorage {
   deleteAssignmentHistory(id: number): Promise<boolean>;
   getCurrentAssignment(employeeId: string): Promise<string>;
   getPaidLeaves(fiscalYear?: number): Promise<PaidLeave[]>;
-  getPaidLeaveByEmployee(employeeId: string, fiscalYear?: number): Promise<PaidLeave | undefined>;
+  getPaidLeaveByEmployee(employeeId: string, fiscalYear?: number): Promise<PaidLeaveExtended | undefined>;
   upsertPaidLeave(leave: InsertPaidLeave): Promise<PaidLeave>;
   getLeaveUsages(employeeId?: string): Promise<LeaveUsage[]>;
   createLeaveUsage(usage: InsertLeaveUsage): Promise<LeaveUsage>;
   deleteLeaveUsage(id: number): Promise<boolean>;
+  addLeaveAdjustment(params: { paidLeaveId: number; recordDate: string; days: number; reason: string; note?: string }): Promise<LeaveUsage>;
+  voidLeaveUsage(params: { leaveUsageId: number; voidedReason: string }): Promise<LeaveUsage>;
   getMonthlyOvertimes(employeeId?: string, year?: number): Promise<MonthlyOvertime[]>;
   upsertMonthlyOvertime(ot: InsertMonthlyOvertime): Promise<MonthlyOvertime>;
   getOvertimeAlerts(year?: number): Promise<OvertimeAlert[]>;
@@ -255,11 +270,35 @@ export class TursoStorage implements IStorage {
     return await db.select().from(paidLeaves);
   }
 
-  async getPaidLeaveByEmployee(employeeId: string, fiscalYear: number = 2025): Promise<PaidLeave | undefined> {
+  async getPaidLeaveByEmployee(employeeId: string, fiscalYear: number = 2025): Promise<PaidLeaveExtended | undefined> {
     const rows = await db.select().from(paidLeaves)
       .where(and(eq(paidLeaves.employeeId, employeeId), eq(paidLeaves.fiscalYear, fiscalYear)))
       .limit(1);
-    return rows[0];
+    const leave = rows[0];
+    if (!leave) return undefined;
+
+    const usages = await db.select().from(leaveUsages)
+      .where(and(
+        eq(leaveUsages.paidLeaveId, leave.id),
+        eq(leaveUsages.isVoided, 0),
+      ));
+
+    const adjustmentTotal = usages
+      .filter((u) => u.recordType === "adjustment")
+      .reduce((sum, u) => sum + u.days, 0);
+
+    const autoRemainingDays = leave.remainingDays;
+    const adjustedRemainingDays = autoRemainingDays - adjustmentTotal;
+
+    return {
+      ...leave,
+      adjustedRemainingDays,
+      autoRemainingDays,
+      carriedOverBreakdown: {
+        auto: leave.carriedOverDays,
+        adjustmentDerived: -adjustmentTotal,
+      },
+    };
   }
 
   async upsertPaidLeave(leave: InsertPaidLeave): Promise<PaidLeave> {
@@ -326,6 +365,84 @@ export class TursoStorage implements IStorage {
     if (!existingRows[0]) return false;
     await db.delete(leaveUsages).where(eq(leaveUsages.id, id));
     return true;
+  }
+
+  async addLeaveAdjustment(params: {
+    paidLeaveId: number;
+    recordDate: string;
+    days: number;
+    reason: string;
+    note?: string;
+  }): Promise<LeaveUsage> {
+    adjustmentDaysSchema.parse(params.days);
+    if (!params.reason || params.reason.trim().length === 0) {
+      throw new Error("補正理由は必須です");
+    }
+
+    const plRows = await db.select().from(paidLeaves)
+      .where(eq(paidLeaves.id, params.paidLeaveId)).limit(1);
+    if (!plRows[0]) {
+      throw new Error("対象の有給情報が見つかりません");
+    }
+
+    const now = new Date().toISOString();
+    const rows = await db.insert(leaveUsages).values({
+      employeeId: plRows[0].employeeId,
+      startDate: params.recordDate,
+      endDate: params.recordDate,
+      paidLeaveId: params.paidLeaveId,
+      recordDate: params.recordDate,
+      days: params.days,
+      note: params.note ?? null,
+      recordType: "adjustment",
+      reason: params.reason,
+      isVoided: 0,
+      voidedAt: null,
+      voidedReason: null,
+      createdAt: now,
+      updatedAt: now,
+    }).returning();
+    return rows[0];
+  }
+
+  async voidLeaveUsage(params: {
+    leaveUsageId: number;
+    voidedReason: string;
+  }): Promise<LeaveUsage> {
+    voidLeaveUsageSchema.parse({ voided_reason: params.voidedReason });
+
+    const existingRows = await db.select().from(leaveUsages)
+      .where(eq(leaveUsages.id, params.leaveUsageId)).limit(1);
+    const existing = existingRows[0];
+    if (!existing) {
+      throw new Error("対象レコードが見つかりません");
+    }
+    if (existing.isVoided === 1) {
+      throw new Error("既に解除済みのレコードです");
+    }
+
+    const now = new Date().toISOString();
+    await db.update(leaveUsages).set({
+      isVoided: 1,
+      voidedAt: now,
+      voidedReason: params.voidedReason,
+      updatedAt: now,
+    }).where(eq(leaveUsages.id, params.leaveUsageId));
+
+    await db.insert(leaveUsageHistory).values({
+      leaveUsageId: params.leaveUsageId,
+      action: "voided",
+      actedAt: now,
+      details: JSON.stringify({
+        recordType: existing.recordType,
+        days: existing.days,
+      }),
+      reason: params.voidedReason,
+    });
+
+    const updatedRows = await db.select().from(leaveUsages)
+      .where(eq(leaveUsages.id, params.leaveUsageId)).limit(1);
+    return updatedRows[0];
   }
 
   // ── Monthly Overtimes ──

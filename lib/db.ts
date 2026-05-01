@@ -93,4 +93,27 @@ export async function initializeDatabase() {
   try { await client.execute("ALTER TABLE paid_leaves ADD COLUMN manual_baseline_date TEXT"); } catch {}
   try { await client.execute("ALTER TABLE paid_leaves ADD COLUMN manual_baseline_remaining REAL"); } catch {}
   try { await client.execute("ALTER TABLE paid_leaves ADD COLUMN manual_baseline_note TEXT"); } catch {}
+
+  // PR-1: leave_usages への新カラム追加
+  try { await client.execute("ALTER TABLE leave_usages ADD COLUMN paid_leave_id INTEGER NOT NULL DEFAULT 0"); } catch {}
+  try { await client.execute("ALTER TABLE leave_usages ADD COLUMN record_date TEXT NOT NULL DEFAULT ''"); } catch {}
+  try { await client.execute("ALTER TABLE leave_usages ADD COLUMN note TEXT"); } catch {}
+  try { await client.execute("ALTER TABLE leave_usages ADD COLUMN record_type TEXT NOT NULL DEFAULT 'usage'"); } catch {}
+  try { await client.execute("ALTER TABLE leave_usages ADD COLUMN is_voided INTEGER NOT NULL DEFAULT 0"); } catch {}
+  try { await client.execute("ALTER TABLE leave_usages ADD COLUMN voided_at TEXT"); } catch {}
+  try { await client.execute("ALTER TABLE leave_usages ADD COLUMN voided_reason TEXT"); } catch {}
+  try { await client.execute("ALTER TABLE leave_usages ADD COLUMN created_at TEXT NOT NULL DEFAULT ''"); } catch {}
+  try { await client.execute("ALTER TABLE leave_usages ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''"); } catch {}
+
+  // PR-1: leave_usage_history テーブル新設
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS leave_usage_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      leave_usage_id INTEGER NOT NULL,
+      action TEXT NOT NULL,
+      acted_at TEXT NOT NULL,
+      details TEXT,
+      reason TEXT
+    )
+  `);
 }
