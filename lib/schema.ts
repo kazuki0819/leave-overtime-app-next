@@ -84,8 +84,17 @@ export const leaveUsages = sqliteTable("leave_usages", {
   employeeId: text("employee_id").notNull(),
   startDate: text("start_date").notNull(),
   endDate: text("end_date").notNull(),
+  paidLeaveId: integer("paid_leave_id").notNull().default(0),
+  recordDate: text("record_date").notNull().default(""),
   days: real("days").notNull().default(1),
+  note: text("note"),
+  recordType: text("record_type").notNull().default("usage"),
   reason: text("reason").default(""),
+  isVoided: integer("is_voided").notNull().default(0),
+  voidedAt: text("voided_at"),
+  voidedReason: text("voided_reason"),
+  createdAt: text("created_at").notNull().default(""),
+  updatedAt: text("updated_at").notNull().default(""),
 });
 
 export const insertLeaveUsageSchema = z.object({
@@ -97,6 +106,18 @@ export const insertLeaveUsageSchema = z.object({
 });
 export type InsertLeaveUsage = z.infer<typeof insertLeaveUsageSchema>;
 export type LeaveUsage = typeof leaveUsages.$inferSelect;
+
+// ── 有給使用履歴監査テーブル ──
+export const leaveUsageHistory = sqliteTable("leave_usage_history", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  leaveUsageId: integer("leave_usage_id").notNull(),
+  action: text("action").notNull(),
+  actedAt: text("acted_at").notNull(),
+  details: text("details"),
+  reason: text("reason"),
+});
+
+export type LeaveUsageHistoryRecord = typeof leaveUsageHistory.$inferSelect;
 
 // ── 特別休暇テーブル ──
 export const specialLeaves = sqliteTable("special_leaves", {
