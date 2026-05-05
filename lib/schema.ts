@@ -62,18 +62,16 @@ export const paidLeaves = sqliteTable("paid_leaves", {
   manualBaselineNote: text("manual_baseline_note"),
 });
 
+// PR-2: consumed_days, manual_baseline_* を引数から排除
+// fiscal_year は PR-3 で物理削除予定だが、内部利用のため残置
 export const insertPaidLeaveSchema = z.object({
   employeeId: z.string(),
   fiscalYear: z.number().optional(),
   grantedDays: z.number().optional(),
   carriedOverDays: z.number().optional(),
-  consumedDays: z.number().optional(),
   remainingDays: z.number().optional(),
   expiredDays: z.number().optional(),
   usageRate: z.number().optional(),
-  manualBaselineDate: z.string().nullable().optional(),
-  manualBaselineRemaining: z.number().nullable().optional(),
-  manualBaselineNote: z.string().nullable().optional(),
 });
 export type InsertPaidLeave = z.infer<typeof insertPaidLeaveSchema>;
 export type PaidLeave = typeof paidLeaves.$inferSelect;

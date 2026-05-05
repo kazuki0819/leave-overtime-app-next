@@ -41,7 +41,6 @@ export async function POST() {
           fiscalYear: pl.fiscalYear,
           grantedDays: pl.grantedDays,
           carriedOverDays: pl.carriedOverDays,
-          consumedDays: pl.consumedDays,
           remainingDays: expectedRemaining,
           expiredDays: pl.expiredDays,
           usageRate: Math.round(expectedUsageRate * 10000) / 10000,

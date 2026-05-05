@@ -15,29 +15,15 @@ export async function PUT(request: NextRequest) {
   await ensureDbInitialized();
   try {
     const body = await request.json();
-    const data = insertPaidLeaveSchema.parse(body) as any;
-
-    const hasDate = data.manualBaselineDate !== undefined && data.manualBaselineDate !== null;
-    const hasRemaining = data.manualBaselineRemaining !== undefined && data.manualBaselineRemaining !== null;
-    if (hasDate !== hasRemaining) {
-      return NextResponse.json(
-        { message: "manual_baseline_date と manual_baseline_remaining はセットで指定してください" },
-        { status: 400 },
-      );
-    }
+    const data = insertPaidLeaveSchema.parse(body);
 
     const granted = data.grantedDays ?? 0;
     const carriedOver = data.carriedOverDays ?? 0;
-    const consumed = data.consumedDays ?? 0;
     const expired = data.expiredDays ?? 0;
 
-    if (data.manualBaselineDate != null && data.manualBaselineRemaining != null) {
-      data.remainingDays = data.manualBaselineRemaining;
-    } else {
-      data.remainingDays = Math.max(0, granted + carriedOver - consumed - expired);
-    }
+    data.remainingDays = Math.max(0, granted + carriedOver - expired);
+    data.usageRate = 0;
 
-    data.usageRate = granted > 0 ? Math.round((consumed / granted) * 10000) / 10000 : 0;
     const leave = await storage.upsertPaidLeave(data);
     const updated = await storage.getPaidLeaveByEmployee(data.employeeId, data.fiscalYear);
 

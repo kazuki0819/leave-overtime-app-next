@@ -11,7 +11,7 @@ import {
   leaveUsageHistory,
 } from "./schema";
 import { adjustmentDaysSchema, voidLeaveUsageSchema } from "./validations/leave-usage";
-import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil } from "./leave-calc";
+import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoExpiredDays } from "./leave-calc";
 import { db, client } from "./db";
 import { eq, and, sql } from "drizzle-orm";
 
@@ -283,12 +283,21 @@ export class TursoStorage implements IStorage {
         eq(leaveUsages.isVoided, 0),
       ));
 
+    const allTotal = usages.reduce((sum, u) => sum + u.days, 0);
+    const usageOnlyTotal = usages
+      .filter((u) => u.recordType === "usage")
+      .reduce((sum, u) => sum + u.days, 0);
     const adjustmentTotal = usages
       .filter((u) => u.recordType === "adjustment")
       .reduce((sum, u) => sum + u.days, 0);
 
-    const autoRemainingDays = leave.remainingDays;
-    const adjustedRemainingDays = autoRemainingDays - adjustmentTotal;
+    const expired = calcAutoExpiredDays(leave.carriedOverDays, allTotal);
+    const adjustedRemainingDays = Math.max(0,
+      leave.grantedDays + leave.carriedOverDays - allTotal - expired);
+
+    const expiredAuto = calcAutoExpiredDays(leave.carriedOverDays, usageOnlyTotal);
+    const autoRemainingDays = Math.max(0,
+      leave.grantedDays + leave.carriedOverDays - usageOnlyTotal - expiredAuto);
 
     return {
       ...leave,
@@ -305,21 +314,15 @@ export class TursoStorage implements IStorage {
     const fy = leave.fiscalYear ?? 2025;
     const existing = await this.getPaidLeaveByEmployee(leave.employeeId, fy);
     if (existing) {
-      // 取得履歴がある社員は消化日数・残日数・取得率を保護（自動計算優先）
-      const usages = await this.getLeaveUsages(leave.employeeId);
-      const hasUsages = usages.length > 0;
       const updated = {
         employeeId: leave.employeeId,
         fiscalYear: fy,
         grantedDays: leave.grantedDays ?? existing.grantedDays,
         carriedOverDays: leave.carriedOverDays ?? existing.carriedOverDays,
-        consumedDays: hasUsages ? existing.consumedDays : (leave.consumedDays ?? existing.consumedDays),
-        remainingDays: hasUsages ? existing.remainingDays : (leave.remainingDays ?? existing.remainingDays),
+        consumedDays: existing.consumedDays,
+        remainingDays: leave.remainingDays ?? existing.remainingDays,
         expiredDays: leave.expiredDays ?? existing.expiredDays,
-        usageRate: hasUsages ? existing.usageRate : (leave.usageRate ?? existing.usageRate),
-        manualBaselineDate: leave.manualBaselineDate !== undefined ? leave.manualBaselineDate : existing.manualBaselineDate,
-        manualBaselineRemaining: leave.manualBaselineRemaining !== undefined ? leave.manualBaselineRemaining : existing.manualBaselineRemaining,
-        manualBaselineNote: leave.manualBaselineNote !== undefined ? leave.manualBaselineNote : existing.manualBaselineNote,
+        usageRate: leave.usageRate ?? existing.usageRate,
       };
       await db.update(paidLeaves).set(updated).where(eq(paidLeaves.id, existing.id));
       const rows = await db.select().from(paidLeaves).where(eq(paidLeaves.id, existing.id)).limit(1);
@@ -330,13 +333,10 @@ export class TursoStorage implements IStorage {
       fiscalYear: fy,
       grantedDays: leave.grantedDays ?? 0,
       carriedOverDays: leave.carriedOverDays ?? 0,
-      consumedDays: leave.consumedDays ?? 0,
+      consumedDays: 0,
       remainingDays: leave.remainingDays ?? 0,
       expiredDays: leave.expiredDays ?? 0,
       usageRate: leave.usageRate ?? 0,
-      manualBaselineDate: leave.manualBaselineDate ?? null,
-      manualBaselineRemaining: leave.manualBaselineRemaining ?? null,
-      manualBaselineNote: leave.manualBaselineNote ?? null,
     }).returning();
     return rows[0];
   }

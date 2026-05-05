@@ -45,7 +45,6 @@ export async function POST(request: NextRequest) {
         fiscalYear: targetFiscalYear,
         grantedDays,
         carriedOverDays: carryoverDays,
-        consumedDays: 0,
         remainingDays: remaining,
         expiredDays: 0,
         usageRate: 0,
