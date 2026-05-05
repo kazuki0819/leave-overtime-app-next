@@ -1,0 +1,196 @@
+PR-3 事前調査結果
+==================
+調査日: 2026-05-05
+調査者: Claude Code
+ブランチ: feature/pr-3-fiscal-year-removal (起点: 76a8490)
+Tursoアカウント: kazuki0819
+ローカルDB: leave-overtime-local
+
+=====================================
+1. useFiscalYear 利用箇所（import + 呼び出し）
+=====================================
+
+■ 修正対象ファイル（有給側）
+
+(1) components/pages/employee-detail.tsx — 17箇所
+    L66:  import { useFiscalYear }
+    L159: const { fiscalYear } = useFiscalYear()
+    L162: queryKey: ["/api/paid-leaves", id, fiscalYear]
+    L164: `/api/paid-leaves/${id}?year=${fiscalYear}`
+    L171: queryKey: ["/api/paid-leaves", id, fiscalYear - 1]
+    L173: `/api/paid-leaves/${id}?year=${fiscalYear - 1}`
+    L179: queryKey: ["/api/monthly-overtimes", id, fiscalYear]
+    L181: `/api/monthly-overtimes?employeeId=${id}&year=${fiscalYear}`
+    L187: queryKey: ["/api/alerts", fiscalYear]
+    L189: `/api/alerts?year=${fiscalYear}`
+    L238: fiscalYear,
+    L256: year: fiscalYear,
+    L446: fiscalYear,
+    L458: queryClient.invalidateQueries({ queryKey: ["/api/paid-leaves", id, fiscalYear] })
+    L544: calcAutoGrantedDays(employee.joinDate, fiscalYear)
+    L545: [employee?.joinDate, fiscalYear]
+    L1201: 有給休暇（{fiscalYear}年度）
+    L1815: {fiscalYear}年度の有給付与対象です
+    L1899: 残業時間（月別・{fiscalYear}年度）
+
+(2) components/pages/leave-management.tsx — 11箇所
+    L7:   import { useFiscalYear }
+    L112: fiscalYear,（props）
+    L117: fiscalYear: number;（型定義）
+    L182: fiscalYear: number（mutation型）
+    L217: fiscalYear,（mutation呼び出し）
+    L620: const { fiscalYear } = useFiscalYear()
+    L623: queryKey: ["/api/employee-summaries", fiscalYear]
+    L625: `/api/employee-summaries?year=${fiscalYear}`
+    L631: queryKey: ["/api/assignment-leave-stats", fiscalYear]
+    L633: `/api/assignment-leave-stats?year=${fiscalYear}`
+    L817: `/api/export/leave-management?year=${fiscalYear}`
+    L1124: fiscalYear={fiscalYear}（props渡し）
+
+(3) components/pages/dashboard.tsx — 3箇所
+    L7:   import { useFiscalYear }
+    L80:  const { fiscalYear } = useFiscalYear()
+    L83:  queryKey: ["/api/employee-summaries", fiscalYear]
+    L85:  `/api/employee-summaries?year=${fiscalYear}`
+
+(4) components/pages/employee-list.tsx — 3箇所
+    L7:   import { useFiscalYear }
+    L88:  const { fiscalYear } = useFiscalYear()
+    L91:  queryKey: ["/api/paid-leaves", fiscalYear]
+    L93:  `/api/paid-leaves?year=${fiscalYear}`
+
+(5) components/pages/settings.tsx — 2箇所
+    L6:   import { useFiscalYear }
+    L84:  const { fiscalYear, fiscalYearOptions } = useFiscalYear()
+    L85:  const [targetYear, setTargetYear] = useState<number>(fiscalYear + 1)
+    L194: {fiscalYearOptions.map((y) => ...
+
+(6) components/fiscal-year-selector.tsx — 1箇所（コンポーネント定義）
+    L4:   import { useFiscalYear }
+    L12:  const { fiscalYear, setFiscalYear, fiscalYearOptions } = useFiscalYear()
+    L17-48: 残業側で使用されるUIコンポーネント
+
+(7) hooks/use-fiscal-year.tsx — フック定義ファイル
+    L27-47: useFiscalYear フック本体
+
+■ 修正不要ファイル（残業側）
+
+(8) components/pages/overtime-management.tsx — 6箇所 ❌修正不要
+    L7:   import { useFiscalYear }
+    L75:  const { fiscalYear } = useFiscalYear()
+    L78:  queryKey: ["/api/employee-summaries", fiscalYear]
+    L80:  `/api/employee-summaries?year=${fiscalYear}`
+    L86:  queryKey: ["/api/dashboard", fiscalYear]
+    L88:  `/api/dashboard?year=${fiscalYear}`
+    L235: `/api/export/overtime-management?year=${fiscalYear}`
+
+=====================================
+2. fiscal_year / fiscalYear 参照箇所（useFiscalYear以外）
+=====================================
+
+■ 修正対象
+
+(a) lib/schema.ts — L53, L66
+    paid_leaves テーブル定義の fiscalYear カラム → 物理削除
+
+(b) lib/storage.ts — 9箇所
+    L42:  getPaidLeaves(fiscalYear?: number)
+    L43:  getPaidLeaveByEmployee(employeeId: string, fiscalYear?: number)
+    L53:  getPaidLeaveAlerts(fiscalYear?: number)
+    L266-268: getPaidLeaves実装（fiscal_yearフィルタ）
+    L273-275: getPaidLeaveByEmployee実装（fiscal_yearフィルタ）
+    L314-333: upsertPaidLeave実装（fiscalYear参照）
+    L630-633: getPaidLeaveAlerts実装（fiscal_yearフィルタ）
+
+(c) lib/leave-calc.ts — L392-399
+    calcAutoGrantedDays(joinDateStr, fiscalYear) → サイクルベースに変更が必要か検討
+
+(d) lib/recalc-consumed.ts — L24
+    fiscalYear: leave.fiscalYear → 参照除去
+
+(e) app/api/paid-leaves/route.ts — L28
+    data.fiscalYear → 参照除去
+
+(f) app/api/seed/route.ts — L41
+    fiscalYear: pl.fiscalYear → 参照除去
+
+(g) app/api/grant-cycle-review/route.ts — L92, L99, L106
+    grantDateToFiscalYear / paidLeaves.fiscalYear → サイクルベースに変更
+
+(h) app/api/export/grant-cycle-review/route.ts — L91, L98
+    grantDateToFiscalYear / paidLeaves.fiscalYear → サイクルベースに変更
+
+(i) app/api/fiscal-year-transition/route.ts — L45
+    fiscalYear: targetFiscalYear → 要検討
+
+(j) lib/db.ts — L40
+    SQL定義の fiscal_year INTEGER → マイグレーション後に整理
+
+(k) lib/__tests__/storage-leave-adjustment.test.ts — L30, L97
+    テスト内の fiscal_year → テスト修正
+
+■ 修正不要（残業側）
+
+- components/pages/overtime-management.tsx 内の fiscalYear 参照（全て残業API呼び出し）
+- monthly_overtimes テーブル関連は全て対象外
+
+=====================================
+3. ローカル検証DB paid_leaves データスナップショット
+=====================================
+
+テーブル定義:
+  CREATE TABLE paid_leaves (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    employee_id TEXT NOT NULL,
+    fiscal_year INTEGER NOT NULL DEFAULT 2025,
+    granted_days REAL NOT NULL DEFAULT 0,
+    carried_over_days REAL NOT NULL DEFAULT 0,
+    consumed_days REAL NOT NULL DEFAULT 0,
+    remaining_days REAL NOT NULL DEFAULT 0,
+    expired_days REAL NOT NULL DEFAULT 0,
+    usage_rate REAL NOT NULL DEFAULT 0,
+    adjustment_days REAL NOT NULL DEFAULT 0,
+    adjustment_note TEXT NOT NULL DEFAULT '',
+    manual_baseline_date TEXT,
+    manual_baseline_remaining REAL,
+    manual_baseline_note TEXT
+  )
+
+レコード数: 78件
+
+fiscal_year分布:
+  2024: 7件
+  2025: 71件
+
+=====================================
+4. DROP COLUMN 対応確認
+=====================================
+
+SQLite バージョン: 3.45.1
+DROP COLUMN サポート: ✅ 対応（3.35.0以降で対応）
+
+ALTER TABLE paid_leaves DROP COLUMN fiscal_year; が直接使用可能。
+テーブル再作成方式は不要。
+
+=====================================
+5. サマリ
+=====================================
+
+useFiscalYear 利用箇所の総数:
+  修正対象:  37箇所（import行含む）
+    - employee-detail.tsx:   19行（import含む）
+    - leave-management.tsx:  12行（import含む）
+    - dashboard.tsx:          4行（import含む）
+    - employee-list.tsx:      4行（import含む）
+    - settings.tsx:           4行（import含む）
+    - fiscal-year-selector.tsx: 複数行（コンポーネント整理）
+    - use-fiscal-year.tsx:   フック定義ファイル
+  修正不要:   7箇所（overtime-management.tsx、残業側）
+
+fiscalYear / fiscal_year 参照（useFiscalYear以外）:
+  修正対象: lib/storage.ts(9), lib/schema.ts(2), lib/leave-calc.ts(1),
+           lib/recalc-consumed.ts(1), app/api/*(6), lib/db.ts(1), test(2)
+  修正不要: overtime-management.tsx内のAPI呼び出し
+
+DROP COLUMN: ✅ SQLite 3.45.1 で対応済み
+ローカルDB paid_leaves: 78件（2024:7件, 2025:71件）
