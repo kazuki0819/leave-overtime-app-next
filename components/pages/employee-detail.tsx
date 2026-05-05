@@ -61,6 +61,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import type { Employee, PaidLeave, MonthlyOvertime, EmployeeAlert, LeaveUsage, AssignmentHistory, SpecialLeave } from "@/lib/schema";
+import type { PaidLeaveExtended } from "@/lib/storage";
 import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoGrantedDays, calcAutoCarryoverDays, calcAutoExpiredDays, type LeaveDeadlineInfo, type ExpiryRiskInfo, type ConsumptionPaceInfo, type CarryoverUtilInfo } from "@/lib/leave-calc";
 import { useFiscalYear } from "@/hooks/use-fiscal-year";
 import { FiscalYearSelector } from "@/components/fiscal-year-selector";
@@ -157,7 +158,7 @@ export default function EmployeeDetail() {
 
   const { fiscalYear } = useFiscalYear();
 
-  const { data: paidLeave } = useQuery<PaidLeave | null>({
+  const { data: paidLeave } = useQuery<PaidLeaveExtended | null>({
     queryKey: ["/api/paid-leaves", id, fiscalYear],
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/paid-leaves/${id}?year=${fiscalYear}`);
@@ -1207,26 +1208,24 @@ export default function EmployeeDetail() {
                 </Badge>
               )}
               {!isEditing && paidLeave && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className={`h-6 px-2 text-xs gap-1 ${leaveAlerts.length === 0 ? "ml-auto" : ""}`}
-                  onClick={() => {
-                    const today = new Date();
-                    const yyyy = today.getFullYear();
-                    const mm = String(today.getMonth() + 1).padStart(2, "0");
-                    const dd = String(today.getDate()).padStart(2, "0");
-                    setManualAdjustForm({
-                      baselineDate: `${yyyy}-${mm}-${dd}`,
-                      baselineRemaining: String(paidLeave.remainingDays),
-                      baselineNote: paidLeave.manualBaselineNote ?? "",
-                    });
-                    setManualAdjustDialogOpen(true);
-                  }}
-                >
-                  <PencilLine className="h-3 w-3" />
-                  残日数修正
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className={`h-6 px-2 text-xs gap-1 opacity-50 cursor-not-allowed ${leaveAlerts.length === 0 ? "ml-auto" : ""}`}
+                        disabled
+                      >
+                        <PencilLine className="h-3 w-3" />
+                        残日数修正
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <p className="text-xs">補正値履歴で管理されるようになりました</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
             </CardTitle>
           </CardHeader>
@@ -1570,30 +1569,7 @@ export default function EmployeeDetail() {
                   <div>
                     <dt className="text-xs text-muted-foreground">残日数</dt>
                     <dd className="text-lg font-bold tabular-nums text-primary">
-                      {Number(paidLeave.remainingDays).toFixed(2)}
-                      {paidLeave.manualBaselineDate && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button type="button" className="inline-flex cursor-help align-middle">
-                                <Badge
-                                  variant="outline"
-                                  className="ml-1.5 text-[10px] px-1.5 py-0 border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
-                                >
-                                  手動修正
-                                </Badge>
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-xs">
-                              <p className="text-xs font-medium">起点日: {paidLeave.manualBaselineDate}</p>
-                              <p className="text-xs">基準残日数: {paidLeave.manualBaselineRemaining}日</p>
-                              {paidLeave.manualBaselineNote && (
-                                <p className="text-xs text-muted-foreground mt-0.5">理由: {paidLeave.manualBaselineNote}</p>
-                              )}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
+                      {Number(paidLeave.adjustedRemainingDays ?? paidLeave.remainingDays).toFixed(2)}
                     </dd>
                   </div>
                   <div>
@@ -2821,121 +2797,24 @@ export default function EmployeeDetail() {
 
 
 
-      {/* ─── 残日数手動修正ダイアログ ─── */}
+      {/* ─── 残日数手動修正ダイアログ（PR-2 移行後は無効化） ─── */}
       <Dialog open={manualAdjustDialogOpen} onOpenChange={setManualAdjustDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>残日数を手動修正</DialogTitle>
+            <DialogTitle>残日数手動修正</DialogTitle>
             <DialogDescription>
-              自動計算では合わない場合に、残日数の基準値を手動で設定します。修正後は、この起点日より後の使用履歴のみが差し引かれます。
+              この機能はPR-2移行により無効化されました。残日数の補正は補正値履歴で管理されます。
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="manual-baseline-date">
-                起点日 <span className="text-destructive">＊</span>
-              </Label>
-              <DateInput
-                id="manual-baseline-date"
-                value={manualAdjustForm.baselineDate}
-                onChange={(v) => setManualAdjustForm((f) => ({ ...f, baselineDate: v }))}
-              />
+          <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 px-4 py-3 text-sm text-blue-800 dark:text-blue-300">
+            <div className="flex items-start gap-2">
+              <Info className="h-4 w-4 mt-0.5 shrink-0" />
+              <p>残日数の修正は「補正値履歴」から行ってください。補正値専用UIはPR-4で実装予定です。</p>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="manual-baseline-remaining">
-                修正後の残日数 <span className="text-destructive">＊</span>
-              </Label>
-              <Input
-                id="manual-baseline-remaining"
-                type="number"
-                step="0.5"
-                min="0"
-                value={manualAdjustForm.baselineRemaining}
-                onChange={(e) =>
-                  setManualAdjustForm((f) => ({
-                    ...f,
-                    baselineRemaining: e.target.value,
-                  }))
-                }
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="manual-baseline-note">
-                修正理由メモ <span className="text-destructive">＊</span>
-              </Label>
-              <Textarea
-                id="manual-baseline-note"
-                value={manualAdjustForm.baselineNote}
-                onChange={(e) => setManualAdjustForm((f) => ({ ...f, baselineNote: e.target.value }))}
-                placeholder="例: 前職からの繰越調整、労務士確認済み"
-                className="min-h-[60px]"
-              />
-            </div>
-            {paidLeave?.manualBaselineDate && (
-              <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300">
-                <div className="flex items-start gap-2">
-                  <Info className="h-4 w-4 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="font-medium">現在の手動修正</p>
-                    <p className="text-xs mt-0.5">
-                      起点日: {paidLeave.manualBaselineDate} / 残日数: {paidLeave.manualBaselineRemaining}日
-                    </p>
-                    {paidLeave.manualBaselineNote && (
-                      <p className="text-xs mt-0.5">理由: {paidLeave.manualBaselineNote}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
-          <DialogFooter className="pt-2 flex-col sm:flex-row gap-2">
-            {paidLeave?.manualBaselineDate && (
-              <Button
-                type="button"
-                variant="outline"
-                className="border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/30 sm:mr-auto"
-                onClick={() => {
-                  if (window.confirm("手動修正を解除し、自動計算に戻しますか？")) {
-                    manualAdjustMutation.mutate({
-                      manualBaselineDate: null,
-                      manualBaselineRemaining: null,
-                      manualBaselineNote: null,
-                    });
-                    toast({ title: "手動修正を解除しました" });
-                  }
-                }}
-                disabled={manualAdjustMutation.isPending}
-              >
-                <Undo2 className="h-3.5 w-3.5 mr-1" />
-                修正を解除
-              </Button>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setManualAdjustDialogOpen(false)}
-            >
-              キャンセル
-            </Button>
-            <Button
-              onClick={() => {
-                manualAdjustMutation.mutate({
-                  manualBaselineDate: manualAdjustForm.baselineDate,
-                  manualBaselineRemaining: parseFloat(manualAdjustForm.baselineRemaining),
-                  manualBaselineNote: manualAdjustForm.baselineNote,
-                });
-                toast({ title: "残日数を手動修正しました" });
-              }}
-              disabled={
-                manualAdjustMutation.isPending ||
-                !manualAdjustForm.baselineDate ||
-                !manualAdjustForm.baselineNote.trim() ||
-                !manualAdjustForm.baselineRemaining.trim() ||
-                isNaN(parseFloat(manualAdjustForm.baselineRemaining)) ||
-                parseFloat(manualAdjustForm.baselineRemaining) < 0
-              }
-            >
-              {manualAdjustMutation.isPending ? "保存中..." : "保存"}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManualAdjustDialogOpen(false)}>
+              閉じる
             </Button>
           </DialogFooter>
         </DialogContent>
