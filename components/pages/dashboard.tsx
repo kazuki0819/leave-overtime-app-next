@@ -4,8 +4,6 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import Link from "next/link";
-import { useFiscalYear } from "@/hooks/use-fiscal-year";
-import { FiscalYearSelector } from "@/components/fiscal-year-selector";
 import {
   Users,
   AlertTriangle,
@@ -39,6 +37,8 @@ type EmployeeSummary = {
     grantedDays: number;
     carriedOverDays: number;
     expiredDays: number;
+    adjustedRemainingDays: number;
+    autoRemainingDays: number;
   } | null;
   overtime: {
     yearlyTotal: number;
@@ -77,12 +77,11 @@ type FilterMode = "all" | "leave_danger" | "leave_warning" | "leave_caution" | "
 export default function Dashboard() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterMode>("all");
-  const { fiscalYear } = useFiscalYear();
 
   const { data: summaries, isLoading } = useQuery<EmployeeSummary[]>({
-    queryKey: ["/api/employee-summaries", fiscalYear],
+    queryKey: ["/api/employee-summaries"],
     queryFn: async () => {
-      const res = await apiRequest("GET", `/api/employee-summaries?year=${fiscalYear}`);
+      const res = await apiRequest("GET", "/api/employee-summaries");
       return res.json();
     },
   });
@@ -194,7 +193,6 @@ export default function Dashboard() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold" data-testid="page-title">ダッシュボード</h1>
-        <FiscalYearSelector />
       </div>
 
       {/* Top KPI strip */}
@@ -593,7 +591,7 @@ function EmployeeCard({ emp }: { emp: EmployeeSummary }) {
           </div>
 
           {/* Data strip */}
-          <div className="grid grid-cols-3 gap-2 text-center mb-2">
+          <div className="grid grid-cols-2 gap-2 text-center mb-2">
             <div>
               <p className="text-xs text-muted-foreground">有給取得率</p>
               <p className={`text-sm font-bold tabular-nums ${usageColor}`}>
@@ -614,13 +612,24 @@ function EmployeeCard({ emp }: { emp: EmployeeSummary }) {
                 {emp.overtime.yearlyTotal.toFixed(2)}h
               </p>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">有給残日数</p>
-              <p className="text-sm font-bold tabular-nums">
-                {leave ? `${Number(leave.remainingDays).toFixed(2)}日` : "-"}
-              </p>
-            </div>
           </div>
+          {/* 有給残日数 2窓表示 */}
+          {leave && (
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <div className="rounded border px-2 py-1.5 text-center">
+                <p className="text-xs text-muted-foreground">残日数（補正込）</p>
+                <p className="text-sm font-bold tabular-nums">
+                  {leave.adjustedRemainingDays.toFixed(2)}日
+                </p>
+              </div>
+              <div className="rounded border border-dashed px-2 py-1.5 text-center">
+                <p className="text-xs text-muted-foreground">残日数（自動計算）</p>
+                <p className="text-sm font-bold tabular-nums text-muted-foreground">
+                  {leave.autoRemainingDays.toFixed(2)}日
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Deadline / pace strip */}
           {dl && dl.paceStatus !== "not_eligible" && (

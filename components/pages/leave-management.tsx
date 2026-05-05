@@ -4,8 +4,6 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import Link from "next/link";
-import { useFiscalYear } from "@/hooks/use-fiscal-year";
-import { FiscalYearSelector } from "@/components/fiscal-year-selector";
 import {
   Calendar,
   ChevronRight,
@@ -109,12 +107,10 @@ function LeaveEmployeeRow({
   emp,
   isExpanded,
   onToggle,
-  fiscalYear,
 }: {
   emp: EmployeeSummary;
   isExpanded: boolean;
   onToggle: () => void;
-  fiscalYear: number;
 }) {
   const { toast } = useToast();
   const leave = emp.paidLeave;
@@ -179,7 +175,7 @@ function LeaveEmployeeRow({
 
   // ── Update paid leave mutation ─────────────────────────────────────────
   const updatePaidLeaveMutation = useMutation({
-    mutationFn: async (data: { employeeId: string; fiscalYear: number; grantedDays?: number; carriedOverDays?: number; expiredDays?: number }) => {
+    mutationFn: async (data: { employeeId: string; grantedDays?: number; carriedOverDays?: number; expiredDays?: number }) => {
       const res = await apiRequest("PUT", "/api/paid-leaves", data);
       return res.json();
     },
@@ -214,7 +210,6 @@ function LeaveEmployeeRow({
   const handleSaveLeave = () => {
     updatePaidLeaveMutation.mutate({
       employeeId: emp.id,
-      fiscalYear,
       grantedDays: Number(editGranted) || 0,
       carriedOverDays: Number(editCarriedOver) || 0,
       expiredDays: Number(editExpired) || 0,
@@ -617,20 +612,19 @@ export default function LeaveManagement() {
   const [sortKey, setSortKey] = useState<SortKey>("pace");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const { fiscalYear } = useFiscalYear();
 
   const { data: summaries, isLoading } = useQuery<EmployeeSummary[]>({
-    queryKey: ["/api/employee-summaries", fiscalYear],
+    queryKey: ["/api/employee-summaries"],
     queryFn: async () => {
-      const res = await apiRequest("GET", `/api/employee-summaries?year=${fiscalYear}`);
+      const res = await apiRequest("GET", "/api/employee-summaries");
       return res.json();
     },
   });
 
   const { data: assignmentStats } = useQuery<AssignmentStat[]>({
-    queryKey: ["/api/assignment-leave-stats", fiscalYear],
+    queryKey: ["/api/assignment-leave-stats"],
     queryFn: async () => {
-      const res = await apiRequest("GET", `/api/assignment-leave-stats?year=${fiscalYear}`);
+      const res = await apiRequest("GET", "/api/assignment-leave-stats");
       return res.json();
     },
   });
@@ -814,14 +808,13 @@ export default function LeaveManagement() {
             className="h-8 text-xs gap-1.5"
             onClick={() => {
               const API_BASE = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
-              window.open(`${API_BASE}/api/export/leave-management?year=${fiscalYear}`, "_blank");
+              window.open(`${API_BASE}/api/export/leave-management`, "_blank");
             }}
             data-testid="button-export-leave"
           >
             <Download className="h-3.5 w-3.5" />
             CSVエクスポート
           </Button>
-          <FiscalYearSelector />
         </div>
       </div>
 
@@ -1121,7 +1114,6 @@ export default function LeaveManagement() {
                     emp={emp}
                     isExpanded={expandedId === emp.id}
                     onToggle={() => setExpandedId(expandedId === emp.id ? null : emp.id)}
-                    fiscalYear={fiscalYear}
                   />
                 ))}
               </tbody>

@@ -1,3 +1,4 @@
+// 残業管理画面専用コンポーネント（PR-3 で有給側の年度概念を削除したため）
 "use client";
 
 import { useState } from "react";
