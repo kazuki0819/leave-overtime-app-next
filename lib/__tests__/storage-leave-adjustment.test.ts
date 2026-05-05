@@ -27,7 +27,6 @@ async function initTestDb(client: ReturnType<typeof createClient>) {
     CREATE TABLE IF NOT EXISTS paid_leaves (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       employee_id TEXT NOT NULL,
-      fiscal_year INTEGER NOT NULL DEFAULT 2025,
       granted_days REAL NOT NULL DEFAULT 0,
       carried_over_days REAL NOT NULL DEFAULT 0,
       consumed_days REAL NOT NULL DEFAULT 0,
@@ -94,7 +93,6 @@ describe("addLeaveAdjustment / voidLeaveUsage (直接DB操作)", () => {
 
     const plRows = await testDb.insert(paidLeaves).values({
       employeeId: "1",
-      fiscalYear: 2025,
       grantedDays: 20,
       carriedOverDays: 5,
       remainingDays: 25,

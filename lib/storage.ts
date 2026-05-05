@@ -39,8 +39,8 @@ export interface IStorage {
   updateAssignmentHistory(id: number, data: Partial<InsertAssignmentHistory>): Promise<AssignmentHistory | undefined>;
   deleteAssignmentHistory(id: number): Promise<boolean>;
   getCurrentAssignment(employeeId: string): Promise<string>;
-  getPaidLeaves(fiscalYear?: number): Promise<PaidLeave[]>;
-  getPaidLeaveByEmployee(employeeId: string, fiscalYear?: number): Promise<PaidLeaveExtended | undefined>;
+  getPaidLeaves(): Promise<PaidLeave[]>;
+  getPaidLeaveByEmployee(employeeId: string): Promise<PaidLeaveExtended | undefined>;
   upsertPaidLeave(leave: InsertPaidLeave): Promise<PaidLeave>;
   getLeaveUsages(employeeId?: string): Promise<LeaveUsage[]>;
   createLeaveUsage(usage: InsertLeaveUsage): Promise<LeaveUsage>;
@@ -50,7 +50,7 @@ export interface IStorage {
   getMonthlyOvertimes(employeeId?: string, year?: number): Promise<MonthlyOvertime[]>;
   upsertMonthlyOvertime(ot: InsertMonthlyOvertime): Promise<MonthlyOvertime>;
   getOvertimeAlerts(year?: number): Promise<OvertimeAlert[]>;
-  getPaidLeaveAlerts(fiscalYear?: number): Promise<PaidLeaveAlert[]>;
+  getPaidLeaveAlerts(): Promise<PaidLeaveAlert[]>;
   getAllAlerts(year?: number): Promise<EmployeeAlert[]>;
   getEmployeeSummaries(year?: number): Promise<any[]>;
   getSpecialLeaves(employeeId?: string): Promise<SpecialLeave[]>;
@@ -263,16 +263,13 @@ export class TursoStorage implements IStorage {
   }
 
   // ── Paid Leaves ──
-  async getPaidLeaves(fiscalYear?: number): Promise<PaidLeave[]> {
-    if (fiscalYear != null) {
-      return await db.select().from(paidLeaves).where(eq(paidLeaves.fiscalYear, fiscalYear));
-    }
+  async getPaidLeaves(): Promise<PaidLeave[]> {
     return await db.select().from(paidLeaves);
   }
 
-  async getPaidLeaveByEmployee(employeeId: string, fiscalYear: number = 2025): Promise<PaidLeaveExtended | undefined> {
+  async getPaidLeaveByEmployee(employeeId: string): Promise<PaidLeaveExtended | undefined> {
     const rows = await db.select().from(paidLeaves)
-      .where(and(eq(paidLeaves.employeeId, employeeId), eq(paidLeaves.fiscalYear, fiscalYear)))
+      .where(eq(paidLeaves.employeeId, employeeId))
       .limit(1);
     const leave = rows[0];
     if (!leave) return undefined;
@@ -311,12 +308,10 @@ export class TursoStorage implements IStorage {
   }
 
   async upsertPaidLeave(leave: InsertPaidLeave): Promise<PaidLeave> {
-    const fy = leave.fiscalYear ?? 2025;
-    const existing = await this.getPaidLeaveByEmployee(leave.employeeId, fy);
+    const existing = await this.getPaidLeaveByEmployee(leave.employeeId);
     if (existing) {
       const updated = {
         employeeId: leave.employeeId,
-        fiscalYear: fy,
         grantedDays: leave.grantedDays ?? existing.grantedDays,
         carriedOverDays: leave.carriedOverDays ?? existing.carriedOverDays,
         consumedDays: existing.consumedDays,
@@ -330,7 +325,6 @@ export class TursoStorage implements IStorage {
     }
     const rows = await db.insert(paidLeaves).values({
       employeeId: leave.employeeId,
-      fiscalYear: fy,
       grantedDays: leave.grantedDays ?? 0,
       carriedOverDays: leave.carriedOverDays ?? 0,
       consumedDays: 0,
@@ -627,10 +621,10 @@ export class TursoStorage implements IStorage {
   }
 
   // ── Paid Leave Alerts ──
-  async getPaidLeaveAlerts(fiscalYear: number = 2025): Promise<PaidLeaveAlert[]> {
+  async getPaidLeaveAlerts(): Promise<PaidLeaveAlert[]> {
     const alerts: PaidLeaveAlert[] = [];
     const emps = await this.getEmployees(false);
-    const leaves = await this.getPaidLeaves(fiscalYear);
+    const leaves = await this.getPaidLeaves();
     const now = new Date();
 
     for (const emp of emps) {
@@ -771,7 +765,7 @@ export class TursoStorage implements IStorage {
   // ── All Alerts Combined ──
   async getAllAlerts(year: number = 2025): Promise<EmployeeAlert[]> {
     const overtimeAlerts = await this.getOvertimeAlerts(year);
-    const leaveAlerts = await this.getPaidLeaveAlerts(year);
+    const leaveAlerts = await this.getPaidLeaveAlerts();
 
     // 各アラートは独立発行—抑制なしで統合
     const all: EmployeeAlert[] = [
@@ -792,10 +786,20 @@ export class TursoStorage implements IStorage {
   // ── Employee Summaries ──
   async getEmployeeSummaries(year: number = 2025): Promise<any[]> {
     const emps = await this.getEmployees(false);
-    const leaves = await this.getPaidLeaves(year);
+    const leaves = await this.getPaidLeaves();
     const overtimes = await this.getMonthlyOvertimes(undefined, year);
     const allAlerts = await this.getAllAlerts(year);
     const leaveMap = new Map(leaves.map(l => [l.employeeId, l]));
+
+    const allUsages = await db.select().from(leaveUsages)
+      .where(eq(leaveUsages.isVoided, 0));
+    const usagesByLeaveId = new Map<number, typeof allUsages>();
+    for (const u of allUsages) {
+      const arr = usagesByLeaveId.get(u.paidLeaveId) ?? [];
+      arr.push(u);
+      usagesByLeaveId.set(u.paidLeaveId, arr);
+    }
+
     const now = new Date();
 
     return emps.map(emp => {
@@ -829,12 +833,21 @@ export class TursoStorage implements IStorage {
 
       return {
         id: emp.id, name: emp.name, assignment: emp.assignment, status: emp.status,
-        paidLeave: leave ? {
-          consumedDays: leave.consumedDays, remainingDays: leave.remainingDays,
-          totalAvailable: leave.grantedDays + leave.carriedOverDays,
-          usageRate: leave.usageRate, grantedDays: leave.grantedDays,
-          carriedOverDays: leave.carriedOverDays, expiredDays: leave.expiredDays,
-        } : null,
+        paidLeave: leave ? (() => {
+          const usgs = usagesByLeaveId.get(leave.id) ?? [];
+          const allTotal = usgs.reduce((s, u) => s + u.days, 0);
+          const usageOnlyTotal = usgs.filter(u => u.recordType === "usage").reduce((s, u) => s + u.days, 0);
+          const expired = calcAutoExpiredDays(leave.carriedOverDays, allTotal);
+          const expiredAuto = calcAutoExpiredDays(leave.carriedOverDays, usageOnlyTotal);
+          return {
+            consumedDays: leave.consumedDays, remainingDays: leave.remainingDays,
+            totalAvailable: leave.grantedDays + leave.carriedOverDays,
+            usageRate: leave.usageRate, grantedDays: leave.grantedDays,
+            carriedOverDays: leave.carriedOverDays, expiredDays: leave.expiredDays,
+            adjustedRemainingDays: Math.max(0, leave.grantedDays + leave.carriedOverDays - allTotal - expired),
+            autoRemainingDays: Math.max(0, leave.grantedDays + leave.carriedOverDays - usageOnlyTotal - expiredAuto),
+          };
+        })() : null,
         overtime: { yearlyTotal: yearlyOT, monthlyData: empOT },
         deadline,
         health: { expiryRisk, consumptionPace, carryoverUtil },

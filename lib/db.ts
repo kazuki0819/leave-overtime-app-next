@@ -37,7 +37,6 @@ export async function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS paid_leaves (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       employee_id TEXT NOT NULL,
-      fiscal_year INTEGER NOT NULL DEFAULT 2025,
       granted_days REAL NOT NULL DEFAULT 0,
       carried_over_days REAL NOT NULL DEFAULT 0,
       consumed_days REAL NOT NULL DEFAULT 0,

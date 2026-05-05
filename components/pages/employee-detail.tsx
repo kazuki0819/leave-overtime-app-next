@@ -62,9 +62,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import type { Employee, PaidLeave, MonthlyOvertime, EmployeeAlert, LeaveUsage, AssignmentHistory, SpecialLeave } from "@/lib/schema";
 import type { PaidLeaveExtended } from "@/lib/storage";
-import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoGrantedDays, calcAutoCarryoverDays, calcAutoExpiredDays, type LeaveDeadlineInfo, type ExpiryRiskInfo, type ConsumptionPaceInfo, type CarryoverUtilInfo } from "@/lib/leave-calc";
-import { useFiscalYear } from "@/hooks/use-fiscal-year";
-import { FiscalYearSelector } from "@/components/fiscal-year-selector";
+import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoGrantedDays, calcAutoCarryoverDays, calcAutoExpiredDays, getCurrentCycleRange, type LeaveDeadlineInfo, type ExpiryRiskInfo, type ConsumptionPaceInfo, type CarryoverUtilInfo } from "@/lib/leave-calc";
 
 const MONTHS_FY = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
 
@@ -156,37 +154,28 @@ export default function EmployeeDetail() {
     },
   });
 
-  const { fiscalYear } = useFiscalYear();
+  const currentYear = new Date().getFullYear();
 
   const { data: paidLeave } = useQuery<PaidLeaveExtended | null>({
-    queryKey: ["/api/paid-leaves", id, fiscalYear],
+    queryKey: ["/api/paid-leaves", id],
     queryFn: async () => {
-      const res = await apiRequest("GET", `/api/paid-leaves/${id}?year=${fiscalYear}`);
-      return res.json();
-    },
-  });
-
-  // 前年度の有給データ（繰越計算用）
-  const { data: prevYearLeave } = useQuery<PaidLeave | null>({
-    queryKey: ["/api/paid-leaves", id, fiscalYear - 1],
-    queryFn: async () => {
-      const res = await apiRequest("GET", `/api/paid-leaves/${id}?year=${fiscalYear - 1}`);
+      const res = await apiRequest("GET", `/api/paid-leaves/${id}`);
       return res.json();
     },
   });
 
   const { data: overtimes } = useQuery<MonthlyOvertime[]>({
-    queryKey: ["/api/monthly-overtimes", id, fiscalYear],
+    queryKey: ["/api/monthly-overtimes", id, currentYear],
     queryFn: async () => {
-      const res = await apiRequest("GET", `/api/monthly-overtimes?employeeId=${id}&year=${fiscalYear}`);
+      const res = await apiRequest("GET", `/api/monthly-overtimes?employeeId=${id}&year=${currentYear}`);
       return res.json();
     },
   });
 
   const { data: allAlerts } = useQuery<EmployeeAlert[]>({
-    queryKey: ["/api/alerts", fiscalYear],
+    queryKey: ["/api/alerts"],
     queryFn: async () => {
-      const res = await apiRequest("GET", `/api/alerts?year=${fiscalYear}`);
+      const res = await apiRequest("GET", "/api/alerts");
       return res.json();
     },
   });
@@ -235,7 +224,6 @@ export default function EmployeeDetail() {
     mutationFn: async (data: Partial<PaidLeave>) => {
       const res = await apiRequest("PUT", "/api/paid-leaves", {
         employeeId: id,
-        fiscalYear,
         ...data,
       });
       return res.json();
@@ -253,7 +241,7 @@ export default function EmployeeDetail() {
     mutationFn: async (data: { month: number; overtimeHours: number; lateNightOvertime: number; holidayWorkLegal?: number; holidayWorkNonLegal?: number; holidayWorkLegalCount?: number; holidayWorkNonLegalCount?: number }) => {
       const res = await apiRequest("PUT", "/api/monthly-overtimes", {
         employeeId: id,
-        year: fiscalYear,
+        year: currentYear,
         ...data,
       });
       return res.json();
@@ -443,7 +431,6 @@ export default function EmployeeDetail() {
     }) => {
       const res = await apiRequest("PUT", "/api/paid-leaves", {
         employeeId: id,
-        fiscalYear,
         ...(paidLeave ? {
           grantedDays: paidLeave.grantedDays,
           carriedOverDays: paidLeave.carriedOverDays,
@@ -455,7 +442,7 @@ export default function EmployeeDetail() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/paid-leaves", id, fiscalYear] });
+      queryClient.invalidateQueries({ queryKey: ["/api/paid-leaves", id] });
       setManualAdjustDialogOpen(false);
     },
     onError: (error: Error) => {
@@ -538,15 +525,21 @@ export default function EmployeeDetail() {
     return leaveUsages.reduce((sum, u) => sum + u.days, 0);
   }, [leaveUsages, paidLeave?.consumedDays]);
 
+  const currentCycle = useMemo(() => {
+    if (!employee?.joinDate) return null;
+    return getCurrentCycleRange(employee.joinDate);
+  }, [employee?.joinDate]);
+
   // 自動計算値
   const autoGrantedDays = useMemo(() => {
-    if (!employee?.joinDate) return 0;
-    return calcAutoGrantedDays(employee.joinDate, fiscalYear);
-  }, [employee?.joinDate, fiscalYear]);
+    if (!employee?.joinDate || !currentCycle) return 0;
+    const cycleStartYear = new Date(currentCycle.startDate).getFullYear();
+    return calcAutoGrantedDays(employee.joinDate, cycleStartYear);
+  }, [employee?.joinDate, currentCycle]);
 
   const autoCarryoverDays = useMemo(() => {
-    return calcAutoCarryoverDays(prevYearLeave?.remainingDays);
-  }, [prevYearLeave?.remainingDays]);
+    return calcAutoCarryoverDays(paidLeave?.carriedOverDays);
+  }, [paidLeave?.carriedOverDays]);
 
   // 編集中の自動時効日数（編集フォームの繰越・消化値からリアルタイム計算）
   const autoExpiredDays = useMemo(() => {
@@ -784,7 +777,6 @@ export default function EmployeeDetail() {
               </Badge>
             )}
           </div>
-          <FiscalYearSelector className="ml-auto" />
         </div>
         <div className="flex gap-2">
           {isEditing ? (
@@ -1198,7 +1190,7 @@ export default function EmployeeDetail() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base font-semibold">
               <Calendar className={`h-4 w-4 ${leaveAlerts.length > 0 ? "text-amber-500" : "text-emerald-500"}`} />
-              有給休暇（{fiscalYear}年度）
+              有給休暇{currentCycle ? `（${currentCycle.startDate}〜）` : ""}
               {leaveAlerts.length > 0 && (
                 <Badge
                   variant={leaveAlerts.some(a => a.severity === "danger") ? "destructive" : "outline"}
@@ -1812,7 +1804,7 @@ export default function EmployeeDetail() {
                         <CalendarDays className="h-4 w-4 mt-0.5 text-blue-600 dark:text-blue-400 shrink-0" />
                         <div className="text-sm">
                           <p className="font-medium text-blue-800 dark:text-blue-300">
-                            {fiscalYear}年度の有給付与対象です（法定 {autoGrantedDays}日）
+                            現在のサイクルで有給付与対象です（法定 {autoGrantedDays}日）
                           </p>
                           <p className="mt-1 text-blue-700/80 dark:text-blue-400/70">
                             有給データが未登録です。下のボタンで自動計算値をもとにデータを作成できます。
@@ -1896,7 +1888,7 @@ export default function EmployeeDetail() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">
             <Clock className={`h-4 w-4 ${overtimeAlerts.length > 0 ? "text-red-500" : "text-amber-500"}`} />
-            残業時間（月別・{fiscalYear}年度）
+            残業時間（月別・{currentYear}年度）
             {overtimeAlerts.length > 0 && (
               <Badge
                 variant={overtimeAlerts.some(a => a.severity === "danger") ? "destructive" : "outline"}

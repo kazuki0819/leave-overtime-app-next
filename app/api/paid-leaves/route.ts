@@ -5,9 +5,7 @@ import { insertPaidLeaveSchema } from "@/lib/schema";
 
 export async function GET(request: NextRequest) {
   await ensureDbInitialized();
-  const yearStr = request.nextUrl.searchParams.get("year");
-  const year = yearStr ? parseInt(yearStr, 10) : undefined;
-  const leaves = await storage.getPaidLeaves(year);
+  const leaves = await storage.getPaidLeaves();
   return NextResponse.json(leaves);
 }
 
@@ -25,7 +23,7 @@ export async function PUT(request: NextRequest) {
     data.usageRate = 0;
 
     const leave = await storage.upsertPaidLeave(data);
-    const updated = await storage.getPaidLeaveByEmployee(data.employeeId, data.fiscalYear);
+    const updated = await storage.getPaidLeaveByEmployee(data.employeeId);
 
     return NextResponse.json(updated ?? leave);
   } catch (e) {

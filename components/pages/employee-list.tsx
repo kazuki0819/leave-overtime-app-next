@@ -4,7 +4,6 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import Link from "next/link";
-import { useFiscalYear } from "@/hooks/use-fiscal-year";
 import {
   UserPlus,
   ChevronUp,
@@ -85,12 +84,10 @@ export default function EmployeeList() {
     },
   });
 
-  const { fiscalYear } = useFiscalYear();
-
   const { data: paidLeaves } = useQuery<PaidLeave[]>({
-    queryKey: ["/api/paid-leaves", fiscalYear],
+    queryKey: ["/api/paid-leaves"],
     queryFn: async () => {
-      const res = await apiRequest("GET", `/api/paid-leaves?year=${fiscalYear}`);
+      const res = await apiRequest("GET", "/api/paid-leaves");
       return res.json();
     },
   });

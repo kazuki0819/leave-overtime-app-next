@@ -21,7 +21,6 @@ export async function recalcConsumedDays(employeeId: string) {
 
   await storage.upsertPaidLeave({
     employeeId,
-    fiscalYear: leave.fiscalYear,
     grantedDays: leave.grantedDays,
     carriedOverDays: leave.carriedOverDays,
     remainingDays: remaining,
