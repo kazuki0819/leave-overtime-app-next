@@ -50,7 +50,6 @@ export type AssignmentHistory = typeof assignmentHistories.$inferSelect;
 export const paidLeaves = sqliteTable("paid_leaves", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   employeeId: text("employee_id").notNull(),
-  fiscalYear: integer("fiscal_year").notNull().default(2025),
   grantedDays: real("granted_days").notNull().default(0),
   carriedOverDays: real("carried_over_days").notNull().default(0),
   consumedDays: real("consumed_days").notNull().default(0),
@@ -62,11 +61,8 @@ export const paidLeaves = sqliteTable("paid_leaves", {
   manualBaselineNote: text("manual_baseline_note"),
 });
 
-// PR-2: consumed_days, manual_baseline_* を引数から排除
-// fiscal_year は PR-3 で物理削除予定だが、内部利用のため残置
 export const insertPaidLeaveSchema = z.object({
   employeeId: z.string(),
-  fiscalYear: z.number().optional(),
   grantedDays: z.number().optional(),
   carriedOverDays: z.number().optional(),
   remainingDays: z.number().optional(),
