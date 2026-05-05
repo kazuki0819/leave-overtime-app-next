@@ -7,10 +7,10 @@ export async function GET(request: NextRequest) {
   const yearStr = request.nextUrl.searchParams.get("year");
   const year = yearStr ? parseInt(yearStr, 10) : 2025;
   const employees = await storage.getEmployees(false);
-  const leaves = await storage.getPaidLeaves(year);
+  const leaves = await storage.getPaidLeaves();
   const overtimes = await storage.getMonthlyOvertimes(undefined, year);
   const overtimeAlerts = await storage.getOvertimeAlerts(year);
-  const leaveAlerts = await storage.getPaidLeaveAlerts(year);
+  const leaveAlerts = await storage.getPaidLeaveAlerts();
   const allAlerts = await storage.getAllAlerts(year);
 
   const activeIds = new Set(employees.map(e => e.id));

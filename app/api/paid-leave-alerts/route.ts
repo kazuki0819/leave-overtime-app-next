@@ -6,6 +6,6 @@ export async function GET(request: NextRequest) {
   await ensureDbInitialized();
   const yearStr = request.nextUrl.searchParams.get("year");
   const year = yearStr ? parseInt(yearStr, 10) : 2025;
-  const alerts = await storage.getPaidLeaveAlerts(year);
+  const alerts = await storage.getPaidLeaveAlerts();
   return NextResponse.json(alerts);
 }

@@ -28,7 +28,7 @@ export async function POST() {
     }
 
     // Fix consistency
-    const allLeaves = await storage.getPaidLeaves(2025);
+    const allLeaves = await storage.getPaidLeaves();
     let fixedCount = 0;
     for (const pl of allLeaves) {
       const expectedRemaining = Math.max(0, pl.grantedDays + pl.carriedOverDays - pl.consumedDays - pl.expiredDays);
@@ -38,7 +38,6 @@ export async function POST() {
       if (remainingOff || usageOff) {
         await storage.upsertPaidLeave({
           employeeId: pl.employeeId,
-          fiscalYear: pl.fiscalYear,
           grantedDays: pl.grantedDays,
           carriedOverDays: pl.carriedOverDays,
           remainingDays: expectedRemaining,

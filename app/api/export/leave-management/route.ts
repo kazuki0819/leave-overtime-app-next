@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   const yearStr = request.nextUrl.searchParams.get("year");
   const year = yearStr ? parseInt(yearStr, 10) : 2025;
   const employees = await storage.getEmployees(false);
-  const leaves = await storage.getPaidLeaves(year);
+  const leaves = await storage.getPaidLeaves();
   const leaveMap = new Map(leaves.map(l => [l.employeeId, l]));
 
   const BOM = "\uFEFF";

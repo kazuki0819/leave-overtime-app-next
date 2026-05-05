@@ -11,12 +11,6 @@ const querySchema = z.object({
   month: z.coerce.number().int().min(1).max(12),
 });
 
-function grantDateToFiscalYear(grantDate: Date): number {
-  const month = grantDate.getMonth() + 1;
-  const year = grantDate.getFullYear();
-  return month >= 4 ? year : year - 1;
-}
-
 function formatDateStr(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
@@ -89,21 +83,15 @@ export async function GET(request: NextRequest) {
         if (emp.retiredDate && emp.retiredDate < grantDateStr) continue;
       }
 
-      const fiscalYear = grantDateToFiscalYear(grantDate);
       const leaveRows = await db
         .select()
         .from(paidLeaves)
-        .where(
-          and(
-            eq(paidLeaves.employeeId, emp.id),
-            eq(paidLeaves.fiscalYear, fiscalYear),
-          ),
-        )
+        .where(eq(paidLeaves.employeeId, emp.id))
         .limit(1);
       const leave = leaveRows[0];
       if (!leave) {
         console.warn(
-          `[grant-cycle-review] paid_leaves not found: employee_id=${emp.id}, fiscal_year=${fiscalYear}`,
+          `[grant-cycle-review] paid_leaves not found: employee_id=${emp.id}`,
         );
         continue;
       }
