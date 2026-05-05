@@ -574,3 +574,82 @@ export function isGrantedInMonth(
   const grants = calcAllGrantDates(hireDate, endOfMonth);
   return grants.some(d => d.getFullYear() === year && d.getMonth() + 1 === month);
 }
+
+// ═══════════════════════════════════════════════════════════════
+// サイクルベース計算関数群（PR-3）
+// ═══════════════════════════════════════════════════════════════
+
+export type CycleRange = {
+  startDate: string;
+  endDate: string;
+  index: number;
+};
+
+/**
+ * 社員の現在のサイクル開始日（最新の付与基準日）を返す
+ */
+export function getCurrentCycleStart(joinDate: string, today?: Date): string {
+  const now = today ?? new Date();
+  const info = calcLeaveDeadline(joinDate, 0, now);
+  return info.currentGrantDate;
+}
+
+/**
+ * 社員の現在のサイクル範囲 {startDate, endDate, index} を返す
+ */
+export function getCurrentCycleRange(joinDate: string, today?: Date): CycleRange {
+  const now = today ?? new Date();
+  const allGrants = calcAllGrantDates(joinDate, now);
+  if (allGrants.length === 0) {
+    const join = new Date(joinDate);
+    const firstGrant = addMonths(join, 6);
+    return {
+      startDate: formatDate(firstGrant),
+      endDate: formatDate(addYears(firstGrant, 1)),
+      index: 0,
+    };
+  }
+  const latest = allGrants[allGrants.length - 1];
+  return {
+    startDate: formatDate(latest),
+    endDate: formatDate(addYears(latest, 1)),
+    index: allGrants.length - 1,
+  };
+}
+
+/**
+ * 社員の全サイクル一覧を返す（今日まで）
+ */
+export function getAllCycles(joinDate: string, today?: Date): CycleRange[] {
+  const now = today ?? new Date();
+  const allGrants = calcAllGrantDates(joinDate, now);
+  return allGrants.map((grant, i) => ({
+    startDate: formatDate(grant),
+    endDate: formatDate(addYears(grant, 1)),
+    index: i,
+  }));
+}
+
+/**
+ * 特定サイクル（index番目）の範囲を返す
+ */
+export function getCycleByIndex(joinDate: string, index: number): CycleRange | undefined {
+  const join = new Date(joinDate);
+  if (isNaN(join.getTime()) || !joinDate) return undefined;
+  const firstGrant = addMonths(join, 6);
+  const grant = index === 0 ? firstGrant : addYears(firstGrant, index);
+  return {
+    startDate: formatDate(grant),
+    endDate: formatDate(addYears(grant, 1)),
+    index,
+  };
+}
+
+/**
+ * 入社日と付与基準日からサイクルのインデックスを算出する
+ */
+export function getCycleIndexForGrantDate(joinDate: string, grantDate: string): number {
+  const allGrants = calcAllGrantDates(joinDate, new Date(grantDate));
+  const idx = allGrants.findIndex(d => formatDate(d) === grantDate);
+  return idx >= 0 ? idx : 0;
+}
