@@ -15,7 +15,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <Toaster />
           <div className="flex min-h-screen">
             <AppSidebar />
-            <main className="flex-1 ml-60 p-6">
+            <main className="flex-1 ml-56 pt-6 px-8 pb-16 max-w-[1480px]">
               {children}
             </main>
           </div>

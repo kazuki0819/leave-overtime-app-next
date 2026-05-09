@@ -38,7 +38,6 @@ import {
   Briefcase,
   MessageSquare,
   ChevronDown,
-  PencilLine,
   Undo2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,7 +61,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import type { Employee, PaidLeave, MonthlyOvertime, EmployeeAlert, LeaveUsage, AssignmentHistory, SpecialLeave } from "@/lib/schema";
 import type { PaidLeaveExtended } from "@/lib/storage";
-import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoGrantedDays, calcAutoCarryoverDays, calcAutoExpiredDays, getCurrentCycleRange, type LeaveDeadlineInfo, type ExpiryRiskInfo, type ConsumptionPaceInfo, type CarryoverUtilInfo } from "@/lib/leave-calc";
+import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoGrantedDays, calcAutoCarryoverDays, calcAutoExpiredDays, getCurrentCycleRange, getAllCycles, getLegalGrantDays, type CycleRange, type LeaveDeadlineInfo, type ExpiryRiskInfo, type ConsumptionPaceInfo, type CarryoverUtilInfo } from "@/lib/leave-calc";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { AddAdjustmentDialog } from "@/components/add-adjustment-dialog";
+import { VoidLeaveUsageDialog } from "@/components/void-leave-usage-dialog";
+import { SplitAdjustmentDialog } from "@/components/split-adjustment-dialog";
+import { ConfirmDateDialog } from "@/components/confirm-date-dialog";
 
 const MONTHS_FY = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
 
@@ -108,6 +112,15 @@ export default function EmployeeDetail() {
     reason: "",
   });
 
+  // PR-4: Adjustment/void/split/date-confirm dialog state
+  const [addAdjustmentOpen, setAddAdjustmentOpen] = useState(false);
+  const [voidDialogOpen, setVoidDialogOpen] = useState(false);
+  const [voidTarget, setVoidTarget] = useState<LeaveUsage | null>(null);
+  const [splitDialogOpen, setSplitDialogOpen] = useState(false);
+  const [splitTarget, setSplitTarget] = useState<LeaveUsage | null>(null);
+  const [confirmDateDialogOpen, setConfirmDateDialogOpen] = useState(false);
+  const [confirmDateTarget, setConfirmDateTarget] = useState<LeaveUsage | null>(null);
+
   // Memo inline edit state
   const [isMemoEditing, setIsMemoEditing] = useState(false);
   const [memoText, setMemoText] = useState("");
@@ -119,14 +132,6 @@ export default function EmployeeDetail() {
     expiredDays: boolean;
   }>({ grantedDays: false, carriedOverDays: false, expiredDays: false });
 
-  // Remaining days manual adjustment dialog state
-  const [manualAdjustDialogOpen, setManualAdjustDialogOpen] = useState(false);
-  const [manualAdjustForm, setManualAdjustForm] = useState({
-    baselineDate: "",
-    baselineRemaining: "",
-    baselineNote: "",
-  });
-
   // Retirement dialog state
   const [retireDialogOpen, setRetireDialogOpen] = useState(false);
   const [retireDate, setRetireDate] = useState("");
@@ -135,6 +140,9 @@ export default function EmployeeDetail() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [leaveUsageOpen, setLeaveUsageOpen] = useState(false);
   const [specialLeaveOpen, setSpecialLeaveOpen] = useState(false);
+
+  // Past cycle accordion state (first one open by default)
+  const [pastCycleOpenMap, setPastCycleOpenMap] = useState<Record<number, boolean>>({ 0: true });
 
   // Assignment history state
   const [showAddHistory, setShowAddHistory] = useState(false);
@@ -423,33 +431,6 @@ export default function EmployeeDetail() {
     },
   });
 
-  const manualAdjustMutation = useMutation({
-    mutationFn: async (payload: {
-      manualBaselineDate: string | null;
-      manualBaselineRemaining: number | null;
-      manualBaselineNote: string | null;
-    }) => {
-      const res = await apiRequest("PUT", "/api/paid-leaves", {
-        employeeId: id,
-        ...(paidLeave ? {
-          grantedDays: paidLeave.grantedDays,
-          carriedOverDays: paidLeave.carriedOverDays,
-          consumedDays: paidLeave.consumedDays,
-          expiredDays: paidLeave.expiredDays,
-        } : {}),
-        ...payload,
-      });
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/paid-leaves", id] });
-      setManualAdjustDialogOpen(false);
-    },
-    onError: (error: Error) => {
-      toast({ title: "エラー", description: error.message, variant: "destructive" });
-    },
-  });
-
   // Assignment history helpers
   const sortedHistories = useMemo(() => {
     return [...(assignmentHistories ?? [])].sort((a, b) =>
@@ -525,9 +506,32 @@ export default function EmployeeDetail() {
     return leaveUsages.reduce((sum, u) => sum + u.days, 0);
   }, [leaveUsages, paidLeave?.consumedDays]);
 
+  const adjustmentUsages = useMemo(() => {
+    return (leaveUsages ?? [])
+      .filter((u) => u.recordType === "adjustment")
+      .sort((a, b) => (b.recordDate || b.startDate).localeCompare(a.recordDate || a.startDate));
+  }, [leaveUsages]);
+
+  const adjustmentTotal = useMemo(() => {
+    return adjustmentUsages
+      .filter((u) => !u.isVoided)
+      .reduce((sum, u) => sum + u.days, 0);
+  }, [adjustmentUsages]);
+
+  const activeAdjustmentCount = useMemo(() => {
+    return adjustmentUsages.filter((u) => !u.isVoided).length;
+  }, [adjustmentUsages]);
+
   const currentCycle = useMemo(() => {
     if (!employee?.joinDate) return null;
     return getCurrentCycleRange(employee.joinDate);
+  }, [employee?.joinDate]);
+
+  const pastCycles = useMemo(() => {
+    if (!employee?.joinDate) return [];
+    const all = getAllCycles(employee.joinDate);
+    if (all.length <= 1) return [];
+    return all.slice(0, -1).reverse();
   }, [employee?.joinDate]);
 
   // 自動計算値
@@ -1179,52 +1183,262 @@ export default function EmployeeDetail() {
           </CardContent>
         </Card>
 
-        {/* 有給休暇 */}
-        <Card className={`border ${
-          leaveAlerts.length > 0 && leaveAlerts.some(a => a.severity === "danger")
-            ? "border-red-200 dark:border-red-800"
-            : leaveAlerts.length > 0
-            ? "border-amber-200 dark:border-amber-800"
-            : ""
-        }`}>
+      </div>
+
+      {/* ═══ v24 2窓表示: 残日数サマリ ═══ */}
+      {paidLeave && !isEditing && (
+        <>
+          <div className="flex justify-between items-center mt-1 mb-3">
+            <h2 className="text-[15px] font-semibold text-[var(--ink)] tracking-tight">
+              現在のサイクル — 残日数サマリ
+            </h2>
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-[var(--accent-soft)] text-[var(--pr4-accent)] rounded-full text-[10px] font-semibold tracking-wide">
+              <span className="w-[5px] h-[5px] rounded-full bg-current" />
+              進行中{currentCycle ? ` · ${currentCycle.startDate} 〜 ${currentCycle.endDate}` : ""}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-3 mb-4">
+            {/* Primary: 補正計算（実残日数） */}
+            <article className="bg-[var(--surface)] border border-[var(--ink)] rounded-[10px] p-[22px_24px] shadow-md relative">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <div className="text-[15px] font-semibold text-[var(--ink)] tracking-tight">補正計算（実残日数）</div>
+                  <div className="text-[11px] text-[var(--ink-50)] mt-0.5">業務での参照値・補正値あり</div>
+                </div>
+                <span className="inline-flex items-center gap-[5px] text-[10px] font-semibold px-2 py-[3px] rounded bg-[var(--ink)] text-[var(--surface)] tracking-wide">
+                  <span className="w-[5px] h-[5px] rounded-full bg-current" />PRIMARY
+                </span>
+              </div>
+              <div className="flex items-baseline gap-3 flex-wrap my-4">
+                <span className="text-[56px] font-semibold leading-[0.9] tracking-tighter text-[var(--ink)]">
+                  {paidLeave.adjustedRemainingDays.toFixed(1)}
+                </span>
+                <span className="text-[13px] font-normal text-[var(--ink-50)]">日</span>
+                {adjustmentTotal !== 0 && (
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--pr4-accent)] bg-[var(--accent-soft)] px-2 py-[3px] rounded self-center">
+                    {adjustmentTotal < 0 ? "+" : ""}
+                    {(-adjustmentTotal).toFixed(1)} 補正
+                  </span>
+                )}
+              </div>
+              <div className="pt-3 border-t border-[var(--pr4-border)] text-xs">
+                <div className="flex justify-between py-1 text-[var(--ink-70)]">
+                  <span>付与日数</span>
+                  <span className="font-mono font-medium text-[var(--ink)]">+{Number(paidLeave.grantedDays).toFixed(1)}</span>
+                </div>
+                <div className="flex justify-between py-1 text-[var(--ink-70)]">
+                  <span className="flex items-center gap-1">
+                    繰越日数
+                    {paidLeave.carriedOverBreakdown && paidLeave.carriedOverBreakdown.adjustmentDerived !== 0 && (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="inline-flex items-center justify-center w-[14px] h-[14px] rounded-full bg-[var(--accent-soft)] text-[var(--pr4-accent)] text-[9px] font-bold border border-[var(--pr4-accent)]/20 cursor-help"
+                          >
+                            i
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          side="bottom"
+                          align="center"
+                          sideOffset={8}
+                          className="w-[240px] bg-[var(--ink)] text-[var(--surface)] border-none shadow-lg p-[12px_14px] rounded-md text-[11px] leading-[1.6]"
+                        >
+                          <div className="font-semibold text-[var(--surface)] mb-1.5 pb-1.5 border-b border-white/15 text-[11px]">繰越日数の内訳</div>
+                          <div className="flex justify-between py-0.5 text-white/70">
+                            <span>自動計算分</span>
+                            <span className="font-mono font-medium text-[var(--surface)]">{paidLeave.carriedOverBreakdown.auto.toFixed(1)}</span>
+                          </div>
+                          <div className="flex justify-between py-0.5 text-white/70">
+                            <span>補正値由来分</span>
+                            <span className="font-mono font-semibold text-[#5eead4]">
+                              {paidLeave.carriedOverBreakdown.adjustmentDerived >= 0 ? "+" : ""}{paidLeave.carriedOverBreakdown.adjustmentDerived.toFixed(1)}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-white/55 mt-1.5 pt-1.5 border-t border-white/10 italic">
+                            補正値由来分は、前サイクルの補正値が繰越に与えた影響を示します
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  </span>
+                  <span className="font-mono font-medium text-[var(--ink)]">+{Number(paidLeave.carriedOverDays).toFixed(1)}</span>
+                </div>
+                <div className="flex justify-between py-1 text-[var(--ink-70)]">
+                  <span>消化日数（取得）</span>
+                  <span className="font-mono font-medium text-[var(--ink)]">−{Number(paidLeave.consumedDays).toFixed(1)}</span>
+                </div>
+                {adjustmentTotal !== 0 && (
+                  <div className="flex justify-between py-1 text-[var(--pr4-accent)] font-semibold">
+                    <span>補正値合計（増減）</span>
+                    <span className="font-mono">{adjustmentTotal < 0 ? "+" : ""}{(-adjustmentTotal).toFixed(1)}</span>
+                  </div>
+                )}
+              </div>
+            </article>
+
+            {/* Secondary: 自動計算（補正値なし） */}
+            <article className="bg-[var(--surface-2)] border border-dashed border-[var(--pr4-border)] rounded-[10px] p-[22px_24px] relative">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <div className="text-[15px] font-medium text-[var(--ink-70)] tracking-tight">自動計算（補正値なし）</div>
+                  <div className="text-[11px] text-[var(--ink-50)] mt-0.5">参考値・影響を切り分け</div>
+                </div>
+                <span className="inline-flex items-center gap-[5px] text-[10px] font-semibold px-2 py-[3px] rounded border border-[var(--border-strong)] text-[var(--ink-50)] tracking-wide">
+                  REFERENCE
+                </span>
+              </div>
+              <div className="flex items-baseline gap-3 flex-wrap my-4">
+                <span className="text-[42px] font-medium leading-[0.9] tracking-tighter text-[var(--ink-50)]">
+                  {paidLeave.autoRemainingDays.toFixed(1)}
+                </span>
+                <span className="text-[13px] font-normal text-[var(--ink-50)]">日</span>
+              </div>
+              <div className="pt-3 border-t border-[var(--pr4-border)] text-xs">
+                <div className="flex justify-between py-1 text-[var(--ink-70)]">
+                  <span>付与日数</span>
+                  <span className="font-mono font-medium text-[var(--ink)]">+{Number(paidLeave.grantedDays).toFixed(1)}</span>
+                </div>
+                <div className="flex justify-between py-1 text-[var(--ink-70)]">
+                  <span>繰越日数（自動計算分のみ）</span>
+                  <span className="font-mono font-medium text-[var(--ink)]">+{Number(paidLeave.carriedOverDays).toFixed(1)}</span>
+                </div>
+                <div className="flex justify-between py-1 text-[var(--ink-70)]">
+                  <span>消化日数（取得）</span>
+                  <span className="font-mono font-medium text-[var(--ink)]">−{Number(paidLeave.consumedDays).toFixed(1)}</span>
+                </div>
+                <div className="flex justify-between py-1 text-[var(--ink-70)]">
+                  <span>補正値の反映</span>
+                  <span className="font-mono text-[var(--ink-35)]">─</span>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          {/* 2窓の差分説明ノート */}
+          {adjustmentTotal !== 0 && (
+            <div className="flex gap-3 items-start bg-[var(--accent-soft)] border border-[var(--pr4-accent)]/12 border-l-[3px] border-l-[var(--pr4-accent)] rounded-md px-4 py-3 mb-5">
+              <span className="w-[18px] h-[18px] rounded-full bg-[var(--pr4-accent)] text-white inline-flex items-center justify-center text-[11px] font-bold shrink-0 mt-0.5">i</span>
+              <p className="text-xs leading-relaxed text-[var(--ink-70)]">
+                二窓の差分 <strong className="font-semibold text-[var(--pr4-accent)]">{adjustmentTotal < 0 ? "+" : ""}{(-adjustmentTotal).toFixed(1)}日</strong> は、現在アクティブな補正値（{activeAdjustmentCount}件）が残日数に与えている影響です。過渡的補正値の場合、過去履歴の入力が進めば自動計算窓と一致していき、担当者の判断で解除できます。
+              </p>
+            </div>
+          )}
+
+          {/* 5日義務・期限・健全性は既存ロジックを維持 */}
+          <div className="mb-5 bg-[var(--surface)] border border-[var(--pr4-border)] rounded-[10px] p-5 shadow-xs">
+            {/* 5-day progress bar */}
+            <div>
+              <div className="flex justify-between text-xs text-[var(--ink-50)] mb-1">
+                <span>年5日義務達成状況</span>
+                <span className="tabular-nums font-medium">
+                  {Math.min(paidLeave.consumedDays, 5).toFixed(2)}/5.00日
+                </span>
+              </div>
+              <div className="h-2.5 rounded-full bg-[var(--surface-3)] overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    paidLeave.consumedDays >= 5
+                      ? "bg-[var(--green)]"
+                      : paidLeave.consumedDays >= 3
+                      ? "bg-[var(--amber)]"
+                      : "bg-[var(--red)]"
+                  }`}
+                  style={{ width: `${Math.min(100, (paidLeave.consumedDays / 5) * 100)}%` }}
+                />
+              </div>
+            </div>
+
+            {/* 期限・ペース情報 */}
+            {deadline && deadline.paceStatus !== "not_eligible" && (
+              <div className="mt-3 pt-3 border-t border-[var(--pr4-border)]">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <CalendarClock className="h-3.5 w-3.5 text-[var(--ink-50)]" />
+                  <span className="text-xs font-medium text-[var(--ink-50)]">取得期限・ペース</span>
+                  <Badge
+                    variant={deadline.paceStatus === "overdue" || deadline.paceStatus === "danger" ? "danger" : deadline.paceStatus === "ok" ? "success" : "warn"}
+                    className="text-xs ml-auto px-1.5 py-0"
+                  >
+                    {deadline.paceStatus === "ok" && "余裕あり"}
+                    {deadline.paceStatus === "tight" && "やや注意"}
+                    {deadline.paceStatus === "danger" && "ペース不足"}
+                    {deadline.paceStatus === "overdue" && "期限超過"}
+                  </Badge>
+                </div>
+                <dl className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <dt className="text-[var(--ink-50)]">付与基準日</dt>
+                    <dd className="font-medium tabular-nums text-[var(--ink)]">{deadline.currentGrantDate}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[var(--ink-50)]">義務期限</dt>
+                    <dd className="font-medium tabular-nums text-[var(--ink)]">{deadline.obligationDeadline}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[var(--ink-50)]">期限まで</dt>
+                    <dd className={`font-bold tabular-nums ${
+                      deadline.daysUntilDeadline <= 30
+                        ? "text-[var(--red)]"
+                        : deadline.daysUntilDeadline <= 90
+                        ? "text-[var(--amber)]"
+                        : "text-[var(--ink)]"
+                    }`}>
+                      {deadline.daysUntilDeadline > 0 ? `${deadline.daysUntilDeadline}日` : "期限超過"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[var(--ink-50)]">残り必要日数</dt>
+                    <dd className={`font-bold tabular-nums ${
+                      deadline.remainingObligation > 0 ? "text-[var(--amber)]" : "text-[var(--green)]"
+                    }`}>
+                      {deadline.remainingObligation > 0
+                        ? `あと${deadline.remainingObligation}日`
+                        : <span className="inline-flex items-center gap-0.5"><CheckCircle2 className="h-3 w-3" />達成</span>
+                      }
+                    </dd>
+                  </div>
+                </dl>
+                <div className={`mt-2 rounded px-2 py-1.5 text-xs ${
+                  deadline.paceStatus === "ok"
+                    ? "bg-[var(--green-soft)] text-[var(--green)]"
+                    : deadline.paceStatus === "tight"
+                    ? "bg-[var(--amber-soft)] text-[var(--amber)]"
+                    : "bg-[var(--red-soft)] text-[var(--red)]"
+                }`}>
+                  {deadline.paceMessage}
+                </div>
+                <div className="mt-1.5 flex items-center gap-3 text-xs text-[var(--ink-50)]">
+                  <span>勤続 {deadline.tenureYears}年</span>
+                  <span>法定付与 {deadline.legalGrantDays}日</span>
+                </div>
+              </div>
+            )}
+            {deadline && deadline.paceStatus === "not_eligible" && (
+              <div className="mt-3 pt-3 border-t border-[var(--pr4-border)]">
+                <div className="flex items-center gap-1.5">
+                  <CalendarClock className="h-3.5 w-3.5 text-[var(--ink-50)]" />
+                  <span className="text-xs text-[var(--ink-50)]">{deadline.paceMessage}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* 有給休暇 — 編集モード / 未登録時 */}
+      {(isEditing || !paidLeave) && (
+        <Card className="border mb-5">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base font-semibold">
-              <Calendar className={`h-4 w-4 ${leaveAlerts.length > 0 ? "text-amber-500" : "text-emerald-500"}`} />
+              <Calendar className="h-4 w-4 text-emerald-500" />
               有給休暇{currentCycle ? `（${currentCycle.startDate}〜）` : ""}
-              {leaveAlerts.length > 0 && (
-                <Badge
-                  variant={leaveAlerts.some(a => a.severity === "danger") ? "destructive" : "outline"}
-                  className="text-xs ml-auto"
-                >
-                  {leaveAlerts.length}件のアラート
-                </Badge>
-              )}
-              {!isEditing && paidLeave && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className={`h-6 px-2 text-xs gap-1 opacity-50 cursor-not-allowed ${leaveAlerts.length === 0 ? "ml-auto" : ""}`}
-                        disabled
-                      >
-                        <PencilLine className="h-3 w-3" />
-                        残日数修正
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <p className="text-xs">補正値履歴で管理されるようになりました</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {isEditing ? (
               <div className="space-y-3">
-                {/* 自動計算フィールド: 付与日数・繰越日数・時効日数 */}
                 <div className="grid gap-3 sm:grid-cols-2">
                   {/* 付与日数 */}
                   <div>
@@ -1397,7 +1611,7 @@ export default function EmployeeDetail() {
                     )}
                   </div>
 
-                  {/* 消化日数（有給取得履歴から自動算出・編集不可） */}
+                  {/* 消化日数 */}
                   <div>
                     <Label className="text-xs flex items-center gap-1 mb-1">
                       <Calculator className="h-3 w-3 text-blue-500" />
@@ -1406,10 +1620,7 @@ export default function EmployeeDetail() {
                         <Lock className="h-2.5 w-2.5" /> 取得履歴から自動算出
                       </span>
                     </Label>
-                    <div
-                      className="h-9 px-3 flex items-center justify-between rounded-md border bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800"
-                      data-testid="auto-consumedDays"
-                    >
+                    <div className="h-9 px-3 flex items-center justify-between rounded-md border bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800" data-testid="auto-consumedDays">
                       <span className="text-sm font-bold tabular-nums">{computedConsumedDays}</span>
                       <span className="text-[10px] text-blue-600 dark:text-blue-400">履歴合計</span>
                     </div>
@@ -1497,23 +1708,18 @@ export default function EmployeeDetail() {
                     )}
                   </div>
                 </div>
-                {/* 自動計算プレビュー */}
                 <div className="rounded-md border bg-muted/30 px-3 py-2.5 grid grid-cols-2 gap-x-4 gap-y-1.5">
                   <div className="text-xs text-muted-foreground col-span-2 font-medium mb-0.5">自動計算（読み取り専用）</div>
                   <div>
                     <span className="text-xs text-muted-foreground">残日数</span>
-                    <div className="text-sm font-bold tabular-nums text-primary" data-testid="computed-remainingDays">
-                      {computedRemainingDays}
-                    </div>
+                    <div className="text-sm font-bold tabular-nums text-primary" data-testid="computed-remainingDays">{computedRemainingDays}</div>
                   </div>
                   <div>
                     <span className="text-xs text-muted-foreground">取得率</span>
                     <div className={`text-sm font-bold tabular-nums ${
-                      computedUsageRate < 0.3
-                        ? "text-red-600 dark:text-red-400"
-                        : computedUsageRate < 0.7
-                        ? "text-amber-600 dark:text-amber-400"
-                        : "text-emerald-600 dark:text-emerald-400"
+                      computedUsageRate < 0.3 ? "text-red-600 dark:text-red-400"
+                      : computedUsageRate < 0.7 ? "text-amber-600 dark:text-amber-400"
+                      : "text-emerald-600 dark:text-emerald-400"
                     }`} data-testid="computed-usageRate">
                       {(computedUsageRate * 100).toFixed(2)}%
                     </div>
@@ -1522,278 +1728,6 @@ export default function EmployeeDetail() {
                     残日数 ＝ 付与 ＋ 繰越 − 消化 − 時効（最小0）
                   </div>
                 </div>
-                {/* 自動計算ロジック説明 */}
-                <div className="rounded-md bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 px-3 py-2 text-[11px] text-blue-700 dark:text-blue-300 space-y-1">
-                  <div className="font-medium flex items-center gap-1">
-                    <Info className="h-3 w-3" />
-                    自動計算の根拠
-                  </div>
-                  <div>・付与日数: 労基法39条（入社6ヶ月後10日、以降勤続年数に応じ増加、最大20日）</div>
-                  <div>・繰越日数: 労基法115条（2年時効、前年度残日数を繰越）</div>
-                  <div>・消化日数: 有給取得履歴のdays合計（自動算出・編集不可）</div>
-                  <div>・時効日数: 繰越分の未消化分（先入先出原則）</div>
-                  <div>・残日数・取得率: 自動計算（編集不可）</div>
-                  <div className="text-blue-600/70 dark:text-blue-400/70">付与・繰越・時効はクリックで手動上書き、リセットで自動値に復帰</div>
-                </div>
-              </div>
-            ) : paidLeave ? (
-              <div>
-                <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  <div>
-                    <dt className="text-xs text-muted-foreground">付与日数</dt>
-                    <dd className="text-lg font-bold tabular-nums">{Number(paidLeave.grantedDays).toFixed(2)}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">繰越日数</dt>
-                    <dd className="text-lg font-bold tabular-nums">{Number(paidLeave.carriedOverDays).toFixed(2)}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">消化日数</dt>
-                    <dd className={`text-lg font-bold tabular-nums ${
-                      paidLeave.consumedDays < 5 ? "text-red-600 dark:text-red-400" : ""
-                    }`}>
-                      {Number(paidLeave.consumedDays).toFixed(2)}
-                      {paidLeave.consumedDays < 5 && (
-                        <span className="text-xs font-normal ml-1 text-red-500">※5日未満</span>
-                      )}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">残日数</dt>
-                    <dd className="text-lg font-bold tabular-nums text-primary">
-                      {Number(paidLeave.adjustedRemainingDays ?? paidLeave.remainingDays).toFixed(2)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">時効日数</dt>
-                    <dd className="text-lg font-bold tabular-nums">{Number(paidLeave.expiredDays).toFixed(2)}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">取得率</dt>
-                    <dd className={`text-lg font-bold tabular-nums ${
-                      paidLeave.usageRate < 0.3
-                        ? "text-red-600 dark:text-red-400"
-                        : paidLeave.usageRate < 0.7
-                        ? "text-amber-600 dark:text-amber-400"
-                        : "text-emerald-600 dark:text-emerald-400"
-                    }`}>
-                      {(paidLeave.usageRate * 100).toFixed(2)}%
-                    </dd>
-                  </div>
-                </dl>
-                {/* 5-day progress bar */}
-                <div className="mt-3 pt-3 border-t">
-                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                    <span>年5日義務達成状況</span>
-                    <span className="tabular-nums font-medium">
-                      {Math.min(paidLeave.consumedDays, 5).toFixed(2)}/5.00日
-                    </span>
-                  </div>
-                  <div className="h-2.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${
-                        paidLeave.consumedDays >= 5
-                          ? "bg-emerald-500"
-                          : paidLeave.consumedDays >= 3
-                          ? "bg-amber-500"
-                          : "bg-red-500"
-                      }`}
-                      style={{ width: `${Math.min(100, (paidLeave.consumedDays / 5) * 100)}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* 期限・ペース情報 */}
-                {deadline && deadline.paceStatus !== "not_eligible" && (
-                  <div className="mt-3 pt-3 border-t">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-xs font-medium text-muted-foreground">取得期限・ペース</span>
-                      <Badge
-                        variant={deadline.paceStatus === "overdue" || deadline.paceStatus === "danger" ? "destructive" : "outline"}
-                        className={`text-xs ml-auto px-1.5 py-0 ${
-                          deadline.paceStatus === "ok"
-                            ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-                            : deadline.paceStatus === "tight"
-                            ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
-                            : ""
-                        }`}
-                      >
-                        {deadline.paceStatus === "ok" && "余裕あり"}
-                        {deadline.paceStatus === "tight" && "やや注意"}
-                        {deadline.paceStatus === "danger" && "ペース不足"}
-                        {deadline.paceStatus === "overdue" && "期限超過"}
-                      </Badge>
-                    </div>
-                    <dl className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <dt className="text-muted-foreground">付与基準日</dt>
-                        <dd className="font-medium tabular-nums">{deadline.currentGrantDate}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-muted-foreground">義務期限</dt>
-                        <dd className="font-medium tabular-nums">{deadline.obligationDeadline}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-muted-foreground">期限まで</dt>
-                        <dd className={`font-bold tabular-nums ${
-                          deadline.daysUntilDeadline <= 30
-                            ? "text-red-600 dark:text-red-400"
-                            : deadline.daysUntilDeadline <= 90
-                            ? "text-amber-600 dark:text-amber-400"
-                            : "text-foreground"
-                        }`}>
-                          {deadline.daysUntilDeadline > 0 ? `${deadline.daysUntilDeadline}日` : "期限超過"}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-muted-foreground">残り必要日数</dt>
-                        <dd className={`font-bold tabular-nums ${
-                          deadline.remainingObligation > 0
-                            ? "text-amber-600 dark:text-amber-400"
-                            : "text-emerald-600 dark:text-emerald-400"
-                        }`}>
-                          {deadline.remainingObligation > 0
-                            ? `あと${deadline.remainingObligation}日`
-                            : <span className="inline-flex items-center gap-0.5"><CheckCircle2 className="h-3 w-3" />達成</span>
-                          }
-                        </dd>
-                      </div>
-                    </dl>
-                    {/* Pace message */}
-                    <div className={`mt-2 rounded px-2 py-1.5 text-xs ${
-                      deadline.paceStatus === "ok"
-                        ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
-                        : deadline.paceStatus === "tight"
-                        ? "bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
-                        : "bg-red-50 text-red-800 dark:bg-red-950/30 dark:text-red-300"
-                    }`}>
-                      {deadline.paceMessage}
-                    </div>
-                    {/* Legal info */}
-                    <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-foreground">
-                      <span>勤続 {deadline.tenureYears}年</span>
-                      <span>法定付与 {deadline.legalGrantDays}日</span>
-                    </div>
-                  </div>
-                )}
-                {deadline && deadline.paceStatus === "not_eligible" && (
-                  <div className="mt-3 pt-3 border-t">
-                    <div className="flex items-center gap-1.5">
-                      <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">{deadline.paceMessage}</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* 健全性指標 */}
-                {(expiryRisk || consumptionPace || carryoverUtil) && (
-                  <div className="mt-3 pt-3 border-t">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-xs font-medium text-muted-foreground">健全性指標</span>
-                    </div>
-                    <div className="space-y-2">
-                      {/* 失効リスク */}
-                      {expiryRisk && expiryRisk.riskLevel !== "none" && (
-                        <div className={`rounded px-2.5 py-2 text-xs ${
-                          expiryRisk.riskLevel === "high"
-                            ? "bg-red-50 dark:bg-red-950/30"
-                            : expiryRisk.riskLevel === "medium"
-                            ? "bg-amber-50 dark:bg-amber-950/30"
-                            : "bg-blue-50 dark:bg-blue-950/30"
-                        }`}>
-                          <div className="flex items-center gap-1.5">
-                            <Timer className="h-3 w-3 shrink-0" />
-                            <span className="font-medium">失効リスク</span>
-                            <Badge variant={expiryRisk.riskLevel === "high" ? "destructive" : "outline"} className="text-xs px-1 py-0 ml-auto">
-                              {expiryRisk.riskLevel === "high" ? "高" : expiryRisk.riskLevel === "medium" ? "中" : "低"}
-                            </Badge>
-                          </div>
-                          <p className={`mt-1 ${
-                            expiryRisk.riskLevel === "high" ? "text-red-700 dark:text-red-400" :
-                            expiryRisk.riskLevel === "medium" ? "text-amber-700 dark:text-amber-400" :
-                            "text-blue-700 dark:text-blue-400"
-                          }`}>
-                            {expiryRisk.message}
-                          </p>
-                        </div>
-                      )}
-                      {expiryRisk && expiryRisk.riskLevel === "none" && (
-                        <div className="rounded px-2.5 py-2 text-xs bg-emerald-50 dark:bg-emerald-950/30">
-                          <div className="flex items-center gap-1.5">
-                            <Timer className="h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                            <span className="font-medium text-emerald-700 dark:text-emerald-400">失効リスクなし</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 取得ペース */}
-                      {consumptionPace && consumptionPace.paceLevel !== "not_applicable" && (
-                        <div className={`rounded px-2.5 py-2 text-xs ${
-                          consumptionPace.paceLevel === "very_slow"
-                            ? "bg-red-50 dark:bg-red-950/30"
-                            : consumptionPace.paceLevel === "slow"
-                            ? "bg-amber-50 dark:bg-amber-950/30"
-                            : "bg-emerald-50 dark:bg-emerald-950/30"
-                        }`}>
-                          <div className="flex items-center gap-1.5">
-                            <TrendingUp className="h-3 w-3 shrink-0" />
-                            <span className="font-medium">取得ペース</span>
-                            <Badge variant="outline" className={`text-xs px-1 py-0 ml-auto ${
-                              consumptionPace.paceLevel === "good"
-                                ? "border-emerald-300 bg-emerald-100 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
-                                : consumptionPace.paceLevel === "slow"
-                                ? "border-amber-300 bg-amber-100 text-amber-700 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
-                                : "border-red-300 bg-red-100 text-red-700 dark:border-red-700 dark:bg-red-900/40 dark:text-red-400"
-                            }`}>
-                              {consumptionPace.paceLevel === "good" ? "良好" : consumptionPace.paceLevel === "slow" ? "遅れ" : "不足"}
-                            </Badge>
-                          </div>
-                          <p className={`mt-1 ${
-                            consumptionPace.paceLevel === "good" ? "text-emerald-700 dark:text-emerald-400" :
-                            consumptionPace.paceLevel === "slow" ? "text-amber-700 dark:text-amber-400" :
-                            "text-red-700 dark:text-red-400"
-                          }`}>
-                            {consumptionPace.message}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* 繰越活用度 */}
-                      {carryoverUtil && carryoverUtil.utilLevel !== "not_applicable" && (
-                        <div className={`rounded px-2.5 py-2 text-xs ${
-                          carryoverUtil.utilLevel === "danger"
-                            ? "bg-orange-50 dark:bg-orange-950/30"
-                            : carryoverUtil.utilLevel === "warning"
-                            ? "bg-amber-50 dark:bg-amber-950/30"
-                            : "bg-emerald-50 dark:bg-emerald-950/30"
-                        }`}>
-                          <div className="flex items-center gap-1.5">
-                            <Calendar className="h-3 w-3 shrink-0" />
-                            <span className="font-medium">繰越活用度</span>
-                            <Badge variant="outline" className={`text-xs px-1 py-0 ml-auto ${
-                              carryoverUtil.utilLevel === "good"
-                                ? "border-emerald-300 bg-emerald-100 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
-                                : carryoverUtil.utilLevel === "warning"
-                                ? "border-amber-300 bg-amber-100 text-amber-700 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
-                                : "border-orange-300 bg-orange-100 text-orange-700 dark:border-orange-700 dark:bg-orange-900/40 dark:text-orange-400"
-                            }`}>
-                              {carryoverUtil.utilLevel === "good" ? "良好" : carryoverUtil.utilLevel === "warning" ? "注意" : "危険"}
-                            </Badge>
-                          </div>
-                          <p className={`mt-1 ${
-                            carryoverUtil.utilLevel === "good" ? "text-emerald-700 dark:text-emerald-400" :
-                            carryoverUtil.utilLevel === "warning" ? "text-amber-700 dark:text-amber-400" :
-                            "text-orange-700 dark:text-orange-400"
-                          }`}>
-                            {carryoverUtil.message}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             ) : (
               <div>
@@ -1812,24 +1746,6 @@ export default function EmployeeDetail() {
                         </div>
                       </div>
                     </div>
-                    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-sm">
-                      <div>
-                        <dt className="text-xs text-muted-foreground">付与日数（法定）</dt>
-                        <dd className="text-lg font-bold tabular-nums">{autoGrantedDays}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-xs text-muted-foreground">繰越日数</dt>
-                        <dd className="text-lg font-bold tabular-nums">{autoCarryoverDays}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-xs text-muted-foreground">消化日数</dt>
-                        <dd className="text-lg font-bold tabular-nums">0</dd>
-                      </div>
-                      <div>
-                        <dt className="text-xs text-muted-foreground">残日数</dt>
-                        <dd className="text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{autoGrantedDays + autoCarryoverDays}</dd>
-                      </div>
-                    </dl>
                     <Button
                       size="sm"
                       onClick={() => {
@@ -1875,7 +1791,327 @@ export default function EmployeeDetail() {
             )}
           </CardContent>
         </Card>
-      </div>
+      )}
+
+      {/* ═══ 補正値セクション ═══ */}
+      {paidLeave && !isEditing && (
+        <>
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="text-[15px] font-semibold text-[var(--ink)] tracking-tight">補正値</h2>
+            <Button
+              onClick={() => setAddAdjustmentOpen(true)}
+              className="bg-[var(--ink)] text-[var(--surface)] hover:bg-[var(--ink-90)] gap-1.5"
+              size="sm"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              補正値を追加
+            </Button>
+          </div>
+
+          <div className="bg-[var(--surface)] border border-[var(--pr4-border)] rounded-[10px] overflow-hidden shadow-xs mb-5">
+            <div className="px-5 py-3.5 border-b border-[var(--pr4-border)] flex justify-between items-center">
+              <h3 className="text-sm font-semibold text-[var(--ink)]">補正値の履歴</h3>
+              <span className="text-[11px] text-[var(--ink-50)] font-mono">
+                {adjustmentUsages.length} 件 · うち有効 {activeAdjustmentCount}件
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-[var(--surface-2)]">
+                    <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "14%" }}>日付</th>
+                    <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "14%" }}>種別</th>
+                    <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "12%" }}>日数</th>
+                    <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]">理由</th>
+                    <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "12%" }}>状態</th>
+                    <th className="text-right px-5 py-2.5 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "18%" }} />
+                  </tr>
+                </thead>
+                <tbody>
+                  {adjustmentUsages.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-5 py-8 text-center text-sm text-[var(--ink-50)]">
+                        補正値の履歴はありません
+                      </td>
+                    </tr>
+                  )}
+                  {adjustmentUsages.map((u) => {
+                    const isVoided = !!u.isVoided;
+                    const isIncrease = u.days < 0;
+                    const displayDate = u.recordDate || u.startDate;
+                    const daysDisplay = isIncrease
+                      ? `+${Math.abs(u.days).toFixed(1)}`
+                      : `−${Math.abs(u.days).toFixed(1)}`;
+                    return (
+                      <tr key={u.id} className={`border-b border-[var(--pr4-border)] last:border-b-0 ${isVoided ? "text-[var(--ink-35)]" : ""} hover:bg-[var(--surface-2)] transition-colors`}>
+                        <td className="px-5 py-3.5">
+                          <span className={`font-mono text-xs font-medium ${isVoided ? "line-through text-[var(--ink-35)]" : "text-[var(--ink)]"}`}>
+                            {displayDate}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          {isVoided ? (
+                            <Badge variant="voided" className="text-[11px]">
+                              {isIncrease ? "補正（増）" : "補正（減）"}
+                            </Badge>
+                          ) : (
+                            <Badge variant={isIncrease ? "success" : "danger"} className="text-[11px]">
+                              <span className="w-1 h-1 rounded-full bg-current mr-1" />
+                              {isIncrease ? "補正（増）" : "補正（減）"}
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className={`text-sm font-semibold tracking-tight ${
+                            isVoided ? "line-through text-[var(--ink-35)]"
+                            : isIncrease ? "text-[var(--green)]"
+                            : "text-[var(--red)]"
+                          }`}>
+                            {daysDisplay}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className={`text-xs leading-snug ${isVoided ? "line-through text-[var(--ink-35)]" : "text-[var(--ink-70)]"}`}>
+                            {u.reason || "-"}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          {isVoided ? (
+                            <Badge variant="voided" className="text-[11px]">解除済</Badge>
+                          ) : (
+                            <Badge variant="neut" className="text-[11px]">有効</Badge>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5 text-right">
+                          {isVoided ? (
+                            <span className="text-[10px] text-[var(--ink-35)] font-mono">
+                              {u.voidedAt ? new Date(u.voidedAt).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" }) : ""} 解除
+                            </span>
+                          ) : (
+                            <div className="flex items-center gap-1 justify-end">
+                              <button
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-transparent border border-[var(--pr4-border)] rounded text-[10px] text-[var(--ink-50)] font-medium cursor-pointer hover:bg-[var(--accent-soft)] hover:text-[var(--pr4-accent)] hover:border-[var(--pr4-accent)]/30 transition-colors"
+                                onClick={() => {
+                                  setSplitTarget(u);
+                                  setSplitDialogOpen(true);
+                                }}
+                              >
+                                分割
+                              </button>
+                              <button
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-transparent border border-[var(--pr4-border)] rounded text-[10px] text-[var(--ink-50)] font-medium cursor-pointer hover:bg-[var(--accent-soft)] hover:text-[var(--pr4-accent)] hover:border-[var(--pr4-accent)]/30 transition-colors"
+                                onClick={() => {
+                                  setConfirmDateTarget(u);
+                                  setConfirmDateDialogOpen(true);
+                                }}
+                              >
+                                日付確定
+                              </button>
+                              <button
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-transparent border border-[var(--pr4-border)] rounded text-[10px] text-[var(--ink-70)] font-medium cursor-pointer hover:bg-[var(--red-soft)] hover:text-[var(--red)] hover:border-[var(--red)]/30 transition-colors"
+                                onClick={() => {
+                                  setVoidTarget(u);
+                                  setVoidDialogOpen(true);
+                                }}
+                              >
+                                解除
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ═══ 過去サイクル ═══ */}
+      {paidLeave && !isEditing && pastCycles.length > 0 && (
+        <div className="mb-5">
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="text-[15px] font-semibold text-[var(--ink)] tracking-tight">過去サイクル</h2>
+            <span className="text-[11px] text-[var(--ink-50)] font-mono">過去{pastCycles.length}サイクル表示中</span>
+          </div>
+          <div className="space-y-2">
+            {pastCycles.map((cycle, idx) => {
+              const cycleLabel = idx === 0 ? "前サイクル" : `${idx + 1}サイクル前`;
+              const cycleUsages = (leaveUsages ?? []).filter((u) => {
+                const d = u.recordDate || u.startDate;
+                return d >= cycle.startDate && d < cycle.endDate;
+              });
+              const cycleUsageOnly = cycleUsages.filter((u) => u.recordType === "usage" && !u.isVoided);
+              const cycleAdjustments = cycleUsages.filter((u) => u.recordType === "adjustment" && !u.isVoided);
+              const cycleConsumed = cycleUsageOnly.reduce((s, u) => s + u.days, 0);
+              const cycleAdjTotal = cycleAdjustments.reduce((s, u) => s + u.days, 0);
+              const cycleAdjDisplayTotal = -cycleAdjTotal;
+
+              const tenureAtCycle = (() => {
+                if (!employee?.joinDate) return 0;
+                const join = new Date(employee.joinDate);
+                const start = new Date(cycle.startDate);
+                return (start.getTime() - join.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+              })();
+              const cycleGranted = getLegalGrantDays(tenureAtCycle);
+              const cycleCarryover = 0;
+              const cycleTotal = cycleGranted + cycleCarryover;
+              const cycleEndRemaining = Math.max(0, cycleTotal - cycleConsumed + cycleAdjDisplayTotal);
+
+              const isOpen = pastCycleOpenMap[idx] ?? false;
+              return (
+                <Collapsible
+                  key={cycle.index}
+                  open={isOpen}
+                  onOpenChange={(v) => setPastCycleOpenMap((prev) => ({ ...prev, [idx]: v }))}
+                >
+                      <CollapsibleTrigger className="w-full flex items-center gap-3 bg-[var(--surface)] border border-[var(--pr4-border)] rounded-[10px] px-5 py-3.5 cursor-pointer hover:bg-[var(--surface-2)] transition-colors group text-left">
+                        <ChevronDown className={`h-3.5 w-3.5 text-[var(--ink-50)] transition-transform shrink-0 ${isOpen ? "rotate-0" : "-rotate-90"}`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[13px] font-semibold text-[var(--ink)]">{cycleLabel}</div>
+                          <div className="text-[11px] text-[var(--ink-50)] font-mono">{cycle.startDate} 〜 {cycle.endDate}</div>
+                        </div>
+                        <div className="flex items-center gap-5 shrink-0">
+                          <div className="text-right">
+                            <div className="text-[10px] text-[var(--ink-50)]">付与</div>
+                            <div className="text-[13px] font-semibold tabular-nums text-[var(--ink)]">{cycleGranted.toFixed(1)}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">日</span></div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-[10px] text-[var(--ink-50)]">補正値合計</div>
+                            <div className={`text-[13px] font-semibold tabular-nums ${cycleAdjTotal !== 0 ? "text-[var(--pr4-accent)]" : "text-[var(--ink-35)]"}`}>
+                              {cycleAdjTotal !== 0 ? `${cycleAdjDisplayTotal >= 0 ? "+" : ""}${cycleAdjDisplayTotal.toFixed(1)}` : "─"}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">{cycleAdjTotal !== 0 ? "日" : ""}</span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-[10px] text-[var(--ink-50)]">サイクル末残</div>
+                            <div className="text-[13px] font-semibold tabular-nums text-[var(--ink)]">{cycleEndRemaining.toFixed(1)}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">日</span></div>
+                          </div>
+                        </div>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="bg-[var(--surface)] border border-t-0 border-[var(--pr4-border)] rounded-b-[10px] -mt-[1px] px-5 py-4">
+                          {/* サイクル全体サマリ */}
+                          <div className="bg-[var(--surface-2)] border border-[var(--pr4-border)] rounded-md p-4 mb-4">
+                            <div className="flex justify-between items-center mb-3">
+                              <span className="text-xs font-semibold text-[var(--ink)]">サイクル全体サマリ</span>
+                              {cycleAdjustments.length > 0 && (
+                                <span className="text-[10px] text-[var(--pr4-accent)] font-semibold bg-[var(--accent-soft)] px-2 py-0.5 rounded-full">
+                                  補正値{cycleAdjustments.length}件 · 次サイクル繰越に反映
+                                </span>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                              <div className="text-center">
+                                <div className="text-[10px] text-[var(--ink-50)]">付与日数</div>
+                                <div className="text-sm font-semibold tabular-nums text-[var(--ink)]">{cycleGranted.toFixed(1)}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">日</span></div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-[10px] text-[var(--ink-50)]">繰越日数</div>
+                                <div className="text-sm font-semibold tabular-nums text-[var(--ink)]">{cycleCarryover.toFixed(1)}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">日</span></div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-[10px] text-[var(--ink-50)]">合計</div>
+                                <div className="text-sm font-semibold tabular-nums text-[var(--ink)]">{cycleTotal.toFixed(1)}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">日</span></div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-[10px] text-[var(--ink-50)]">使用日数</div>
+                                <div className="text-sm font-semibold tabular-nums text-[var(--ink)]">{cycleConsumed.toFixed(1)}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">日</span></div>
+                              </div>
+                              <div className="text-center bg-[var(--accent-soft)] rounded p-1">
+                                <div className="text-[10px] text-[var(--pr4-accent)]">補正値合計</div>
+                                <div className="text-sm font-semibold tabular-nums text-[var(--pr4-accent)]">
+                                  {cycleAdjTotal !== 0 ? `${cycleAdjDisplayTotal >= 0 ? "+" : ""}${cycleAdjDisplayTotal.toFixed(1)}` : "─"}<span className="text-[10px] font-normal ml-0.5">{cycleAdjTotal !== 0 ? "日" : ""}</span>
+                                </div>
+                              </div>
+                              <div className="text-center bg-[var(--accent-soft)] rounded p-1">
+                                <div className="text-[10px] text-[var(--pr4-accent)]">次サイクル繰越</div>
+                                <div className="text-sm font-semibold tabular-nums text-[var(--pr4-accent)]">{cycleEndRemaining.toFixed(1)}<span className="text-[10px] font-normal ml-0.5">日</span></div>
+                              </div>
+                            </div>
+                            {cycleAdjustments.length > 0 && (
+                              <div className="mt-3 pt-3 border-t border-[var(--pr4-border)] text-[11px] text-[var(--ink-70)] leading-relaxed">
+                                <strong>次サイクル繰越 {cycleEndRemaining.toFixed(1)}日</strong> のうち、補正値由来分は <strong className="text-[var(--pr4-accent)]">{cycleAdjDisplayTotal >= 0 ? "+" : ""}{cycleAdjDisplayTotal.toFixed(1)}日</strong> です。
+                              </div>
+                            )}
+                          </div>
+
+                          {/* 履歴一覧 */}
+                          <div className="border border-[var(--pr4-border)] rounded-md overflow-hidden">
+                            <div className="px-4 py-2.5 border-b border-[var(--pr4-border)] flex justify-between items-center bg-[var(--surface-2)]">
+                              <h3 className="text-[13px] font-semibold text-[var(--ink)]">履歴一覧</h3>
+                              <span className="text-[11px] text-[var(--ink-50)] font-mono">{cycleUsages.length} 件</span>
+                            </div>
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="bg-[var(--surface-2)]">
+                                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "14%" }}>日付</th>
+                                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "14%" }}>種別</th>
+                                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "12%" }}>日数</th>
+                                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]">理由</th>
+                                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "12%" }}>状態</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {cycleUsages.length === 0 && (
+                                  <tr>
+                                    <td colSpan={5} className="px-4 py-6 text-center text-xs text-[var(--ink-50)] italic">
+                                      このサイクルの履歴はありません
+                                    </td>
+                                  </tr>
+                                )}
+                                {cycleUsages.map((u) => {
+                                  const isVoided = !!u.isVoided;
+                                  const isAdj = u.recordType === "adjustment";
+                                  const isIncrease = isAdj && u.days < 0;
+                                  const displayDate = u.recordDate || u.startDate;
+                                  const daysStr = isAdj
+                                    ? (isIncrease ? `+${Math.abs(u.days).toFixed(1)}` : `−${Math.abs(u.days).toFixed(1)}`)
+                                    : u.days.toFixed(1);
+                                  return (
+                                    <tr key={u.id} className={`border-b border-[var(--pr4-border)] last:border-b-0 ${isVoided ? "text-[var(--ink-35)]" : ""}`}>
+                                      <td className="px-4 py-2.5">
+                                        <span className={`font-mono text-xs ${isVoided ? "line-through text-[var(--ink-35)]" : "text-[var(--ink)]"}`}>{displayDate}</span>
+                                      </td>
+                                      <td className="px-4 py-2.5">
+                                        {isVoided ? (
+                                          <Badge variant="voided" className="text-[10px]">{isAdj ? (isIncrease ? "補正（増）" : "補正（減）") : "取得"}</Badge>
+                                        ) : (
+                                          <Badge variant={isAdj ? (isIncrease ? "success" : "danger") : "neut"} className="text-[10px]">
+                                            <span className="w-1 h-1 rounded-full bg-current mr-1" />
+                                            {isAdj ? (isIncrease ? "補正（増）" : "補正（減）") : "取得"}
+                                          </Badge>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-2.5">
+                                        <span className={`text-xs font-semibold ${
+                                          isVoided ? "line-through text-[var(--ink-35)]"
+                                          : isAdj && isIncrease ? "text-[var(--green)]"
+                                          : isAdj ? "text-[var(--red)]"
+                                          : "text-[var(--ink)]"
+                                        }`}>{daysStr}</span>
+                                      </td>
+                                      <td className="px-4 py-2.5">
+                                        <span className={`text-xs ${isVoided ? "line-through text-[var(--ink-35)]" : "text-[var(--ink-70)]"}`}>{u.reason || u.note || "-"}</span>
+                                      </td>
+                                      <td className="px-4 py-2.5">
+                                        {isVoided ? <Badge variant="voided" className="text-[10px]">解除済</Badge> : <Badge variant="neut" className="text-[10px]">有効</Badge>}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </CollapsibleContent>
+                </Collapsible>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 残業時間 */}
       <Card className={`border ${
@@ -2789,29 +3025,6 @@ export default function EmployeeDetail() {
 
 
 
-      {/* ─── 残日数手動修正ダイアログ（PR-2 移行後は無効化） ─── */}
-      <Dialog open={manualAdjustDialogOpen} onOpenChange={setManualAdjustDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>残日数手動修正</DialogTitle>
-            <DialogDescription>
-              この機能はPR-2移行により無効化されました。残日数の補正は補正値履歴で管理されます。
-            </DialogDescription>
-          </DialogHeader>
-          <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 px-4 py-3 text-sm text-blue-800 dark:text-blue-300">
-            <div className="flex items-start gap-2">
-              <Info className="h-4 w-4 mt-0.5 shrink-0" />
-              <p>残日数の修正は「補正値履歴」から行ってください。補正値専用UIはPR-4で実装予定です。</p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setManualAdjustDialogOpen(false)}>
-              閉じる
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* ─── 退職処理ダイアログ ─── */}
       <Dialog open={retireDialogOpen} onOpenChange={setRetireDialogOpen}>
         <DialogContent data-testid="dialog-retire">
@@ -2876,6 +3089,42 @@ export default function EmployeeDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* PR-4: 補正値追加モーダル */}
+      {paidLeave && (
+        <AddAdjustmentDialog
+          open={addAdjustmentOpen}
+          onOpenChange={setAddAdjustmentOpen}
+          paidLeaveId={paidLeave.id}
+          employeeId={id}
+          employeeName={employee.name}
+        />
+      )}
+
+      {/* PR-4: 解除モーダル */}
+      <VoidLeaveUsageDialog
+        open={voidDialogOpen}
+        onOpenChange={setVoidDialogOpen}
+        usage={voidTarget}
+        employeeId={id}
+        currentRemainingDays={paidLeave?.adjustedRemainingDays ?? 0}
+      />
+
+      {/* PR-4: 分割モーダル */}
+      <SplitAdjustmentDialog
+        open={splitDialogOpen}
+        onOpenChange={setSplitDialogOpen}
+        target={splitTarget}
+        employeeId={id}
+      />
+
+      {/* PR-4: 日付確定モーダル */}
+      <ConfirmDateDialog
+        open={confirmDateDialogOpen}
+        onOpenChange={setConfirmDateDialogOpen}
+        target={confirmDateTarget}
+        employeeId={id}
+      />
     </div>
   );
 }
