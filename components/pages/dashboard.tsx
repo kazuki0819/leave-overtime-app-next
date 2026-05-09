@@ -39,6 +39,7 @@ type EmployeeSummary = {
     expiredDays: number;
     adjustedRemainingDays: number;
     autoRemainingDays: number;
+    activeAdjustmentCount: number;
   } | null;
   overtime: {
     yearlyTotal: number;
@@ -93,9 +94,21 @@ export default function Dashboard() {
     const avgUsageRate = withLeave.length > 0
       ? withLeave.reduce((s, e) => s + (e.paidLeave?.usageRate ?? 0), 0) / withLeave.length
       : 0;
+    const fiveDayFailing = withLeave.filter(e => (e.paidLeave?.consumedDays ?? 0) < 5).length;
+
+    const totalAdjustedRemaining = withLeave.reduce((s, e) => s + (e.paidLeave?.adjustedRemainingDays ?? 0), 0);
+    const totalAutoRemaining = withLeave.reduce((s, e) => s + (e.paidLeave?.autoRemainingDays ?? 0), 0);
+    const adjustmentDelta = totalAdjustedRemaining - totalAutoRemaining;
+    const totalActiveAdjustments = withLeave.reduce((s, e) => s + (e.paidLeave?.activeAdjustmentCount ?? 0), 0);
+
     return {
       totalEmployees: summaries.length,
       avgUsageRate,
+      fiveDayFailing,
+      totalAdjustedRemaining,
+      totalAutoRemaining,
+      adjustmentDelta,
+      totalActiveAdjustments,
       leaveDanger: summaries.filter(e => e.leaveDangerCount > 0).length,
       leaveWarning: summaries.filter(e => e.leaveWarningCount > 0 && e.leaveDangerCount === 0).length,
       leaveCaution: summaries.filter(e => e.leaveCautionCount > 0).length,
@@ -195,92 +208,111 @@ export default function Dashboard() {
         <h1 className="text-xl font-bold" data-testid="page-title">ダッシュボード</h1>
       </div>
 
-      {/* Top KPI strip */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <Card className="border">
+      {/* Top KPI strip — v24: 4 columns */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="border border-[var(--pr4-border)] bg-[var(--surface)]">
           <CardContent className="p-3.5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-muted-foreground">社員数</p>
-                <p className="text-lg font-bold mt-0.5">{stats.totalEmployees}名</p>
+                <p className="text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider">在籍社員</p>
+                <p className="text-lg font-bold mt-0.5 text-[var(--ink)]">{stats.totalEmployees}<span className="text-xs font-normal text-[var(--ink-50)] ml-0.5">名</span></p>
               </div>
-              <div className="rounded-lg p-2 bg-blue-50 dark:bg-blue-950/40">
-                <Users className="h-4 w-4 text-blue-500" />
+              <div className="rounded-lg p-2 bg-[var(--surface-2)]">
+                <Users className="h-4 w-4 text-[var(--ink-50)]" />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="border">
+        <Card className={`border ${stats.fiveDayFailing > 0 ? "border-[var(--red)]/30 bg-[var(--red-soft)]" : "border-[var(--pr4-border)] bg-[var(--surface)]"}`}>
           <CardContent className="p-3.5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-muted-foreground">平均有給取得率</p>
-                <p className="text-lg font-bold mt-0.5">{(stats.avgUsageRate * 100).toFixed(2)}%</p>
-              </div>
-              <div className={`rounded-lg p-2 ${stats.avgUsageRate < 0.5 ? "bg-amber-50 dark:bg-amber-950/40" : "bg-emerald-50 dark:bg-emerald-950/40"}`}>
-                <Calendar className={`h-4 w-4 ${stats.avgUsageRate < 0.5 ? "text-amber-500" : "text-emerald-500"}`} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border">
-          <CardContent className="p-3.5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">有給アラート</p>
+                <p className="text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider">5日義務未達</p>
                 <p className="text-lg font-bold mt-0.5">
-                  <span className="text-red-500">{stats.leaveDanger}</span>
-                  <span className="text-xs text-muted-foreground mx-1">/</span>
-                  <span className="text-amber-500">{stats.leaveWarning}</span>
-                  <span className="text-xs text-muted-foreground ml-1">名</span>
+                  <span className={stats.fiveDayFailing > 0 ? "text-[var(--red)]" : "text-[var(--green)]"}>{stats.fiveDayFailing}</span>
+                  <span className="text-xs font-normal text-[var(--ink-50)] ml-0.5">名</span>
                 </p>
               </div>
-              <div className={`rounded-lg p-2 ${stats.leaveDanger > 0 ? "bg-red-50 dark:bg-red-950/40" : "bg-amber-50 dark:bg-amber-950/40"}`}>
-                <Calendar className={`h-4 w-4 ${stats.leaveDanger > 0 ? "text-red-500" : "text-amber-500"}`} />
+              <div className={`rounded-lg p-2 ${stats.fiveDayFailing > 0 ? "bg-[var(--red)]/10" : "bg-[var(--green-soft)]"}`}>
+                <Calendar className={`h-4 w-4 ${stats.fiveDayFailing > 0 ? "text-[var(--red)]" : "text-[var(--green)]"}`} />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="border">
+        <Card className={`border ${stats.composite > 0 ? "border-[var(--red)]/40" : "border-[var(--pr4-border)]"}`}>
+          <CardContent className={`p-3.5 ${stats.composite > 0 ? "bg-gradient-to-r from-[var(--red-soft)] to-[var(--surface)]" : ""}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider">複合リスク</p>
+                <p className="text-lg font-bold mt-0.5">
+                  <span className={stats.composite > 0 ? "text-[var(--red)]" : "text-[var(--green)]"}>{stats.composite}</span>
+                  <span className="text-xs font-normal text-[var(--ink-50)] ml-0.5">名</span>
+                </p>
+              </div>
+              <div className={`rounded-lg p-2 ${stats.composite > 0 ? "bg-[var(--red)]/10" : "bg-[var(--green-soft)]"}`}>
+                <ShieldAlert className={`h-4 w-4 ${stats.composite > 0 ? "text-[var(--red)]" : "text-[var(--green)]"}`} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className={`border ${stats.totalActiveAdjustments > 10 ? "border-[var(--amber)]/30 bg-[var(--amber-soft)]" : "border-[var(--pr4-border)] bg-[var(--surface)]"}`}>
           <CardContent className="p-3.5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-muted-foreground">残業アラート</p>
-                <p className="text-lg font-bold mt-0.5">
-                  <span className="text-red-500">{stats.otDanger}</span>
-                  <span className="text-xs text-muted-foreground mx-1">/</span>
-                  <span className="text-amber-500">{stats.otWarning}</span>
-                  <span className="text-xs text-muted-foreground ml-1">名</span>
+                <p className="text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider">アクティブ補正値</p>
+                <p className="text-lg font-bold mt-0.5 text-[var(--ink)]">
+                  {stats.totalActiveAdjustments}<span className="text-xs font-normal text-[var(--ink-50)] ml-0.5">件</span>
                 </p>
               </div>
-              <div className={`rounded-lg p-2 ${stats.otDanger > 0 ? "bg-red-50 dark:bg-red-950/40" : "bg-amber-50 dark:bg-amber-950/40"}`}>
-                <Clock className={`h-4 w-4 ${stats.otDanger > 0 ? "text-red-500" : "text-amber-500"}`} />
+              <div className={`rounded-lg p-2 ${stats.totalActiveAdjustments > 10 ? "bg-[var(--amber)]/10" : "bg-[var(--accent-soft)]"}`}>
+                <AlertTriangle className={`h-4 w-4 ${stats.totalActiveAdjustments > 10 ? "text-[var(--amber)]" : "text-[var(--pr4-accent)]"}`} />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className={`border ${stats.composite > 0 ? "border-purple-300 dark:border-purple-800" : ""}`}>
-          <CardContent className="p-3.5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">複合リスク</p>
-                <p className="text-lg font-bold mt-0.5">
-                  {stats.composite > 0 ? (
-                    <>
-                      <span className="text-purple-600 dark:text-purple-400">{stats.composite}</span>
-                      <span className="text-xs text-muted-foreground ml-1">名</span>
-                    </>
-                  ) : (
-                    <span className="text-emerald-500">0名</span>
-                  )}
-                </p>
-              </div>
-              <div className={`rounded-lg p-2 ${stats.composite > 0 ? "bg-purple-50 dark:bg-purple-950/40" : "bg-emerald-50 dark:bg-emerald-950/40"}`}>
-                <ShieldAlert className={`h-4 w-4 ${stats.composite > 0 ? "text-purple-500" : "text-emerald-500"}`} />
-              </div>
+      </div>
+
+      {/* 全社合計 2窓表示 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div className="bg-[var(--surface)] border border-[var(--ink)] rounded-[10px] p-4 shadow-md">
+          <div className="flex justify-between items-center mb-2">
+            <div>
+              <div className="text-sm font-semibold text-[var(--ink)]">全社合計 — 補正計算（実残日数）</div>
+              <div className="text-[11px] text-[var(--ink-50)] mt-0.5">補正値を反映した実運用値</div>
             </div>
-          </CardContent>
-        </Card>
+            <span className="inline-flex items-center gap-[5px] text-[10px] font-semibold px-2 py-[3px] rounded bg-[var(--ink)] text-[var(--surface)] tracking-wide">
+              <span className="w-[5px] h-[5px] rounded-full bg-current" />PRIMARY
+            </span>
+          </div>
+          <div className="flex items-baseline gap-2 my-3">
+            <span className="text-[42px] font-semibold leading-[0.9] tracking-tighter text-[var(--ink)]">
+              {stats.totalAdjustedRemaining.toFixed(1)}
+            </span>
+            <span className="text-[13px] font-normal text-[var(--ink-50)]">日</span>
+            {stats.adjustmentDelta !== 0 && (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--pr4-accent)] bg-[var(--accent-soft)] px-2 py-[3px] rounded">
+                {stats.adjustmentDelta > 0 ? "+" : ""}{stats.adjustmentDelta.toFixed(1)} 補正影響
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="bg-[var(--surface-2)] border border-dashed border-[var(--pr4-border)] rounded-[10px] p-4">
+          <div className="flex justify-between items-center mb-2">
+            <div>
+              <div className="text-sm font-medium text-[var(--ink-70)]">全社合計 — 自動計算（補正値なし）</div>
+              <div className="text-[11px] text-[var(--ink-50)] mt-0.5">補正値を除いた参考値</div>
+            </div>
+            <span className="inline-flex items-center text-[10px] font-semibold px-2 py-[3px] rounded border border-[var(--border-strong)] text-[var(--ink-50)] tracking-wide">
+              REFERENCE
+            </span>
+          </div>
+          <div className="flex items-baseline gap-2 my-3">
+            <span className="text-[42px] font-medium leading-[0.9] tracking-tighter text-[var(--ink-50)]">
+              {stats.totalAutoRemaining.toFixed(1)}
+            </span>
+            <span className="text-[13px] font-normal text-[var(--ink-50)]">日</span>
+          </div>
+        </div>
       </div>
 
       {/* Search + Filter bar */}
@@ -613,19 +645,19 @@ function EmployeeCard({ emp }: { emp: EmployeeSummary }) {
               </p>
             </div>
           </div>
-          {/* 有給残日数 2窓表示 */}
+          {/* 有給残日数 2窓表示 — v24 */}
           {leave && (
             <div className="grid grid-cols-2 gap-2 mb-2">
-              <div className="rounded border px-2 py-1.5 text-center">
-                <p className="text-xs text-muted-foreground">残日数（補正込）</p>
-                <p className="text-sm font-bold tabular-nums">
-                  {leave.adjustedRemainingDays.toFixed(2)}日
+              <div className="rounded-md border border-[var(--ink)] px-2 py-1.5 text-center bg-[var(--surface)]">
+                <p className="text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider">補正込</p>
+                <p className="text-sm font-bold tabular-nums text-[var(--ink)]">
+                  {leave.adjustedRemainingDays.toFixed(1)}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">日</span>
                 </p>
               </div>
-              <div className="rounded border border-dashed px-2 py-1.5 text-center">
-                <p className="text-xs text-muted-foreground">残日数（自動計算）</p>
-                <p className="text-sm font-bold tabular-nums text-muted-foreground">
-                  {leave.autoRemainingDays.toFixed(2)}日
+              <div className="rounded-md border border-dashed border-[var(--pr4-border)] px-2 py-1.5 text-center bg-[var(--surface-2)]">
+                <p className="text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider">自動計算</p>
+                <p className="text-sm font-medium tabular-nums text-[var(--ink-50)]">
+                  {leave.autoRemainingDays.toFixed(1)}<span className="text-[10px] font-normal ml-0.5">日</span>
                 </p>
               </div>
             </div>
