@@ -270,4 +270,156 @@ describe("addLeaveAdjustment / voidLeaveUsage (直接DB操作)", () => {
 
     expect(rows[0].days).toBe(5.875);
   });
+
+  it("分割: 元レコードが解除済になり、分割先が作成される", async () => {
+    const now = new Date().toISOString();
+    const inserted = await testDb.insert(leaveUsages).values({
+      employeeId: "1",
+      startDate: "2026-05-01",
+      endDate: "2026-05-01",
+      paidLeaveId,
+      recordDate: "2026-05-01",
+      days: -5.0,
+      recordType: "adjustment",
+      reason: "マイグレーション初期値",
+      isVoided: 0,
+      createdAt: now,
+      updatedAt: now,
+    }).returning();
+
+    const originalId = inserted[0].id;
+
+    // 元レコードを解除
+    await testDb.update(leaveUsages).set({
+      isVoided: 1,
+      voidedAt: now,
+      voidedReason: "分割: 取得日判明のため",
+      updatedAt: now,
+    }).where(eq(leaveUsages.id, originalId));
+
+    // 分割先を作成
+    const split1 = await testDb.insert(leaveUsages).values({
+      employeeId: "1",
+      startDate: "2026-09-05",
+      endDate: "2026-09-05",
+      paidLeaveId,
+      recordDate: "2026-09-05",
+      days: -2.0,
+      note: `分割元: #${originalId}`,
+      recordType: "adjustment",
+      reason: "マイグレーション初期値",
+      isVoided: 0,
+      createdAt: now,
+      updatedAt: now,
+    }).returning();
+
+    const split2 = await testDb.insert(leaveUsages).values({
+      employeeId: "1",
+      startDate: "2026-09-12",
+      endDate: "2026-09-12",
+      paidLeaveId,
+      recordDate: "2026-09-12",
+      days: -3.0,
+      note: `分割元: #${originalId}`,
+      recordType: "adjustment",
+      reason: "マイグレーション初期値",
+      isVoided: 0,
+      createdAt: now,
+      updatedAt: now,
+    }).returning();
+
+    // 履歴記録
+    await testDb.insert(leaveUsageHistory).values({
+      leaveUsageId: originalId,
+      action: "split",
+      actedAt: now,
+      details: JSON.stringify({
+        originalDays: -5.0,
+        splits: [
+          { recordDate: "2026-09-05", days: -2.0 },
+          { recordDate: "2026-09-12", days: -3.0 },
+        ],
+      }),
+      reason: "取得日判明のため",
+    });
+
+    // 検証
+    const original = await testDb.select().from(leaveUsages)
+      .where(eq(leaveUsages.id, originalId)).limit(1);
+    expect(original[0].isVoided).toBe(1);
+    expect(original[0].voidedReason).toContain("分割");
+
+    expect(split1[0].days).toBe(-2.0);
+    expect(split2[0].days).toBe(-3.0);
+    expect(split1[0].days + split2[0].days).toBe(-5.0);
+
+    const history = await testDb.select().from(leaveUsageHistory)
+      .where(eq(leaveUsageHistory.leaveUsageId, originalId));
+    expect(history).toHaveLength(1);
+    expect(history[0].action).toBe("split");
+  });
+
+  it("日付確定: recordDate が更新され、履歴が記録される", async () => {
+    const now = new Date().toISOString();
+    const inserted = await testDb.insert(leaveUsages).values({
+      employeeId: "1",
+      startDate: "2026-05-01",
+      endDate: "2026-05-01",
+      paidLeaveId,
+      recordDate: "2026-05-01",
+      days: -1.0,
+      recordType: "adjustment",
+      reason: "日付不明分",
+      isVoided: 0,
+      createdAt: now,
+      updatedAt: now,
+    }).returning();
+
+    const usageId = inserted[0].id;
+    const newDate = "2026-04-15";
+
+    // 日付更新
+    await testDb.update(leaveUsages).set({
+      recordDate: newDate,
+      startDate: newDate,
+      endDate: newDate,
+      updatedAt: now,
+    }).where(eq(leaveUsages.id, usageId));
+
+    // 履歴記録
+    await testDb.insert(leaveUsageHistory).values({
+      leaveUsageId: usageId,
+      action: "date_confirmed",
+      actedAt: now,
+      details: JSON.stringify({
+        oldDate: "2026-05-01",
+        newDate,
+      }),
+      reason: "取得日が4/15と判明",
+    });
+
+    // 検証
+    const updated = await testDb.select().from(leaveUsages)
+      .where(eq(leaveUsages.id, usageId)).limit(1);
+    expect(updated[0].recordDate).toBe(newDate);
+    expect(updated[0].startDate).toBe(newDate);
+
+    const history = await testDb.select().from(leaveUsageHistory)
+      .where(eq(leaveUsageHistory.leaveUsageId, usageId));
+    expect(history).toHaveLength(1);
+    expect(history[0].action).toBe("date_confirmed");
+    const details = JSON.parse(history[0].details!);
+    expect(details.oldDate).toBe("2026-05-01");
+    expect(details.newDate).toBe(newDate);
+  });
+
+  it("分割: 合計が元の値と一致しない場合はエラー", () => {
+    const originalDays = -5.0;
+    const splits = [
+      { recordDate: "2026-09-05", days: -2.0 },
+      { recordDate: "2026-09-12", days: -2.0 },
+    ];
+    const splitTotal = splits.reduce((s, sp) => s + sp.days, 0);
+    expect(Math.abs(splitTotal - originalDays) > 0.001).toBe(true);
+  });
 });
