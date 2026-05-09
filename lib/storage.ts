@@ -405,38 +405,40 @@ export class TursoStorage implements IStorage {
   }): Promise<LeaveUsage> {
     voidLeaveUsageSchema.parse({ voided_reason: params.voidedReason });
 
-    const existingRows = await db.select().from(leaveUsages)
-      .where(eq(leaveUsages.id, params.leaveUsageId)).limit(1);
-    const existing = existingRows[0];
-    if (!existing) {
-      throw new Error("対象レコードが見つかりません");
-    }
-    if (existing.isVoided === 1) {
-      throw new Error("既に解除済みのレコードです");
-    }
+    return await db.transaction(async (tx) => {
+      const existingRows = await tx.select().from(leaveUsages)
+        .where(eq(leaveUsages.id, params.leaveUsageId)).limit(1);
+      const existing = existingRows[0];
+      if (!existing) {
+        throw new Error("対象レコードが見つかりません");
+      }
+      if (existing.isVoided === 1) {
+        throw new Error("既に解除済みのレコードです");
+      }
 
-    const now = new Date().toISOString();
-    await db.update(leaveUsages).set({
-      isVoided: 1,
-      voidedAt: now,
-      voidedReason: params.voidedReason,
-      updatedAt: now,
-    }).where(eq(leaveUsages.id, params.leaveUsageId));
+      const now = new Date().toISOString();
+      await tx.update(leaveUsages).set({
+        isVoided: 1,
+        voidedAt: now,
+        voidedReason: params.voidedReason,
+        updatedAt: now,
+      }).where(eq(leaveUsages.id, params.leaveUsageId));
 
-    await db.insert(leaveUsageHistory).values({
-      leaveUsageId: params.leaveUsageId,
-      action: "voided",
-      actedAt: now,
-      details: JSON.stringify({
-        recordType: existing.recordType,
-        days: existing.days,
-      }),
-      reason: params.voidedReason,
+      await tx.insert(leaveUsageHistory).values({
+        leaveUsageId: params.leaveUsageId,
+        action: "voided",
+        actedAt: now,
+        details: JSON.stringify({
+          recordType: existing.recordType,
+          days: existing.days,
+        }),
+        reason: params.voidedReason,
+      });
+
+      const updatedRows = await tx.select().from(leaveUsages)
+        .where(eq(leaveUsages.id, params.leaveUsageId)).limit(1);
+      return updatedRows[0];
     });
-
-    const updatedRows = await db.select().from(leaveUsages)
-      .where(eq(leaveUsages.id, params.leaveUsageId)).limit(1);
-    return updatedRows[0];
   }
 
   async splitLeaveAdjustment(params: {
@@ -444,61 +446,63 @@ export class TursoStorage implements IStorage {
     splits: { recordDate: string; days: number }[];
     reason: string;
   }): Promise<LeaveUsage[]> {
-    const existingRows = await db.select().from(leaveUsages)
-      .where(eq(leaveUsages.id, params.leaveUsageId)).limit(1);
-    const existing = existingRows[0];
-    if (!existing) throw new Error("対象レコードが見つかりません");
-    if (existing.recordType !== "adjustment") throw new Error("補正値レコードのみ分割できます");
-    if (existing.isVoided === 1) throw new Error("解除済みレコードは分割できません");
-    if (params.splits.length < 2) throw new Error("分割先は2件以上必要です");
+    return await db.transaction(async (tx) => {
+      const existingRows = await tx.select().from(leaveUsages)
+        .where(eq(leaveUsages.id, params.leaveUsageId)).limit(1);
+      const existing = existingRows[0];
+      if (!existing) throw new Error("対象レコードが見つかりません");
+      if (existing.recordType !== "adjustment") throw new Error("補正値レコードのみ分割できます");
+      if (existing.isVoided === 1) throw new Error("解除済みレコードは分割できません");
+      if (params.splits.length < 2) throw new Error("分割先は2件以上必要です");
 
-    const splitTotal = params.splits.reduce((s, sp) => s + sp.days, 0);
-    if (Math.abs(splitTotal - existing.days) > 0.001) {
-      throw new Error(`分割後の合計（${splitTotal}）が元の値（${existing.days}）と一致しません`);
-    }
+      const splitTotal = params.splits.reduce((s, sp) => s + sp.days, 0);
+      if (Math.abs(splitTotal - existing.days) > 0.001) {
+        throw new Error(`分割後の合計（${splitTotal}）が元の値（${existing.days}）と一致しません`);
+      }
 
-    const now = new Date().toISOString();
+      const now = new Date().toISOString();
 
-    await db.update(leaveUsages).set({
-      isVoided: 1,
-      voidedAt: now,
-      voidedReason: `分割: ${params.reason}`,
-      updatedAt: now,
-    }).where(eq(leaveUsages.id, params.leaveUsageId));
-
-    await db.insert(leaveUsageHistory).values({
-      leaveUsageId: params.leaveUsageId,
-      action: "split",
-      actedAt: now,
-      details: JSON.stringify({
-        originalDays: existing.days,
-        splits: params.splits,
-      }),
-      reason: params.reason,
-    });
-
-    const newRecords: LeaveUsage[] = [];
-    for (const sp of params.splits) {
-      adjustmentDaysSchema.parse(sp.days);
-      const rows = await db.insert(leaveUsages).values({
-        employeeId: existing.employeeId,
-        startDate: sp.recordDate,
-        endDate: sp.recordDate,
-        paidLeaveId: existing.paidLeaveId,
-        recordDate: sp.recordDate,
-        days: sp.days,
-        note: `分割元: #${existing.id}`,
-        recordType: "adjustment",
-        reason: existing.reason,
-        isVoided: 0,
-        voidedAt: null,
-        voidedReason: null,
-        createdAt: now,
+      await tx.update(leaveUsages).set({
+        isVoided: 1,
+        voidedAt: now,
+        voidedReason: `分割: ${params.reason}`,
         updatedAt: now,
-      }).returning();
-      newRecords.push(rows[0]);
-    }
-    return newRecords;
+      }).where(eq(leaveUsages.id, params.leaveUsageId));
+
+      await tx.insert(leaveUsageHistory).values({
+        leaveUsageId: params.leaveUsageId,
+        action: "split",
+        actedAt: now,
+        details: JSON.stringify({
+          originalDays: existing.days,
+          splits: params.splits,
+        }),
+        reason: params.reason,
+      });
+
+      const newRecords: LeaveUsage[] = [];
+      for (const sp of params.splits) {
+        adjustmentDaysSchema.parse(sp.days);
+        const rows = await tx.insert(leaveUsages).values({
+          employeeId: existing.employeeId,
+          startDate: sp.recordDate,
+          endDate: sp.recordDate,
+          paidLeaveId: existing.paidLeaveId,
+          recordDate: sp.recordDate,
+          days: sp.days,
+          note: `分割元: #${existing.id}`,
+          recordType: "adjustment",
+          reason: existing.reason,
+          isVoided: 0,
+          voidedAt: null,
+          voidedReason: null,
+          createdAt: now,
+          updatedAt: now,
+        }).returning();
+        newRecords.push(rows[0]);
+      }
+      return newRecords;
+    });
   }
 
   async confirmLeaveAdjustmentDate(params: {
@@ -506,37 +510,39 @@ export class TursoStorage implements IStorage {
     recordDate: string;
     reason: string;
   }): Promise<LeaveUsage> {
-    const existingRows = await db.select().from(leaveUsages)
-      .where(eq(leaveUsages.id, params.leaveUsageId)).limit(1);
-    const existing = existingRows[0];
-    if (!existing) throw new Error("対象レコードが見つかりません");
-    if (existing.recordType !== "adjustment") throw new Error("補正値レコードのみ日付確定できます");
-    if (existing.isVoided === 1) throw new Error("解除済みレコードは日付確定できません");
+    return await db.transaction(async (tx) => {
+      const existingRows = await tx.select().from(leaveUsages)
+        .where(eq(leaveUsages.id, params.leaveUsageId)).limit(1);
+      const existing = existingRows[0];
+      if (!existing) throw new Error("対象レコードが見つかりません");
+      if (existing.recordType !== "adjustment") throw new Error("補正値レコードのみ日付確定できます");
+      if (existing.isVoided === 1) throw new Error("解除済みレコードは日付確定できません");
 
-    const now = new Date().toISOString();
-    const oldDate = existing.recordDate;
+      const now = new Date().toISOString();
+      const oldDate = existing.recordDate;
 
-    await db.update(leaveUsages).set({
-      recordDate: params.recordDate,
-      startDate: params.recordDate,
-      endDate: params.recordDate,
-      updatedAt: now,
-    }).where(eq(leaveUsages.id, params.leaveUsageId));
+      await tx.update(leaveUsages).set({
+        recordDate: params.recordDate,
+        startDate: params.recordDate,
+        endDate: params.recordDate,
+        updatedAt: now,
+      }).where(eq(leaveUsages.id, params.leaveUsageId));
 
-    await db.insert(leaveUsageHistory).values({
-      leaveUsageId: params.leaveUsageId,
-      action: "date_confirmed",
-      actedAt: now,
-      details: JSON.stringify({
-        oldDate,
-        newDate: params.recordDate,
-      }),
-      reason: params.reason,
+      await tx.insert(leaveUsageHistory).values({
+        leaveUsageId: params.leaveUsageId,
+        action: "date_confirmed",
+        actedAt: now,
+        details: JSON.stringify({
+          oldDate,
+          newDate: params.recordDate,
+        }),
+        reason: params.reason,
+      });
+
+      const updatedRows = await tx.select().from(leaveUsages)
+        .where(eq(leaveUsages.id, params.leaveUsageId)).limit(1);
+      return updatedRows[0];
     });
-
-    const updatedRows = await db.select().from(leaveUsages)
-      .where(eq(leaveUsages.id, params.leaveUsageId)).limit(1);
-    return updatedRows[0];
   }
 
   // ── Monthly Overtimes ──
