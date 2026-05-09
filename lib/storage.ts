@@ -10,7 +10,7 @@ import {
   employees, paidLeaves, leaveUsages, monthlyOvertimes, assignmentHistories, specialLeaves,
   leaveUsageHistory,
 } from "./schema";
-import { adjustmentDaysSchema, voidLeaveUsageSchema } from "./validations/leave-usage";
+import { adjustmentDaysSchema, reasonSchema, voidLeaveUsageSchema } from "./validations/leave-usage";
 import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoExpiredDays } from "./leave-calc";
 import { db, client } from "./db";
 import { eq, and, sql } from "drizzle-orm";
@@ -47,6 +47,8 @@ export interface IStorage {
   deleteLeaveUsage(id: number): Promise<boolean>;
   addLeaveAdjustment(params: { paidLeaveId: number; recordDate: string; days: number; reason: string; note?: string }): Promise<LeaveUsage>;
   voidLeaveUsage(params: { leaveUsageId: number; voidedReason: string }): Promise<LeaveUsage>;
+  splitLeaveAdjustment(params: { leaveUsageId: number; splits: { recordDate: string; days: number }[]; reason: string }): Promise<LeaveUsage[]>;
+  confirmLeaveAdjustmentDate(params: { leaveUsageId: number; recordDate: string; reason: string }): Promise<LeaveUsage>;
   getMonthlyOvertimes(employeeId?: string, year?: number): Promise<MonthlyOvertime[]>;
   upsertMonthlyOvertime(ot: InsertMonthlyOvertime): Promise<MonthlyOvertime>;
   getOvertimeAlerts(year?: number): Promise<OvertimeAlert[]>;
@@ -369,9 +371,7 @@ export class TursoStorage implements IStorage {
     note?: string;
   }): Promise<LeaveUsage> {
     adjustmentDaysSchema.parse(params.days);
-    if (!params.reason || params.reason.trim().length === 0) {
-      throw new Error("補正理由は必須です");
-    }
+    reasonSchema.parse(params.reason);
 
     const plRows = await db.select().from(paidLeaves)
       .where(eq(paidLeaves.id, params.paidLeaveId)).limit(1);
@@ -432,6 +432,106 @@ export class TursoStorage implements IStorage {
         days: existing.days,
       }),
       reason: params.voidedReason,
+    });
+
+    const updatedRows = await db.select().from(leaveUsages)
+      .where(eq(leaveUsages.id, params.leaveUsageId)).limit(1);
+    return updatedRows[0];
+  }
+
+  async splitLeaveAdjustment(params: {
+    leaveUsageId: number;
+    splits: { recordDate: string; days: number }[];
+    reason: string;
+  }): Promise<LeaveUsage[]> {
+    const existingRows = await db.select().from(leaveUsages)
+      .where(eq(leaveUsages.id, params.leaveUsageId)).limit(1);
+    const existing = existingRows[0];
+    if (!existing) throw new Error("対象レコードが見つかりません");
+    if (existing.recordType !== "adjustment") throw new Error("補正値レコードのみ分割できます");
+    if (existing.isVoided === 1) throw new Error("解除済みレコードは分割できません");
+    if (params.splits.length < 2) throw new Error("分割先は2件以上必要です");
+
+    const splitTotal = params.splits.reduce((s, sp) => s + sp.days, 0);
+    if (Math.abs(splitTotal - existing.days) > 0.001) {
+      throw new Error(`分割後の合計（${splitTotal}）が元の値（${existing.days}）と一致しません`);
+    }
+
+    const now = new Date().toISOString();
+
+    await db.update(leaveUsages).set({
+      isVoided: 1,
+      voidedAt: now,
+      voidedReason: `分割: ${params.reason}`,
+      updatedAt: now,
+    }).where(eq(leaveUsages.id, params.leaveUsageId));
+
+    await db.insert(leaveUsageHistory).values({
+      leaveUsageId: params.leaveUsageId,
+      action: "split",
+      actedAt: now,
+      details: JSON.stringify({
+        originalDays: existing.days,
+        splits: params.splits,
+      }),
+      reason: params.reason,
+    });
+
+    const newRecords: LeaveUsage[] = [];
+    for (const sp of params.splits) {
+      adjustmentDaysSchema.parse(sp.days);
+      const rows = await db.insert(leaveUsages).values({
+        employeeId: existing.employeeId,
+        startDate: sp.recordDate,
+        endDate: sp.recordDate,
+        paidLeaveId: existing.paidLeaveId,
+        recordDate: sp.recordDate,
+        days: sp.days,
+        note: `分割元: #${existing.id}`,
+        recordType: "adjustment",
+        reason: existing.reason,
+        isVoided: 0,
+        voidedAt: null,
+        voidedReason: null,
+        createdAt: now,
+        updatedAt: now,
+      }).returning();
+      newRecords.push(rows[0]);
+    }
+    return newRecords;
+  }
+
+  async confirmLeaveAdjustmentDate(params: {
+    leaveUsageId: number;
+    recordDate: string;
+    reason: string;
+  }): Promise<LeaveUsage> {
+    const existingRows = await db.select().from(leaveUsages)
+      .where(eq(leaveUsages.id, params.leaveUsageId)).limit(1);
+    const existing = existingRows[0];
+    if (!existing) throw new Error("対象レコードが見つかりません");
+    if (existing.recordType !== "adjustment") throw new Error("補正値レコードのみ日付確定できます");
+    if (existing.isVoided === 1) throw new Error("解除済みレコードは日付確定できません");
+
+    const now = new Date().toISOString();
+    const oldDate = existing.recordDate;
+
+    await db.update(leaveUsages).set({
+      recordDate: params.recordDate,
+      startDate: params.recordDate,
+      endDate: params.recordDate,
+      updatedAt: now,
+    }).where(eq(leaveUsages.id, params.leaveUsageId));
+
+    await db.insert(leaveUsageHistory).values({
+      leaveUsageId: params.leaveUsageId,
+      action: "date_confirmed",
+      actedAt: now,
+      details: JSON.stringify({
+        oldDate,
+        newDate: params.recordDate,
+      }),
+      reason: params.reason,
     });
 
     const updatedRows = await db.select().from(leaveUsages)
@@ -839,6 +939,7 @@ export class TursoStorage implements IStorage {
           const usageOnlyTotal = usgs.filter(u => u.recordType === "usage").reduce((s, u) => s + u.days, 0);
           const expired = calcAutoExpiredDays(leave.carriedOverDays, allTotal);
           const expiredAuto = calcAutoExpiredDays(leave.carriedOverDays, usageOnlyTotal);
+          const adjustments = usgs.filter(u => u.recordType === "adjustment");
           return {
             consumedDays: leave.consumedDays, remainingDays: leave.remainingDays,
             totalAvailable: leave.grantedDays + leave.carriedOverDays,
@@ -846,6 +947,7 @@ export class TursoStorage implements IStorage {
             carriedOverDays: leave.carriedOverDays, expiredDays: leave.expiredDays,
             adjustedRemainingDays: Math.max(0, leave.grantedDays + leave.carriedOverDays - allTotal - expired),
             autoRemainingDays: Math.max(0, leave.grantedDays + leave.carriedOverDays - usageOnlyTotal - expiredAuto),
+            activeAdjustmentCount: adjustments.length,
           };
         })() : null,
         overtime: { yearlyTotal: yearlyOT, monthlyData: empOT },
