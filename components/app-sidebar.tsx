@@ -25,7 +25,7 @@ export function AppSidebar() {
 
   return (
     <aside
-      className="fixed left-0 top-0 z-40 h-screen w-60 bg-[hsl(var(--sidebar))] text-[hsl(var(--sidebar-foreground))] border-r border-[hsl(var(--sidebar-border))]"
+      className="fixed left-0 top-0 z-40 h-screen w-56 bg-[hsl(var(--sidebar))] text-[hsl(var(--sidebar-foreground))] border-r border-[hsl(var(--sidebar-border))]"
       data-testid="app-sidebar"
     >
       <div className="flex h-14 items-center gap-2.5 border-b border-[hsl(var(--sidebar-border))] px-5">

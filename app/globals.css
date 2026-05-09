@@ -43,9 +43,9 @@
   --chart-3: 43 96% 56%;
   --chart-4: 262 68% 56%;
   --chart-5: 0 84% 60%;
-  --font-sans: "Inter", system-ui, sans-serif;
+  --font-sans: var(--font-inter), var(--font-noto-sans-jp), system-ui, sans-serif;
   --font-serif: Georgia, serif;
-  --font-mono: "JetBrains Mono", Menlo, monospace;
+  --font-mono: var(--font-jetbrains-mono), Menlo, monospace;
   --radius: .5rem;
   --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.04);
   --shadow-xs: 0px 1px 3px 0px hsl(0 0% 0% / 0.06);
@@ -65,6 +65,28 @@
   --muted-border: hsl(var(--muted));
   --accent-border: hsl(var(--accent));
   --destructive-border: hsl(var(--destructive));
+
+  /* PR-4 Design System (v24 確定カラーパレット) */
+  --bg: #fcfcfd;
+  --surface: #ffffff;
+  --surface-2: #f7f8fa;
+  --surface-3: #f0f1f4;
+  --pr4-border: #e6e7eb;
+  --border-strong: #d4d6dc;
+  --ink: #0a0a0c;
+  --ink-90: #1d1d1f;
+  --ink-70: #44464d;
+  --ink-50: #6b6e76;
+  --ink-35: #9b9da4;
+  --ink-20: #c5c7cc;
+  --pr4-accent: #0a4a6e;
+  --accent-soft: #e8f1f7;
+  --green: #15803d;
+  --green-soft: #ecfdf3;
+  --red: #be1c1c;
+  --red-soft: #fef0f0;
+  --amber: #a16207;
+  --amber-soft: #fdf6e3;
 }
 
 .dark {
