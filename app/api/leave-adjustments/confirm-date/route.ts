@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureDbInitialized } from "@/lib/init-db";
 import { storage } from "@/lib/storage";
-import { reasonSchema } from "@/lib/validations/leave-usage";
+import { recordDateSchema, reasonSchema } from "@/lib/validations/leave-usage";
 import { z } from "zod";
 
 const confirmDateRequestSchema = z.object({
   leaveUsageId: z.number().int().positive(),
-  recordDate: z.string().min(1, "日付は必須です"),
+  recordDate: recordDateSchema,
   reason: reasonSchema,
 });
 

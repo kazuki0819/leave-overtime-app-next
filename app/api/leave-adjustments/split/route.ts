@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureDbInitialized } from "@/lib/init-db";
 import { storage } from "@/lib/storage";
-import { adjustmentDaysSchema, reasonSchema } from "@/lib/validations/leave-usage";
+import { adjustmentDaysSchema, recordDateSchema, reasonSchema } from "@/lib/validations/leave-usage";
 import { z } from "zod";
 
 const splitRequestSchema = z.object({
@@ -9,7 +9,7 @@ const splitRequestSchema = z.object({
   splits: z
     .array(
       z.object({
-        recordDate: z.string().min(1, "日付は必須です"),
+        recordDate: recordDateSchema,
         days: adjustmentDaysSchema,
       }),
     )

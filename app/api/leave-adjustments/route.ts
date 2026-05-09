@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureDbInitialized } from "@/lib/init-db";
 import { storage } from "@/lib/storage";
-import { adjustmentDaysSchema, reasonSchema } from "@/lib/validations/leave-usage";
+import { adjustmentDaysSchema, recordDateSchema, reasonSchema } from "@/lib/validations/leave-usage";
 import { z } from "zod";
 
 const addAdjustmentRequestSchema = z.object({
   paidLeaveId: z.number().int().positive("有給情報IDは正の整数で指定してください"),
-  recordDate: z.string().min(1, "日付は必須です"),
+  recordDate: recordDateSchema,
   days: adjustmentDaysSchema,
   reason: reasonSchema,
   note: z.string().optional(),

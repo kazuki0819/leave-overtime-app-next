@@ -3,6 +3,7 @@ import {
   isValidEighthIncrement,
   usageDaysSchema,
   adjustmentDaysSchema,
+  recordDateSchema,
   reasonSchema,
   leaveUsageSchema,
   voidLeaveUsageSchema,
@@ -200,6 +201,28 @@ describe("leaveUsageSchema", () => {
       reason: "テスト",
     };
     expect(() => leaveUsageSchema.parse(data)).toThrow();
+  });
+});
+
+describe("recordDateSchema", () => {
+  it("有効なYYYY-MM-DD形式を受け入れる", () => {
+    expect(() => recordDateSchema.parse("2026-05-01")).not.toThrow();
+  });
+
+  it("空文字列を拒否する", () => {
+    expect(() => recordDateSchema.parse("")).toThrow();
+  });
+
+  it("スラッシュ区切りの日付を拒否する", () => {
+    expect(() => recordDateSchema.parse("2026/05/01")).toThrow();
+  });
+
+  it("不完全な日付を拒否する", () => {
+    expect(() => recordDateSchema.parse("2026-5-1")).toThrow();
+  });
+
+  it("英字を含む文字列を拒否する", () => {
+    expect(() => recordDateSchema.parse("abc")).toThrow();
   });
 });
 

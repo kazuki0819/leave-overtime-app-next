@@ -23,6 +23,10 @@ export const adjustmentDaysSchema = z.number()
     message: "0.125日刻みで入力してください",
   });
 
+export const recordDateSchema = z.string()
+  .min(1, "日付は必須です")
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "日付はYYYY-MM-DD形式で入力してください");
+
 export const reasonSchema = z.string()
   .min(1, "理由は必須です")
   .refine((v) => v.trim().length > 0, { message: "空白のみの理由は入力できません" })
