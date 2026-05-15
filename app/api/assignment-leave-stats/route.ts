@@ -10,15 +10,21 @@ export async function GET(request: NextRequest) {
   await ensureDbInitialized();
   const employees = await storage.getEmployees(false);
   const leaves = await storage.getPaidLeaves();
-  const leaveMap = new Map(leaves.map(l => [l.employeeId, l]));
+  // v28発覚バグの修正: employeeId ベースで集約（複数サイクル + orphan対応）
+  const leavesByEmpId: Map<string, typeof leaves> = new Map();
+  for (const l of leaves) {
+    const arr = leavesByEmpId.get(l.employeeId) ?? [];
+    arr.push(l);
+    leavesByEmpId.set(l.employeeId, arr);
+  }
 
   const allUsages = await db.select().from(leaveUsages)
     .where(eq(leaveUsages.isVoided, 0));
-  const usagesByLeaveId = new Map<number, typeof allUsages>();
+  const usagesByEmpId: Map<string, typeof allUsages> = new Map();
   for (const u of allUsages) {
-    const arr = usagesByLeaveId.get(u.paidLeaveId) ?? [];
+    const arr = usagesByEmpId.get(u.employeeId) ?? [];
     arr.push(u);
-    usagesByLeaveId.set(u.paidLeaveId, arr);
+    usagesByEmpId.set(u.employeeId, arr);
   }
 
   const assignmentMap = new Map<string, {
@@ -27,12 +33,14 @@ export async function GET(request: NextRequest) {
 
   for (const emp of employees) {
     const assignment = emp.assignment || "-";
-    const leave = leaveMap.get(emp.id);
-    if (!leave) continue;
+    const empLeaves = leavesByEmpId.get(emp.id) ?? [];
+    if (empLeaves.length === 0) continue;
+    const grantedDays = empLeaves.reduce((s, l) => s + l.grantedDays, 0);
+    const carriedOverDays = empLeaves.reduce((s, l) => s + l.carriedOverDays, 0);
 
-    const usgs = usagesByLeaveId.get(leave.id) ?? [];
+    const usgs = usagesByEmpId.get(emp.id) ?? [];
     const consumedDays = calcConsumedDaysFromUsages(usgs);
-    const usageRate = calcUsageRate({ grantedDays: leave.grantedDays, carriedOverDays: leave.carriedOverDays, consumedDays });
+    const usageRate = calcUsageRate({ grantedDays, carriedOverDays, consumedDays });
 
     let stats = assignmentMap.get(assignment);
     if (!stats) {
