@@ -52,22 +52,14 @@ export const paidLeaves = sqliteTable("paid_leaves", {
   employeeId: text("employee_id").notNull(),
   grantedDays: real("granted_days").notNull().default(0),
   carriedOverDays: real("carried_over_days").notNull().default(0),
-  consumedDays: real("consumed_days").notNull().default(0),
-  remainingDays: real("remaining_days").notNull().default(0),
   expiredDays: real("expired_days").notNull().default(0),
-  usageRate: real("usage_rate").notNull().default(0),
-  manualBaselineDate: text("manual_baseline_date"),
-  manualBaselineRemaining: real("manual_baseline_remaining"),
-  manualBaselineNote: text("manual_baseline_note"),
 });
 
 export const insertPaidLeaveSchema = z.object({
   employeeId: z.string(),
   grantedDays: z.number().optional(),
   carriedOverDays: z.number().optional(),
-  remainingDays: z.number().optional(),
   expiredDays: z.number().optional(),
-  usageRate: z.number().optional(),
 });
 export type InsertPaidLeave = z.infer<typeof insertPaidLeaveSchema>;
 export type PaidLeave = typeof paidLeaves.$inferSelect;

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureDbInitialized } from "@/lib/init-db";
 import { storage } from "@/lib/storage";
+import { db } from "@/lib/db";
+import { leaveUsages } from "@/lib/schema";
+import { eq } from "drizzle-orm";
+import { calcConsumedDaysFromUsages, calcUsageRate } from "@/lib/leave-calc";
 
 export async function GET(request: NextRequest) {
   await ensureDbInitialized();
@@ -17,12 +21,28 @@ export async function GET(request: NextRequest) {
   const activeLeaves = leaves.filter(l => activeIds.has(l.employeeId));
   const activeOvertimes = overtimes.filter(o => activeIds.has(o.employeeId));
 
+  const allUsages = await db.select().from(leaveUsages)
+    .where(eq(leaveUsages.isVoided, 0));
+  const usagesByLeaveId = new Map<number, typeof allUsages>();
+  for (const u of allUsages) {
+    const arr = usagesByLeaveId.get(u.paidLeaveId) ?? [];
+    arr.push(u);
+    usagesByLeaveId.set(u.paidLeaveId, arr);
+  }
+
+  const enrichedLeaves = activeLeaves.map(l => {
+    const usgs = usagesByLeaveId.get(l.id) ?? [];
+    const consumedDays = calcConsumedDaysFromUsages(usgs);
+    const usageRate = calcUsageRate({ grantedDays: l.grantedDays, carriedOverDays: l.carriedOverDays, consumedDays });
+    return { ...l, consumedDays, usageRate };
+  });
+
   const totalEmployees = employees.length;
-  const avgUsageRate = activeLeaves.length > 0
-    ? activeLeaves.reduce((sum, l) => sum + l.usageRate, 0) / activeLeaves.length
+  const avgUsageRate = enrichedLeaves.length > 0
+    ? enrichedLeaves.reduce((sum, l) => sum + l.usageRate, 0) / enrichedLeaves.length
     : 0;
-  const totalConsumed = activeLeaves.reduce((sum, l) => sum + l.consumedDays, 0);
-  const lowUsageEmployees = activeLeaves.filter(l => {
+  const totalConsumed = enrichedLeaves.reduce((sum, l) => sum + l.consumedDays, 0);
+  const lowUsageEmployees = enrichedLeaves.filter(l => {
     const total = l.grantedDays + l.carriedOverDays;
     return total > 0 && l.usageRate < 0.1;
   }).length;

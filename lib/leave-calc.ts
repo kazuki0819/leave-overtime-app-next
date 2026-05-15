@@ -653,3 +653,36 @@ export function getCycleIndexForGrantDate(joinDate: string, grantDate: string): 
   const idx = allGrants.findIndex(d => formatDate(d) === grantDate);
   return idx >= 0 ? idx : 0;
 }
+
+// ═══════════════════════════════════════════════════════════════
+// PR-5: 派生値計算関数群（leave_usages ベース）
+// ═══════════════════════════════════════════════════════════════
+
+export function calcConsumedDaysFromUsages(
+  usages: Array<{ days: number; isVoided: number; recordType: string }>
+): number {
+  return usages
+    .filter(u => u.isVoided === 0)
+    .filter(u => u.recordType === 'usage' || u.recordType === 'adjustment')
+    .reduce((sum, u) => sum + u.days, 0);
+}
+
+export function calcRemainingDays(params: {
+  grantedDays: number;
+  carriedOverDays: number;
+  consumedDays: number;
+  expiredDays: number;
+}): number {
+  return params.grantedDays + params.carriedOverDays - params.consumedDays - params.expiredDays;
+}
+
+export function calcUsageRate(params: {
+  grantedDays: number;
+  carriedOverDays: number;
+  consumedDays: number;
+}): number {
+  const denominator = params.grantedDays + params.carriedOverDays;
+  if (denominator === 0) return 0;
+  const rate = params.consumedDays / denominator;
+  return Math.round(rate * 10000) / 10000;
+}

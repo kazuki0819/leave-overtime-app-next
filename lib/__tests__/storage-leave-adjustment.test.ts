@@ -29,13 +29,7 @@ async function initTestDb(client: ReturnType<typeof createClient>) {
       employee_id TEXT NOT NULL,
       granted_days REAL NOT NULL DEFAULT 0,
       carried_over_days REAL NOT NULL DEFAULT 0,
-      consumed_days REAL NOT NULL DEFAULT 0,
-      remaining_days REAL NOT NULL DEFAULT 0,
-      expired_days REAL NOT NULL DEFAULT 0,
-      usage_rate REAL NOT NULL DEFAULT 0,
-      manual_baseline_date TEXT,
-      manual_baseline_remaining REAL,
-      manual_baseline_note TEXT
+      expired_days REAL NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS leave_usages (
@@ -95,7 +89,6 @@ describe("addLeaveAdjustment / voidLeaveUsage (直接DB操作)", () => {
       employeeId: "1",
       grantedDays: 20,
       carriedOverDays: 5,
-      remainingDays: 25,
     }).returning();
     paidLeaveId = plRows[0].id;
   });
@@ -227,10 +220,9 @@ describe("addLeaveAdjustment / voidLeaveUsage (直接DB操作)", () => {
 
     // adjustmentTotal = 3.0 + (-1.0) = 2.0
     expect(adjustmentTotal).toBe(2.0);
-    // adjustedRemainingDays = 25 - 2.0 = 23.0
-    expect(leave.remainingDays - adjustmentTotal).toBe(23.0);
-    // autoRemainingDays = 25 (変更なし)
-    expect(leave.remainingDays).toBe(25);
+    // granted=20, carriedOver=5, total=25, adjustmentTotal=2.0
+    // adjustedRemainingDays = 25 - 2.0 - autoExpired = 23.0 (expired=0 because consumed < carriedOver)
+    expect(leave.grantedDays + leave.carriedOverDays - adjustmentTotal).toBe(23.0);
   });
 
   it("0.125刻みの補正値が正しく保存される", async () => {
