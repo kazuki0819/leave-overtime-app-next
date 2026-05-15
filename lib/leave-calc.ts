@@ -98,6 +98,12 @@ function addYears(date: Date, years: number): Date {
   return result;
 }
 
+function addDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
 /**
  * 2つの日付間の日数を計算
  */
@@ -605,14 +611,14 @@ export function getCurrentCycleRange(joinDate: string, today?: Date): CycleRange
     const firstGrant = addMonths(join, 6);
     return {
       startDate: formatDate(firstGrant),
-      endDate: formatDate(addYears(firstGrant, 1)),
+      endDate: formatDate(addDays(addYears(firstGrant, 1), -1)),
       index: 0,
     };
   }
   const latest = allGrants[allGrants.length - 1];
   return {
     startDate: formatDate(latest),
-    endDate: formatDate(addYears(latest, 1)),
+    endDate: formatDate(addDays(addYears(latest, 1), -1)),
     index: allGrants.length - 1,
   };
 }
@@ -625,7 +631,7 @@ export function getAllCycles(joinDate: string, today?: Date): CycleRange[] {
   const allGrants = calcAllGrantDates(joinDate, now);
   return allGrants.map((grant, i) => ({
     startDate: formatDate(grant),
-    endDate: formatDate(addYears(grant, 1)),
+    endDate: formatDate(addDays(addYears(grant, 1), -1)),
     index: i,
   }));
 }
@@ -640,7 +646,7 @@ export function getCycleByIndex(joinDate: string, index: number): CycleRange | u
   const grant = index === 0 ? firstGrant : addYears(firstGrant, index);
   return {
     startDate: formatDate(grant),
-    endDate: formatDate(addYears(grant, 1)),
+    endDate: formatDate(addDays(addYears(grant, 1), -1)),
     index,
   };
 }
