@@ -15,13 +15,6 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const data = insertPaidLeaveSchema.parse(body);
 
-    const granted = data.grantedDays ?? 0;
-    const carriedOver = data.carriedOverDays ?? 0;
-    const expired = data.expiredDays ?? 0;
-
-    data.remainingDays = Math.max(0, granted + carriedOver - expired);
-    data.usageRate = 0;
-
     const leave = await storage.upsertPaidLeave(data);
     const updated = await storage.getPaidLeaveByEmployee(data.employeeId);
 

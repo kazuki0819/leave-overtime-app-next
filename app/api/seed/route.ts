@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { ensureDbInitialized } from "@/lib/init-db";
 import { storage } from "@/lib/storage";
-import { calcAutoExpiredDays } from "@/lib/leave-calc";
 import seedData from "@/lib/seed-data.json";
 
 export async function POST() {
@@ -25,27 +24,6 @@ export async function POST() {
     }
     if (leaves.length > 0) {
       await storage.bulkImportPaidLeaves(leaves);
-    }
-
-    // Fix consistency
-    const allLeaves = await storage.getPaidLeaves();
-    let fixedCount = 0;
-    for (const pl of allLeaves) {
-      const expectedRemaining = Math.max(0, pl.grantedDays + pl.carriedOverDays - pl.consumedDays - pl.expiredDays);
-      const expectedUsageRate = pl.grantedDays > 0 ? pl.consumedDays / pl.grantedDays : 0;
-      const remainingOff = Math.abs(pl.remainingDays - expectedRemaining) > 0.001;
-      const usageOff = Math.abs(pl.usageRate - expectedUsageRate) > 0.005;
-      if (remainingOff || usageOff) {
-        await storage.upsertPaidLeave({
-          employeeId: pl.employeeId,
-          grantedDays: pl.grantedDays,
-          carriedOverDays: pl.carriedOverDays,
-          remainingDays: expectedRemaining,
-          expiredDays: pl.expiredDays,
-          usageRate: Math.round(expectedUsageRate * 10000) / 10000,
-        });
-        fixedCount++;
-      }
     }
 
     // Seed overtime data
@@ -107,7 +85,6 @@ export async function POST() {
       paidLeaves: leaves.length,
       overtimes: otCount,
       assignmentHistories: ahCount,
-      fixedRecords: fixedCount,
     });
   } catch (e) {
     return NextResponse.json({ message: "Seed failed", error: String(e) }, { status: 500 });
