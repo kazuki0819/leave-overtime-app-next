@@ -744,39 +744,42 @@ export class TursoStorage implements IStorage {
 
     const allUsagesForAlerts = await db.select().from(leaveUsages)
       .where(eq(leaveUsages.isVoided, 0));
-    const alertUsagesByLeaveId = new Map<number, typeof allUsagesForAlerts>();
+    // v28発覚バグの修正: employeeId ベースで集約（複数サイクル + orphan対応）
+    const alertUsagesByEmpId = new Map<string, typeof allUsagesForAlerts>();
     for (const u of allUsagesForAlerts) {
-      const arr = alertUsagesByLeaveId.get(u.paidLeaveId) ?? [];
+      const arr = alertUsagesByEmpId.get(u.employeeId) ?? [];
       arr.push(u);
-      alertUsagesByLeaveId.set(u.paidLeaveId, arr);
+      alertUsagesByEmpId.set(u.employeeId, arr);
     }
 
     for (const emp of emps) {
-      const leave = leaves.find(l => l.employeeId === emp.id);
-      if (!leave) continue;
+      const empLeaves = leaves.filter(l => l.employeeId === emp.id);
+      if (empLeaves.length === 0) continue;
+      const grantedDays = empLeaves.reduce((s, l) => s + l.grantedDays, 0);
+      const carriedOverDays = empLeaves.reduce((s, l) => s + l.carriedOverDays, 0);
 
-      const usgsForEmp = alertUsagesByLeaveId.get(leave.id) ?? [];
+      const usgsForEmp = alertUsagesByEmpId.get(emp.id) ?? [];
       const consumedDays = calcConsumedDaysFromUsages(usgsForEmp);
-      const autoExpired = calcAutoExpiredDays(leave.carriedOverDays, consumedDays);
+      const autoExpired = calcAutoExpiredDays(carriedOverDays, consumedDays);
       const remainingDays = calcRemainingDays({
-        grantedDays: leave.grantedDays,
-        carriedOverDays: leave.carriedOverDays,
+        grantedDays,
+        carriedOverDays,
         consumedDays,
         expiredDays: autoExpired,
       });
       const usageRate = calcUsageRate({
-        grantedDays: leave.grantedDays,
-        carriedOverDays: leave.carriedOverDays,
+        grantedDays,
+        carriedOverDays,
         consumedDays,
       });
 
       if (remainingDays <= 0) {
         const deadline = calcLeaveDeadline(emp.joinDate, consumedDays, now);
         if (deadline.isObligationTarget && consumedDays < 5) {
-          const totalGranted = leave.grantedDays + leave.carriedOverDays;
+          const totalGranted = grantedDays + carriedOverDays;
           const lostDays = totalGranted - consumedDays;
-          const carryoverNote = leave.carriedOverDays > 0
-            ? `（うち繰越${leave.carriedOverDays}日を含む${totalGranted}日が付与済み）`
+          const carryoverNote = carriedOverDays > 0
+            ? `（うち繰越${carriedOverDays}日を含む${totalGranted}日が付与済み）`
             : `（${totalGranted}日が付与済み）`;
           alerts.push({
             employeeId: emp.id, employeeName: emp.name,
@@ -788,7 +791,7 @@ export class TursoStorage implements IStorage {
         continue;
       }
 
-      const totalAvailable = leave.grantedDays + leave.carriedOverDays;
+      const totalAvailable = grantedDays + carriedOverDays;
       const deadline = calcLeaveDeadline(emp.joinDate, consumedDays, now);
 
       if (deadline.isObligationTarget && consumedDays < 5) {
@@ -854,8 +857,8 @@ export class TursoStorage implements IStorage {
       }
 
       const carryoverUtil = calcCarryoverUtil(
-        leave.carriedOverDays, consumedDays, remainingDays,
-        leave.grantedDays, deadline.daysUntilDeadline
+        carriedOverDays, consumedDays, remainingDays,
+        grantedDays, deadline.daysUntilDeadline
       );
       if (carryoverUtil.utilLevel === "danger") {
         alerts.push({
@@ -926,21 +929,31 @@ export class TursoStorage implements IStorage {
     const leaves = await this.getPaidLeaves();
     const overtimes = await this.getMonthlyOvertimes(undefined, year);
     const allAlerts = await this.getAllAlerts(year);
-    const leaveMap = new Map(leaves.map(l => [l.employeeId, l]));
+    // v28発覚バグの修正: employeeId → PaidLeave[] で複数サイクル並存に対応
+    const leavesByEmpId = new Map<string, PaidLeave[]>();
+    for (const l of leaves) {
+      const arr = leavesByEmpId.get(l.employeeId) ?? [];
+      arr.push(l);
+      leavesByEmpId.set(l.employeeId, arr);
+    }
 
     const allUsages = await db.select().from(leaveUsages)
       .where(eq(leaveUsages.isVoided, 0));
-    const usagesByLeaveId = new Map<number, typeof allUsages>();
+    // v28発覚バグの修正: employeeId ベースで集約（orphan usages paid_leave_id=0 を救済）
+    const usagesByEmpId = new Map<string, typeof allUsages>();
     for (const u of allUsages) {
-      const arr = usagesByLeaveId.get(u.paidLeaveId) ?? [];
+      const arr = usagesByEmpId.get(u.employeeId) ?? [];
       arr.push(u);
-      usagesByLeaveId.set(u.paidLeaveId, arr);
+      usagesByEmpId.set(u.employeeId, arr);
     }
 
     const now = new Date();
 
     return emps.map(emp => {
-      const leave = leaveMap.get(emp.id);
+      const empLeaves = leavesByEmpId.get(emp.id) ?? [];
+      const hasLeave = empLeaves.length > 0;
+      const grantedDays = empLeaves.reduce((s, l) => s + l.grantedDays, 0);
+      const carriedOverDays = empLeaves.reduce((s, l) => s + l.carriedOverDays, 0);
       const empOT = overtimes.filter(o => o.employeeId === emp.id);
       const yearlyOT = empOT.reduce((sum, o) => sum + o.overtimeHours, 0);
       const empAlerts = allAlerts.filter(a => a.employeeId === emp.id);
@@ -963,42 +976,42 @@ export class TursoStorage implements IStorage {
       const overtimeCautionCount = overtimeAlerts.filter(a => a.severity === "caution").length;
       const overtimeInfoCount = overtimeAlerts.filter(a => a.severity === "info").length;
 
-      const usgsForSummary = leave ? (usagesByLeaveId.get(leave.id) ?? []) : [];
-      const empConsumedDays = leave ? calcConsumedDaysFromUsages(usgsForSummary) : 0;
-      const empAutoExpired = leave ? calcAutoExpiredDays(leave.carriedOverDays, empConsumedDays) : 0;
-      const empRemainingDays = leave ? calcRemainingDays({
-        grantedDays: leave.grantedDays,
-        carriedOverDays: leave.carriedOverDays,
+      const usgsForSummary = usagesByEmpId.get(emp.id) ?? [];
+      const empConsumedDays = hasLeave ? calcConsumedDaysFromUsages(usgsForSummary) : 0;
+      const empAutoExpired = hasLeave ? calcAutoExpiredDays(carriedOverDays, empConsumedDays) : 0;
+      const empRemainingDays = hasLeave ? calcRemainingDays({
+        grantedDays,
+        carriedOverDays,
         consumedDays: empConsumedDays,
         expiredDays: empAutoExpired,
       }) : 0;
-      const empUsageRate = leave ? calcUsageRate({
-        grantedDays: leave.grantedDays,
-        carriedOverDays: leave.carriedOverDays,
+      const empUsageRate = hasLeave ? calcUsageRate({
+        grantedDays,
+        carriedOverDays,
         consumedDays: empConsumedDays,
       }) : 0;
 
       const deadline = calcLeaveDeadline(emp.joinDate, empConsumedDays, now);
-      const expiryRisk = leave ? calcExpiryRisk(empRemainingDays, deadline.daysUntilDeadline, deadline.paceStatus) : null;
-      const consumptionPace = leave ? calcConsumptionPace(leave.grantedDays, empConsumedDays, emp.joinDate, now) : null;
-      const carryoverUtil = leave ? calcCarryoverUtil(leave.carriedOverDays, empConsumedDays, empRemainingDays, leave.grantedDays, deadline.daysUntilDeadline) : null;
+      const expiryRisk = hasLeave ? calcExpiryRisk(empRemainingDays, deadline.daysUntilDeadline, deadline.paceStatus) : null;
+      const consumptionPace = hasLeave ? calcConsumptionPace(grantedDays, empConsumedDays, emp.joinDate, now) : null;
+      const carryoverUtil = hasLeave ? calcCarryoverUtil(carriedOverDays, empConsumedDays, empRemainingDays, grantedDays, deadline.daysUntilDeadline) : null;
 
       return {
         id: emp.id, name: emp.name, assignment: emp.assignment, status: emp.status,
-        paidLeave: leave ? (() => {
+        paidLeave: hasLeave ? (() => {
           const usageOnlyTotal = usgsForSummary
             .filter(u => u.recordType === "usage")
             .reduce((s, u) => s + u.days, 0);
-          const expired = calcAutoExpiredDays(leave.carriedOverDays, empConsumedDays);
-          const expiredAuto = calcAutoExpiredDays(leave.carriedOverDays, usageOnlyTotal);
+          const expired = calcAutoExpiredDays(carriedOverDays, empConsumedDays);
+          const expiredAuto = calcAutoExpiredDays(carriedOverDays, usageOnlyTotal);
           const adjustments = usgsForSummary.filter(u => u.recordType === "adjustment");
           return {
             consumedDays: empConsumedDays, remainingDays: Math.max(0, empRemainingDays),
-            totalAvailable: leave.grantedDays + leave.carriedOverDays,
-            usageRate: empUsageRate, grantedDays: leave.grantedDays,
-            carriedOverDays: leave.carriedOverDays, expiredDays: empAutoExpired,
-            adjustedRemainingDays: Math.max(0, leave.grantedDays + leave.carriedOverDays - empConsumedDays - expired),
-            autoRemainingDays: Math.max(0, leave.grantedDays + leave.carriedOverDays - usageOnlyTotal - expiredAuto),
+            totalAvailable: grantedDays + carriedOverDays,
+            usageRate: empUsageRate, grantedDays,
+            carriedOverDays, expiredDays: empAutoExpired,
+            adjustedRemainingDays: Math.max(0, grantedDays + carriedOverDays - empConsumedDays - expired),
+            autoRemainingDays: Math.max(0, grantedDays + carriedOverDays - usageOnlyTotal - expiredAuto),
             activeAdjustmentCount: adjustments.length,
           };
         })() : null,
