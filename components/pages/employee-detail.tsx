@@ -573,8 +573,6 @@ export default function EmployeeDetail() {
       tenureMonths: employee?.tenureMonths,
       grantedDays: currentGranted !== 0 ? currentGranted : autoGrantedDays,
       carriedOverDays: currentCarryover !== 0 ? currentCarryover : autoCarryoverDays,
-      consumedDays: computedConsumedDays,
-      remainingDays: paidLeave?.remainingDays ?? 0,
       expiredDays: currentExpired !== 0 ? currentExpired : expectedExpired,
     });
     setIsEditing(true);
@@ -616,10 +614,7 @@ export default function EmployeeDetail() {
     updateLeaveMutation.mutate({
       grantedDays: editForm.grantedDays,
       carriedOverDays: editForm.carriedOverDays,
-      consumedDays: computedConsumedDays,
-      remainingDays: computedRemainingDays,
       expiredDays: editForm.expiredDays,
-      usageRate: computedUsageRate,
     });
   };
 
@@ -1753,10 +1748,7 @@ export default function EmployeeDetail() {
                         updateLeaveMutation.mutate({
                           grantedDays: autoGrantedDays,
                           carriedOverDays: autoCarryoverDays,
-                          consumedDays: 0,
                           expiredDays: expiredDays,
-                          remainingDays: Math.max(0, autoGrantedDays + autoCarryoverDays - expiredDays),
-                          usageRate: 0,
                         });
                       }}
                       disabled={updateLeaveMutation.isPending}
