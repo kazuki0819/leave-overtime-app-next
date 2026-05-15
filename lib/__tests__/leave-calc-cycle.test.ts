@@ -30,7 +30,7 @@ describe("getCurrentCycleRange", () => {
     const range = getCurrentCycleRange("2020-04-01", new Date("2020-11-01"));
     expect(range).toEqual({
       startDate: "2020-10-01",
-      endDate: "2021-10-01",
+      endDate: "2021-09-30",
       index: 0,
     });
   });
@@ -39,7 +39,7 @@ describe("getCurrentCycleRange", () => {
     const range = getCurrentCycleRange("2020-04-01", new Date("2023-05-01"));
     expect(range).toEqual({
       startDate: "2022-10-01",
-      endDate: "2023-10-01",
+      endDate: "2023-09-30",
       index: 2,
     });
   });
@@ -48,7 +48,7 @@ describe("getCurrentCycleRange", () => {
     const range = getCurrentCycleRange("2025-01-15", new Date("2025-03-01"));
     expect(range).toEqual({
       startDate: "2025-07-15",
-      endDate: "2026-07-15",
+      endDate: "2026-07-14",
       index: 0,
     });
   });
@@ -58,9 +58,9 @@ describe("getAllCycles", () => {
   it("入社から今日までの全サイクルを返す", () => {
     const cycles = getAllCycles("2020-04-01", new Date("2023-05-01"));
     expect(cycles).toHaveLength(3);
-    expect(cycles[0]).toEqual({ startDate: "2020-10-01", endDate: "2021-10-01", index: 0 });
-    expect(cycles[1]).toEqual({ startDate: "2021-10-01", endDate: "2022-10-01", index: 1 });
-    expect(cycles[2]).toEqual({ startDate: "2022-10-01", endDate: "2023-10-01", index: 2 });
+    expect(cycles[0]).toEqual({ startDate: "2020-10-01", endDate: "2021-09-30", index: 0 });
+    expect(cycles[1]).toEqual({ startDate: "2021-10-01", endDate: "2022-09-30", index: 1 });
+    expect(cycles[2]).toEqual({ startDate: "2022-10-01", endDate: "2023-09-30", index: 2 });
   });
 
   it("付与前は空配列を返す", () => {
@@ -80,7 +80,7 @@ describe("getCycleByIndex", () => {
     const cycle = getCycleByIndex("2020-04-01", 0);
     expect(cycle).toEqual({
       startDate: "2020-10-01",
-      endDate: "2021-10-01",
+      endDate: "2021-09-30",
       index: 0,
     });
   });
@@ -89,7 +89,7 @@ describe("getCycleByIndex", () => {
     const cycle = getCycleByIndex("2020-04-01", 3);
     expect(cycle).toEqual({
       startDate: "2023-10-01",
-      endDate: "2024-10-01",
+      endDate: "2024-09-30",
       index: 3,
     });
   });
