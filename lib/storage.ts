@@ -11,12 +11,15 @@ import {
   leaveUsageHistory,
 } from "./schema";
 import { adjustmentDaysSchema, reasonSchema, voidLeaveUsageSchema } from "./validations/leave-usage";
-import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoExpiredDays } from "./leave-calc";
+import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoExpiredDays, calcConsumedDaysFromUsages, calcRemainingDays, calcUsageRate } from "./leave-calc";
 import { db, client } from "./db";
 import { eq, and, sql } from "drizzle-orm";
 
 // PR-1: getPaidLeaveByEmployee の拡張戻り値型
 export interface PaidLeaveExtended extends PaidLeave {
+  consumedDays: number;
+  remainingDays: number;
+  usageRate: number;
   adjustedRemainingDays: number;
   autoRemainingDays: number;
   carriedOverBreakdown: {
@@ -67,7 +70,7 @@ type CompositeRiskLevel = "high" | "medium" | null;
 function generateCompositeRisk(
   leaveAlerts: EmployeeAlert[],
   overtimeAlerts: EmployeeAlert[],
-  leave: PaidLeave | null | undefined,
+  usageRateRaw: number,
   yearlyOT: number,
 ): { compositeRisk: CompositeRiskLevel; compositeComment: string | null } {
   const sevRank = (s: string) => ({ danger: 4, warning: 3, caution: 2, info: 1, notice: 0 }[s] ?? 0);
@@ -85,7 +88,7 @@ function generateCompositeRisk(
   const level: CompositeRiskLevel = (leaveMax >= 4 || otMax >= 4) ? "high" : "medium";
 
   // 状況説明テキスト生成
-  const usageRate = leave ? Math.round(leave.usageRate * 100) : 0;
+  const usageRate = Math.round(usageRateRaw * 100);
   const otParts: string[] = [];
   const leaveParts: string[] = [];
 
@@ -298,8 +301,20 @@ export class TursoStorage implements IStorage {
     const autoRemainingDays = Math.max(0,
       leave.grantedDays + leave.carriedOverDays - usageOnlyTotal - expiredAuto);
 
+    const consumedDays = allTotal;
+    const computedExpired = calcAutoExpiredDays(leave.carriedOverDays, consumedDays);
+    const derivedRemainingDays = Math.max(0, leave.grantedDays + leave.carriedOverDays - consumedDays - computedExpired);
+    const derivedUsageRate = calcUsageRate({
+      grantedDays: leave.grantedDays,
+      carriedOverDays: leave.carriedOverDays,
+      consumedDays,
+    });
+
     return {
       ...leave,
+      consumedDays,
+      remainingDays: derivedRemainingDays,
+      usageRate: derivedUsageRate,
       adjustedRemainingDays,
       autoRemainingDays,
       carriedOverBreakdown: {
@@ -316,10 +331,7 @@ export class TursoStorage implements IStorage {
         employeeId: leave.employeeId,
         grantedDays: leave.grantedDays ?? existing.grantedDays,
         carriedOverDays: leave.carriedOverDays ?? existing.carriedOverDays,
-        consumedDays: existing.consumedDays,
-        remainingDays: leave.remainingDays ?? existing.remainingDays,
         expiredDays: leave.expiredDays ?? existing.expiredDays,
-        usageRate: leave.usageRate ?? existing.usageRate,
       };
       await db.update(paidLeaves).set(updated).where(eq(paidLeaves.id, existing.id));
       const rows = await db.select().from(paidLeaves).where(eq(paidLeaves.id, existing.id)).limit(1);
@@ -329,10 +341,7 @@ export class TursoStorage implements IStorage {
       employeeId: leave.employeeId,
       grantedDays: leave.grantedDays ?? 0,
       carriedOverDays: leave.carriedOverDays ?? 0,
-      consumedDays: 0,
-      remainingDays: leave.remainingDays ?? 0,
       expiredDays: leave.expiredDays ?? 0,
-      usageRate: leave.usageRate ?? 0,
     }).returning();
     return rows[0];
   }
@@ -733,75 +742,99 @@ export class TursoStorage implements IStorage {
     const leaves = await this.getPaidLeaves();
     const now = new Date();
 
+    const allUsagesForAlerts = await db.select().from(leaveUsages)
+      .where(eq(leaveUsages.isVoided, 0));
+    const alertUsagesByLeaveId = new Map<number, typeof allUsagesForAlerts>();
+    for (const u of allUsagesForAlerts) {
+      const arr = alertUsagesByLeaveId.get(u.paidLeaveId) ?? [];
+      arr.push(u);
+      alertUsagesByLeaveId.set(u.paidLeaveId, arr);
+    }
+
     for (const emp of emps) {
       const leave = leaves.find(l => l.employeeId === emp.id);
       if (!leave) continue;
 
-      if (leave.remainingDays <= 0) {
-        const deadline = calcLeaveDeadline(emp.joinDate, leave.consumedDays, now);
-        if (deadline.isObligationTarget && leave.consumedDays < 5) {
+      const usgsForEmp = alertUsagesByLeaveId.get(leave.id) ?? [];
+      const consumedDays = calcConsumedDaysFromUsages(usgsForEmp);
+      const autoExpired = calcAutoExpiredDays(leave.carriedOverDays, consumedDays);
+      const remainingDays = calcRemainingDays({
+        grantedDays: leave.grantedDays,
+        carriedOverDays: leave.carriedOverDays,
+        consumedDays,
+        expiredDays: autoExpired,
+      });
+      const usageRate = calcUsageRate({
+        grantedDays: leave.grantedDays,
+        carriedOverDays: leave.carriedOverDays,
+        consumedDays,
+      });
+
+      if (remainingDays <= 0) {
+        const deadline = calcLeaveDeadline(emp.joinDate, consumedDays, now);
+        if (deadline.isObligationTarget && consumedDays < 5) {
           const totalGranted = leave.grantedDays + leave.carriedOverDays;
-          const lostDays = totalGranted - leave.consumedDays;
+          const lostDays = totalGranted - consumedDays;
           const carryoverNote = leave.carriedOverDays > 0
             ? `（うち繰越${leave.carriedOverDays}日を含む${totalGranted}日が付与済み）`
             : `（${totalGranted}日が付与済み）`;
           alerts.push({
             employeeId: emp.id, employeeName: emp.name,
             type: "zero_remaining", severity: "notice",
-            message: `残日数0日・年5日義務未達成（${leave.consumedDays}日のみ取得）${carryoverNote}。${lostDays}日分が未取得のまま失効。使用者の時季指定義務違反に該当する可能性があり、労基法第39条第7項に基づき30万円以下の罰金の対象となり得ます`,
-            value: leave.consumedDays,
+            message: `残日数0日・年5日義務未達成（${consumedDays}日のみ取得）${carryoverNote}。${lostDays}日分が未取得のまま失効。使用者の時季指定義務違反に該当する可能性があり、労基法第39条第7項に基づき30万円以下の罰金の対象となり得ます`,
+            value: consumedDays,
           });
         }
         continue;
       }
 
       const totalAvailable = leave.grantedDays + leave.carriedOverDays;
-      const deadline = calcLeaveDeadline(emp.joinDate, leave.consumedDays, now);
+      const deadline = calcLeaveDeadline(emp.joinDate, consumedDays, now);
 
-      if (deadline.isObligationTarget && leave.consumedDays < 5) {
+      if (deadline.isObligationTarget && consumedDays < 5) {
         const remaining = deadline.remainingObligation;
         if (deadline.paceStatus === "overdue") {
           alerts.push({
             employeeId: emp.id, employeeName: emp.name,
             type: "under_5days", severity: "danger",
-            message: `年5日義務の期限超過（${deadline.obligationDeadline}期限、${leave.consumedDays}日のみ取得）`,
-            value: leave.consumedDays,
+            message: `年5日義務の期限超過（${deadline.obligationDeadline}期限、${consumedDays}日のみ取得）`,
+            value: consumedDays,
           });
         } else if (deadline.paceStatus === "danger") {
           alerts.push({
             employeeId: emp.id, employeeName: emp.name,
             type: "under_5days", severity: "danger",
             message: `期限まで${deadline.daysUntilDeadline}日、あと${remaining}日必要（${deadline.obligationDeadline}まで）`,
-            value: leave.consumedDays,
+            value: consumedDays,
           });
         } else if (deadline.paceStatus === "tight") {
           alerts.push({
             employeeId: emp.id, employeeName: emp.name,
             type: "under_5days", severity: "warning",
             message: `期限まで${deadline.daysUntilDeadline}日、あと${remaining}日必要（${deadline.obligationDeadline}まで）`,
-            value: leave.consumedDays,
+            value: consumedDays,
           });
         } else {
           alerts.push({
             employeeId: emp.id, employeeName: emp.name,
             type: "under_5days", severity: "info",
-            message: `年5日義務に対し${leave.consumedDays}日取得（ペース順調・${deadline.obligationDeadline}までにあと${remaining}日）`,
-            value: leave.consumedDays,
+            message: `年5日義務に対し${consumedDays}日取得（ペース順調・${deadline.obligationDeadline}までにあと${remaining}日）`,
+            value: consumedDays,
           });
         }
       }
 
-      if (totalAvailable > 0 && leave.usageRate < 0.3 && leave.consumedDays >= 5) {
+      if (totalAvailable > 0 && usageRate < 0.3 && consumedDays >= 5) {
         alerts.push({
           employeeId: emp.id, employeeName: emp.name,
           type: "low_usage_rate", severity: "warning",
-          message: `有給取得率が${(leave.usageRate * 100).toFixed(0)}%（30%未満）。使用者の時季指定義務（労基法39条）に基づき、取得促進が必要`,
-          value: leave.usageRate,
+          message: `有給取得率が${(usageRate * 100).toFixed(0)}%（30%未満）。使用者の時季指定義務（労基法39条）に基づき、取得促進が必要`,
+          value: usageRate,
         });
       }
 
-      const expiryRisk = calcExpiryRisk(leave.remainingDays, deadline.daysUntilDeadline, deadline.paceStatus);
-      const isHighUsageRate = leave.usageRate >= 0.7;
+      const expiryRisk = calcExpiryRisk(remainingDays, deadline.daysUntilDeadline, deadline.paceStatus);
+      const isHighUsageRate = usageRate >= 0.7;
       if (expiryRisk.riskLevel === "high") {
         if (!isHighUsageRate) {
           alerts.push({
@@ -821,7 +854,7 @@ export class TursoStorage implements IStorage {
       }
 
       const carryoverUtil = calcCarryoverUtil(
-        leave.carriedOverDays, leave.consumedDays, leave.remainingDays,
+        leave.carriedOverDays, consumedDays, remainingDays,
         leave.grantedDays, deadline.daysUntilDeadline
       );
       if (carryoverUtil.utilLevel === "danger") {
@@ -836,31 +869,29 @@ export class TursoStorage implements IStorage {
         });
       }
 
-      // 時効消滅アラート（他のアラートと独立して発行）
-      if (leave.expiredDays > 0) {
+      if (autoExpired > 0) {
         if (!isHighUsageRate) {
-          const ratePercent = (leave.usageRate * 100).toFixed(0);
+          const ratePercent = (usageRate * 100).toFixed(0);
           alerts.push({
             employeeId: emp.id, employeeName: emp.name,
             type: "expired_low_rate", severity: "caution",
-            message: `時効消滅${leave.expiredDays}日・取得率${ratePercent}%。休息不足による疲労蓄積リスク（厳労働省・過重労働防止GL）。月1日以上の計画的な取得推奨`,
-            value: leave.expiredDays,
+            message: `時効消滅${autoExpired}日・取得率${ratePercent}%。休息不足による疲労蓄積リスク（厳労働省・過重労働防止GL）。月1日以上の計画的な取得推奨`,
+            value: autoExpired,
           });
         } else {
           alerts.push({
             employeeId: emp.id, employeeName: emp.name,
             type: "expiring_soon", severity: "notice",
-            message: `時効消滅が${leave.expiredDays}日発生（取得率${(leave.usageRate * 100).toFixed(0)}%で良好）`,
-            value: leave.expiredDays,
+            message: `時効消滅が${autoExpired}日発生（取得率${(usageRate * 100).toFixed(0)}%で良好）`,
+            value: autoExpired,
           });
         }
       }
-      // 失効見込み（取得率良好）— 独立発行
       if (expiryRisk.riskLevel === "high" && isHighUsageRate) {
         alerts.push({
           employeeId: emp.id, employeeName: emp.name,
           type: "expiry_risk", severity: "notice",
-          message: `取得率${(leave.usageRate * 100).toFixed(0)}%で良好ですが、${expiryRisk.expiryDays}日分が失効見込み`,
+          message: `取得率${(usageRate * 100).toFixed(0)}%で良好ですが、${expiryRisk.expiryDays}日分が失効見込み`,
           value: expiryRisk.expiryDays,
         });
       }
@@ -932,26 +963,41 @@ export class TursoStorage implements IStorage {
       const overtimeCautionCount = overtimeAlerts.filter(a => a.severity === "caution").length;
       const overtimeInfoCount = overtimeAlerts.filter(a => a.severity === "info").length;
 
-      const deadline = calcLeaveDeadline(emp.joinDate, leave?.consumedDays ?? 0, now);
-      const expiryRisk = leave ? calcExpiryRisk(leave.remainingDays, deadline.daysUntilDeadline, deadline.paceStatus) : null;
-      const consumptionPace = leave ? calcConsumptionPace(leave.grantedDays, leave.consumedDays, emp.joinDate, now) : null;
-      const carryoverUtil = leave ? calcCarryoverUtil(leave.carriedOverDays, leave.consumedDays, leave.remainingDays, leave.grantedDays, deadline.daysUntilDeadline) : null;
+      const usgsForSummary = leave ? (usagesByLeaveId.get(leave.id) ?? []) : [];
+      const empConsumedDays = leave ? calcConsumedDaysFromUsages(usgsForSummary) : 0;
+      const empAutoExpired = leave ? calcAutoExpiredDays(leave.carriedOverDays, empConsumedDays) : 0;
+      const empRemainingDays = leave ? calcRemainingDays({
+        grantedDays: leave.grantedDays,
+        carriedOverDays: leave.carriedOverDays,
+        consumedDays: empConsumedDays,
+        expiredDays: empAutoExpired,
+      }) : 0;
+      const empUsageRate = leave ? calcUsageRate({
+        grantedDays: leave.grantedDays,
+        carriedOverDays: leave.carriedOverDays,
+        consumedDays: empConsumedDays,
+      }) : 0;
+
+      const deadline = calcLeaveDeadline(emp.joinDate, empConsumedDays, now);
+      const expiryRisk = leave ? calcExpiryRisk(empRemainingDays, deadline.daysUntilDeadline, deadline.paceStatus) : null;
+      const consumptionPace = leave ? calcConsumptionPace(leave.grantedDays, empConsumedDays, emp.joinDate, now) : null;
+      const carryoverUtil = leave ? calcCarryoverUtil(leave.carriedOverDays, empConsumedDays, empRemainingDays, leave.grantedDays, deadline.daysUntilDeadline) : null;
 
       return {
         id: emp.id, name: emp.name, assignment: emp.assignment, status: emp.status,
         paidLeave: leave ? (() => {
-          const usgs = usagesByLeaveId.get(leave.id) ?? [];
-          const allTotal = usgs.reduce((s, u) => s + u.days, 0);
-          const usageOnlyTotal = usgs.filter(u => u.recordType === "usage").reduce((s, u) => s + u.days, 0);
-          const expired = calcAutoExpiredDays(leave.carriedOverDays, allTotal);
+          const usageOnlyTotal = usgsForSummary
+            .filter(u => u.recordType === "usage")
+            .reduce((s, u) => s + u.days, 0);
+          const expired = calcAutoExpiredDays(leave.carriedOverDays, empConsumedDays);
           const expiredAuto = calcAutoExpiredDays(leave.carriedOverDays, usageOnlyTotal);
-          const adjustments = usgs.filter(u => u.recordType === "adjustment");
+          const adjustments = usgsForSummary.filter(u => u.recordType === "adjustment");
           return {
-            consumedDays: leave.consumedDays, remainingDays: leave.remainingDays,
+            consumedDays: empConsumedDays, remainingDays: Math.max(0, empRemainingDays),
             totalAvailable: leave.grantedDays + leave.carriedOverDays,
-            usageRate: leave.usageRate, grantedDays: leave.grantedDays,
-            carriedOverDays: leave.carriedOverDays, expiredDays: leave.expiredDays,
-            adjustedRemainingDays: Math.max(0, leave.grantedDays + leave.carriedOverDays - allTotal - expired),
+            usageRate: empUsageRate, grantedDays: leave.grantedDays,
+            carriedOverDays: leave.carriedOverDays, expiredDays: empAutoExpired,
+            adjustedRemainingDays: Math.max(0, leave.grantedDays + leave.carriedOverDays - empConsumedDays - expired),
             autoRemainingDays: Math.max(0, leave.grantedDays + leave.carriedOverDays - usageOnlyTotal - expiredAuto),
             activeAdjustmentCount: adjustments.length,
           };
@@ -966,8 +1012,7 @@ export class TursoStorage implements IStorage {
         overtimeDangerCount, overtimeWarningCount, overtimeCautionCount, overtimeInfoCount,
         overtimeAlertCount: overtimeAlerts.length,
         alertCount: empAlerts.length,
-        // ── 複合リスク判定 ──
-        ...generateCompositeRisk(leaveAlerts, overtimeAlerts, leave, yearlyOT),
+        ...generateCompositeRisk(leaveAlerts, overtimeAlerts, empUsageRate, yearlyOT),
       };
     });
   }
