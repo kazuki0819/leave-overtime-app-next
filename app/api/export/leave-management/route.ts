@@ -24,9 +24,12 @@ export async function GET(request: NextRequest) {
     .where(eq(leaveUsages.isVoided, 0));
   const usagesByPaidLeaveId = new Map<number, typeof allUsages>();
   for (const u of allUsages) {
-    const arr = usagesByPaidLeaveId.get(u.paidLeaveId) ?? [];
+    const key = u.paidLeaveId === 0
+      ? (latestLeaveByEmpId.get(u.employeeId)?.id ?? 0)
+      : u.paidLeaveId;
+    const arr = usagesByPaidLeaveId.get(key) ?? [];
     arr.push(u);
-    usagesByPaidLeaveId.set(u.paidLeaveId, arr);
+    usagesByPaidLeaveId.set(key, arr);
   }
 
   const BOM = "﻿";

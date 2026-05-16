@@ -745,11 +745,21 @@ export class TursoStorage implements IStorage {
 
     const allUsagesForAlerts = await db.select().from(leaveUsages)
       .where(eq(leaveUsages.isVoided, 0));
+    const latestLeaveByEmpIdForAlerts = new Map<string, PaidLeave>();
+    for (const l of leaves) {
+      const existing = latestLeaveByEmpIdForAlerts.get(l.employeeId);
+      if (!existing || l.id > existing.id) {
+        latestLeaveByEmpIdForAlerts.set(l.employeeId, l);
+      }
+    }
     const alertUsagesByPaidLeaveId = new Map<number, typeof allUsagesForAlerts>();
     for (const u of allUsagesForAlerts) {
-      const arr = alertUsagesByPaidLeaveId.get(u.paidLeaveId) ?? [];
+      const key = u.paidLeaveId === 0
+        ? (latestLeaveByEmpIdForAlerts.get(u.employeeId)?.id ?? 0)
+        : u.paidLeaveId;
+      const arr = alertUsagesByPaidLeaveId.get(key) ?? [];
       arr.push(u);
-      alertUsagesByPaidLeaveId.set(u.paidLeaveId, arr);
+      alertUsagesByPaidLeaveId.set(key, arr);
     }
 
     for (const emp of emps) {
@@ -942,9 +952,12 @@ export class TursoStorage implements IStorage {
       .where(eq(leaveUsages.isVoided, 0));
     const usagesByPaidLeaveId = new Map<number, typeof allUsages>();
     for (const u of allUsages) {
-      const arr = usagesByPaidLeaveId.get(u.paidLeaveId) ?? [];
+      const key = u.paidLeaveId === 0
+        ? (latestLeaveByEmpId.get(u.employeeId)?.id ?? 0)
+        : u.paidLeaveId;
+      const arr = usagesByPaidLeaveId.get(key) ?? [];
       arr.push(u);
-      usagesByPaidLeaveId.set(u.paidLeaveId, arr);
+      usagesByPaidLeaveId.set(key, arr);
     }
 
     const now = new Date();

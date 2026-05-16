@@ -277,4 +277,98 @@ describe("getEmployeeSummaries 相当のロジック（複数サイクル対応�
     expect(summaryResult.adjustedRemaining).toBe(20);
     expect(detailAdjustedRemaining).toBe(20);
   });
+
+  it("孤児 usage (paidLeaveId=0) が最新サイクルにリマップされて集計に含まれる", async () => {
+    await testDb.insert(employees).values({ id: "10", name: "孤児テスト", joinDate: "2024-04-01" });
+    const [pl] = await testDb.insert(paidLeaves).values({
+      employeeId: "10", grantedDays: 20, carriedOverDays: 5, expiredDays: 0,
+    }).returning();
+
+    const now = new Date().toISOString();
+    // paidLeaveId=pl.id の正常 usage
+    await testDb.insert(leaveUsages).values({
+      employeeId: "10", startDate: "2025-01-10", endDate: "2025-01-10",
+      paidLeaveId: pl.id, recordDate: "2025-01-10", days: 1, recordType: "usage",
+      isVoided: 0, createdAt: now, updatedAt: now,
+    });
+    // paidLeaveId=0 の孤児 usage（createLeaveUsage がデフォルト0で作成するケース）
+    await testDb.insert(leaveUsages).values({
+      employeeId: "10", startDate: "2025-02-15", endDate: "2025-02-15",
+      paidLeaveId: 0, recordDate: "2025-02-15", days: 2, recordType: "usage",
+      isVoided: 0, createdAt: now, updatedAt: now,
+    });
+
+    const allLeaves = await testDb.select().from(paidLeaves).where(eq(paidLeaves.employeeId, "10"));
+    const latest = getLatestLeave(allLeaves);
+
+    // 孤児リマップロジック再現: paidLeaveId=0 → latest.id にマッピング
+    const allUsages = await testDb.select().from(leaveUsages);
+    const usagesByPaidLeaveId = new Map<number, typeof allUsages>();
+    const latestByEmp = new Map<string, number>();
+    latestByEmp.set("10", latest.id);
+    for (const u of allUsages) {
+      if (u.isVoided !== 0) continue;
+      const key = u.paidLeaveId === 0
+        ? (latestByEmp.get(u.employeeId) ?? 0)
+        : u.paidLeaveId;
+      const arr = usagesByPaidLeaveId.get(key) ?? [];
+      arr.push(u);
+      usagesByPaidLeaveId.set(key, arr);
+    }
+
+    const cycleUsages = usagesByPaidLeaveId.get(latest.id) ?? [];
+    expect(cycleUsages.length).toBe(2);
+
+    const result = computeSummaryForEmployee(latest, cycleUsages);
+
+    // consumed = 1 + 2 = 3 (孤児が含まれている)
+    expect(result.consumed).toBe(3);
+    // expired = calcAutoExpiredDays(5, 3) = 2
+    expect(result.expired).toBe(2);
+    // adjustedRemaining = max(0, 20+5-3-2) = 20
+    expect(result.adjustedRemaining).toBe(20);
+  });
+
+  it("paidLeaveId=0 のみの usage しかない社員も正しく集計される", async () => {
+    await testDb.insert(employees).values({ id: "20", name: "全孤児テスト", joinDate: "2024-04-01" });
+    const [pl] = await testDb.insert(paidLeaves).values({
+      employeeId: "20", grantedDays: 15, carriedOverDays: 0, expiredDays: 0,
+    }).returning();
+
+    const now = new Date().toISOString();
+    await testDb.insert(leaveUsages).values({
+      employeeId: "20", startDate: "2025-03-01", endDate: "2025-03-01",
+      paidLeaveId: 0, recordDate: "2025-03-01", days: 5, recordType: "usage",
+      isVoided: 0, createdAt: now, updatedAt: now,
+    });
+
+    const allLeaves = await testDb.select().from(paidLeaves).where(eq(paidLeaves.employeeId, "20"));
+    const latest = getLatestLeave(allLeaves);
+
+    const allUsages = await testDb.select().from(leaveUsages)
+      .where(eq(leaveUsages.employeeId, "20"));
+    const usagesByPaidLeaveId = new Map<number, typeof allUsages>();
+    const latestByEmp = new Map<string, number>();
+    latestByEmp.set("20", latest.id);
+    for (const u of allUsages) {
+      if (u.isVoided !== 0) continue;
+      const key = u.paidLeaveId === 0
+        ? (latestByEmp.get(u.employeeId) ?? 0)
+        : u.paidLeaveId;
+      const arr = usagesByPaidLeaveId.get(key) ?? [];
+      arr.push(u);
+      usagesByPaidLeaveId.set(key, arr);
+    }
+
+    const cycleUsages = usagesByPaidLeaveId.get(latest.id) ?? [];
+    expect(cycleUsages.length).toBe(1);
+
+    const result = computeSummaryForEmployee(latest, cycleUsages);
+
+    // consumed = 5, carryover = 0 → expired = 0
+    expect(result.consumed).toBe(5);
+    expect(result.expired).toBe(0);
+    // adjustedRemaining = 15 - 5 - 0 = 10
+    expect(result.adjustedRemaining).toBe(10);
+  });
 });
