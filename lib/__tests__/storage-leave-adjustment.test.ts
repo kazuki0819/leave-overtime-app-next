@@ -3,7 +3,7 @@ import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { eq } from "drizzle-orm";
 import * as schema from "../schema";
-import { leaveUsages, paidLeaves, employees, leaveUsageHistory } from "../schema";
+import { leaveUsages, paidLeaves, employees, leaveUsageHistory, insertLeaveUsageSchema } from "../schema";
 
 function createTestDb() {
   const client = createClient({ url: "file::memory:" });
@@ -413,5 +413,121 @@ describe("addLeaveAdjustment / voidLeaveUsage (直接DB操作)", () => {
     ];
     const splitTotal = splits.reduce((s, sp) => s + sp.days, 0);
     expect(Math.abs(splitTotal - originalDays) > 0.001).toBe(true);
+  });
+});
+
+describe("createLeaveUsage paidLeaveId 必須化", () => {
+  let client: ReturnType<typeof createClient>;
+  let testDb: ReturnType<typeof drizzle>;
+
+  beforeAll(async () => {
+    const t = createTestDb();
+    client = t.client;
+    testDb = t.db;
+    await initTestDb(client);
+  });
+
+  let paidLeaveId: number;
+
+  beforeEach(async () => {
+    await client.execute("DELETE FROM leave_usages");
+    await client.execute("DELETE FROM paid_leaves");
+    await client.execute("DELETE FROM employees");
+
+    await testDb.insert(employees).values({
+      id: "1",
+      name: "テスト太郎",
+    });
+
+    const plRows = await testDb.insert(paidLeaves).values({
+      employeeId: "1",
+      grantedDays: 20,
+      carriedOverDays: 5,
+    }).returning();
+    paidLeaveId = plRows[0].id;
+  });
+
+  it("paidLeaveId 付きの usage レコードが正しく保存される", async () => {
+    const now = new Date().toISOString();
+    const rows = await testDb.insert(leaveUsages).values({
+      employeeId: "1",
+      startDate: "2026-05-01",
+      endDate: "2026-05-01",
+      paidLeaveId,
+      recordDate: "2026-05-01",
+      days: 1.0,
+      recordType: "usage",
+      reason: "",
+      isVoided: 0,
+      createdAt: now,
+      updatedAt: now,
+    }).returning();
+
+    expect(rows[0].paidLeaveId).toBe(paidLeaveId);
+    expect(rows[0].recordDate).toBe("2026-05-01");
+    expect(rows[0].recordType).toBe("usage");
+  });
+
+  it("paidLeaveId=0 のレコードは作成可能だが非推奨", async () => {
+    const now = new Date().toISOString();
+    const rows = await testDb.insert(leaveUsages).values({
+      employeeId: "1",
+      startDate: "2026-05-01",
+      endDate: "2026-05-01",
+      paidLeaveId: 0,
+      recordDate: "2026-05-01",
+      days: 1.0,
+      recordType: "usage",
+      reason: "",
+      isVoided: 0,
+      createdAt: now,
+      updatedAt: now,
+    }).returning();
+
+    expect(rows[0].paidLeaveId).toBe(0);
+  });
+
+  it("insertLeaveUsageSchema が paidLeaveId を optional として受け入れる", () => {
+    const data = {
+      employeeId: "1",
+      startDate: "2026-05-01",
+      endDate: "2026-05-01",
+      days: 1.0,
+      paidLeaveId: 1,
+      recordDate: "2026-05-01",
+    };
+    expect(() => insertLeaveUsageSchema.parse(data)).not.toThrow();
+  });
+
+  it("insertLeaveUsageSchema が paidLeaveId なしでも parse 成功する（フォールバック用）", () => {
+    const data = {
+      employeeId: "1",
+      startDate: "2026-05-01",
+      endDate: "2026-05-01",
+      days: 1.0,
+    };
+    expect(() => insertLeaveUsageSchema.parse(data)).not.toThrow();
+  });
+
+  it("insertLeaveUsageSchema が負の paidLeaveId を拒否する", () => {
+    const data = {
+      employeeId: "1",
+      startDate: "2026-05-01",
+      endDate: "2026-05-01",
+      days: 1.0,
+      paidLeaveId: -1,
+    };
+    expect(() => insertLeaveUsageSchema.parse(data)).toThrow();
+  });
+
+  it("insertLeaveUsageSchema が小数の paidLeaveId を拒否する", () => {
+    const data = {
+      employeeId: "1",
+      startDate: "2026-05-01",
+      endDate: "2026-05-01",
+      days: 1.0,
+      paidLeaveId: 1.5,
+    };
+    expect(() => insertLeaveUsageSchema.parse(data)).toThrow();
   });
 });
