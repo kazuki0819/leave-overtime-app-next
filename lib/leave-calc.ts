@@ -478,7 +478,7 @@ export function calcAutoExpiredDays(
 ): number {
   if (carriedOverDays <= 0) return 0;
   // 先入先出: 消化日数はまず繰越分から使われる
-  const usedFromCarryover = Math.min(consumedDays, carriedOverDays);
+  const usedFromCarryover = Math.min(Math.max(0, consumedDays), carriedOverDays);
   return Math.max(0, carriedOverDays - usedFromCarryover);
 }
 
