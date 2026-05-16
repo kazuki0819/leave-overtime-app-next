@@ -10,21 +10,21 @@ export async function GET(request: NextRequest) {
   await ensureDbInitialized();
   const employees = await storage.getEmployees(false);
   const leaves = await storage.getPaidLeaves();
-  // v28発覚バグの修正: employeeId ベースで集約（複数サイクル + orphan対応）
-  const leavesByEmpId: Map<string, typeof leaves> = new Map();
+  const latestLeaveByEmpId = new Map<string, typeof leaves[0]>();
   for (const l of leaves) {
-    const arr = leavesByEmpId.get(l.employeeId) ?? [];
-    arr.push(l);
-    leavesByEmpId.set(l.employeeId, arr);
+    const existing = latestLeaveByEmpId.get(l.employeeId);
+    if (!existing || l.id > existing.id) {
+      latestLeaveByEmpId.set(l.employeeId, l);
+    }
   }
 
   const allUsages = await db.select().from(leaveUsages)
     .where(eq(leaveUsages.isVoided, 0));
-  const usagesByEmpId: Map<string, typeof allUsages> = new Map();
+  const usagesByPaidLeaveId = new Map<number, typeof allUsages>();
   for (const u of allUsages) {
-    const arr = usagesByEmpId.get(u.employeeId) ?? [];
+    const arr = usagesByPaidLeaveId.get(u.paidLeaveId) ?? [];
     arr.push(u);
-    usagesByEmpId.set(u.employeeId, arr);
+    usagesByPaidLeaveId.set(u.paidLeaveId, arr);
   }
 
   const assignmentMap = new Map<string, {
@@ -33,12 +33,12 @@ export async function GET(request: NextRequest) {
 
   for (const emp of employees) {
     const assignment = emp.assignment || "-";
-    const empLeaves = leavesByEmpId.get(emp.id) ?? [];
-    if (empLeaves.length === 0) continue;
-    const grantedDays = empLeaves.reduce((s, l) => s + l.grantedDays, 0);
-    const carriedOverDays = empLeaves.reduce((s, l) => s + l.carriedOverDays, 0);
+    const latest = latestLeaveByEmpId.get(emp.id);
+    if (!latest) continue;
+    const grantedDays = latest.grantedDays;
+    const carriedOverDays = latest.carriedOverDays;
 
-    const usgs = usagesByEmpId.get(emp.id) ?? [];
+    const usgs = usagesByPaidLeaveId.get(latest.id) ?? [];
     const consumedDays = calcConsumedDaysFromUsages(usgs);
     const usageRate = calcUsageRate({ grantedDays, carriedOverDays, consumedDays });
 

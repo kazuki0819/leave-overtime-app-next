@@ -745,21 +745,21 @@ export class TursoStorage implements IStorage {
 
     const allUsagesForAlerts = await db.select().from(leaveUsages)
       .where(eq(leaveUsages.isVoided, 0));
-    // v28発覚バグの修正: employeeId ベースで集約（複数サイクル + orphan対応）
-    const alertUsagesByEmpId = new Map<string, typeof allUsagesForAlerts>();
+    const alertUsagesByPaidLeaveId = new Map<number, typeof allUsagesForAlerts>();
     for (const u of allUsagesForAlerts) {
-      const arr = alertUsagesByEmpId.get(u.employeeId) ?? [];
+      const arr = alertUsagesByPaidLeaveId.get(u.paidLeaveId) ?? [];
       arr.push(u);
-      alertUsagesByEmpId.set(u.employeeId, arr);
+      alertUsagesByPaidLeaveId.set(u.paidLeaveId, arr);
     }
 
     for (const emp of emps) {
       const empLeaves = leaves.filter(l => l.employeeId === emp.id);
       if (empLeaves.length === 0) continue;
-      const grantedDays = empLeaves.reduce((s, l) => s + l.grantedDays, 0);
-      const carriedOverDays = empLeaves.reduce((s, l) => s + l.carriedOverDays, 0);
+      const latestLeave = empLeaves.reduce((a, b) => a.id > b.id ? a : b);
+      const grantedDays = latestLeave.grantedDays;
+      const carriedOverDays = latestLeave.carriedOverDays;
 
-      const usgsForEmp = alertUsagesByEmpId.get(emp.id) ?? [];
+      const usgsForEmp = alertUsagesByPaidLeaveId.get(latestLeave.id) ?? [];
       const consumedDays = calcConsumedDaysFromUsages(usgsForEmp);
       const autoExpired = calcAutoExpiredDays(carriedOverDays, consumedDays);
       const remainingDays = calcRemainingDays({
@@ -930,31 +930,30 @@ export class TursoStorage implements IStorage {
     const leaves = await this.getPaidLeaves();
     const overtimes = await this.getMonthlyOvertimes(undefined, year);
     const allAlerts = await this.getAllAlerts(year);
-    // v28発覚バグの修正: employeeId → PaidLeave[] で複数サイクル並存に対応
-    const leavesByEmpId = new Map<string, PaidLeave[]>();
+    const latestLeaveByEmpId = new Map<string, PaidLeave>();
     for (const l of leaves) {
-      const arr = leavesByEmpId.get(l.employeeId) ?? [];
-      arr.push(l);
-      leavesByEmpId.set(l.employeeId, arr);
+      const existing = latestLeaveByEmpId.get(l.employeeId);
+      if (!existing || l.id > existing.id) {
+        latestLeaveByEmpId.set(l.employeeId, l);
+      }
     }
 
     const allUsages = await db.select().from(leaveUsages)
       .where(eq(leaveUsages.isVoided, 0));
-    // v28発覚バグの修正: employeeId ベースで集約（orphan usages paid_leave_id=0 を救済）
-    const usagesByEmpId = new Map<string, typeof allUsages>();
+    const usagesByPaidLeaveId = new Map<number, typeof allUsages>();
     for (const u of allUsages) {
-      const arr = usagesByEmpId.get(u.employeeId) ?? [];
+      const arr = usagesByPaidLeaveId.get(u.paidLeaveId) ?? [];
       arr.push(u);
-      usagesByEmpId.set(u.employeeId, arr);
+      usagesByPaidLeaveId.set(u.paidLeaveId, arr);
     }
 
     const now = new Date();
 
     return emps.map(emp => {
-      const empLeaves = leavesByEmpId.get(emp.id) ?? [];
-      const hasLeave = empLeaves.length > 0;
-      const grantedDays = empLeaves.reduce((s, l) => s + l.grantedDays, 0);
-      const carriedOverDays = empLeaves.reduce((s, l) => s + l.carriedOverDays, 0);
+      const latestLeave = latestLeaveByEmpId.get(emp.id);
+      const hasLeave = !!latestLeave;
+      const grantedDays = latestLeave?.grantedDays ?? 0;
+      const carriedOverDays = latestLeave?.carriedOverDays ?? 0;
       const empOT = overtimes.filter(o => o.employeeId === emp.id);
       const yearlyOT = empOT.reduce((sum, o) => sum + o.overtimeHours, 0);
       const empAlerts = allAlerts.filter(a => a.employeeId === emp.id);
@@ -977,7 +976,7 @@ export class TursoStorage implements IStorage {
       const overtimeCautionCount = overtimeAlerts.filter(a => a.severity === "caution").length;
       const overtimeInfoCount = overtimeAlerts.filter(a => a.severity === "info").length;
 
-      const usgsForSummary = usagesByEmpId.get(emp.id) ?? [];
+      const usgsForSummary = hasLeave ? (usagesByPaidLeaveId.get(latestLeave!.id) ?? []) : [];
       const empConsumedDays = hasLeave ? calcConsumedDaysFromUsages(usgsForSummary) : 0;
       const empAutoExpired = hasLeave ? calcAutoExpiredDays(carriedOverDays, empConsumedDays) : 0;
       const empRemainingDays = hasLeave ? calcRemainingDays({

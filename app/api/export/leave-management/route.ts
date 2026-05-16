@@ -12,36 +12,36 @@ export async function GET(request: NextRequest) {
   const year = yearStr ? parseInt(yearStr, 10) : 2025;
   const employees = await storage.getEmployees(false);
   const leaves = await storage.getPaidLeaves();
-  // v28発覚バグの修正: employeeId ベースで集約（複数サイクル + orphan対応）
-  const leavesByEmpId: Map<string, typeof leaves> = new Map();
+  const latestLeaveByEmpId = new Map<string, typeof leaves[0]>();
   for (const l of leaves) {
-    const arr = leavesByEmpId.get(l.employeeId) ?? [];
-    arr.push(l);
-    leavesByEmpId.set(l.employeeId, arr);
+    const existing = latestLeaveByEmpId.get(l.employeeId);
+    if (!existing || l.id > existing.id) {
+      latestLeaveByEmpId.set(l.employeeId, l);
+    }
   }
 
   const allUsages = await db.select().from(leaveUsages)
     .where(eq(leaveUsages.isVoided, 0));
-  const usagesByEmpId: Map<string, typeof allUsages> = new Map();
+  const usagesByPaidLeaveId = new Map<number, typeof allUsages>();
   for (const u of allUsages) {
-    const arr = usagesByEmpId.get(u.employeeId) ?? [];
+    const arr = usagesByPaidLeaveId.get(u.paidLeaveId) ?? [];
     arr.push(u);
-    usagesByEmpId.set(u.employeeId, arr);
+    usagesByPaidLeaveId.set(u.paidLeaveId, arr);
   }
 
   const BOM = "﻿";
   const header = "社員番号,氏名,配属先,入社日,付与日数,繰越日数,消化日数,残日数,時効日数,取得率";
   const rows = employees.map(emp => {
-    const empLeaves = leavesByEmpId.get(emp.id) ?? [];
-    if (empLeaves.length === 0) {
+    const latest = latestLeaveByEmpId.get(emp.id);
+    if (!latest) {
       return [
         emp.id, emp.name, emp.assignment, emp.joinDate,
         0, 0, 0, 0, 0, "0%",
       ].join(",");
     }
-    const grantedDays = empLeaves.reduce((s, l) => s + l.grantedDays, 0);
-    const carriedOverDays = empLeaves.reduce((s, l) => s + l.carriedOverDays, 0);
-    const usgs = usagesByEmpId.get(emp.id) ?? [];
+    const grantedDays = latest.grantedDays;
+    const carriedOverDays = latest.carriedOverDays;
+    const usgs = usagesByPaidLeaveId.get(latest.id) ?? [];
     const consumedDays = calcConsumedDaysFromUsages(usgs);
     const autoExpired = calcAutoExpiredDays(carriedOverDays, consumedDays);
     const remaining = calcRemainingDays({
