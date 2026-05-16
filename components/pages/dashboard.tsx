@@ -69,11 +69,9 @@ type EmployeeSummary = {
   overtimeInfoCount: number;
   overtimeAlertCount: number;
   alertCount: number;
-  compositeRisk: "high" | "medium" | null;
-  compositeComment: string | null;
 };
 
-type FilterMode = "all" | "leave_danger" | "leave_warning" | "leave_caution" | "leave_info" | "leave_notice" | "ot_danger" | "ot_warning" | "ot_caution" | "ot_info" | "composite" | "clear";
+type FilterMode = "all" | "leave_danger" | "leave_warning" | "leave_caution" | "leave_info" | "leave_notice" | "ot_danger" | "ot_warning" | "ot_caution" | "ot_info" | "clear";
 
 export default function Dashboard() {
   const [search, setSearch] = useState("");
@@ -118,8 +116,6 @@ export default function Dashboard() {
       otWarning: summaries.filter(e => e.overtimeWarningCount > 0 && e.overtimeDangerCount === 0).length,
       otCaution: summaries.filter(e => e.overtimeCautionCount > 0).length,
       otInfo: summaries.filter(e => e.overtimeInfoCount > 0).length,
-      composite: summaries.filter(e => e.compositeRisk !== null).length,
-      compositeHigh: summaries.filter(e => e.compositeRisk === "high").length,
       clear: summaries.filter(e => e.alertCount === 0).length,
     };
   }, [summaries]);
@@ -146,9 +142,6 @@ export default function Dashboard() {
         break;
       case "leave_caution":
         list = list.filter((e) => e.leaveCautionCount > 0);
-        break;
-      case "composite":
-        list = list.filter((e) => e.compositeRisk !== null);
         break;
       case "leave_info":
         list = list.filter((e) => e.leaveInfoCount > 0);
@@ -235,22 +228,6 @@ export default function Dashboard() {
               </div>
               <div className={`rounded-lg p-2 ${stats.fiveDayFailing > 0 ? "bg-[var(--red)]/10" : "bg-[var(--green-soft)]"}`}>
                 <Calendar className={`h-4 w-4 ${stats.fiveDayFailing > 0 ? "text-[var(--red)]" : "text-[var(--green)]"}`} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className={`border ${stats.composite > 0 ? "border-[var(--red)]/40" : "border-[var(--pr4-border)]"}`}>
-          <CardContent className={`p-3.5 ${stats.composite > 0 ? "bg-gradient-to-r from-[var(--red-soft)] to-[var(--surface)]" : ""}`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider">複合リスク</p>
-                <p className="text-lg font-bold mt-0.5">
-                  <span className={stats.composite > 0 ? "text-[var(--red)]" : "text-[var(--green)]"}>{stats.composite}</span>
-                  <span className="text-xs font-normal text-[var(--ink-50)] ml-0.5">名</span>
-                </p>
-              </div>
-              <div className={`rounded-lg p-2 ${stats.composite > 0 ? "bg-[var(--red)]/10" : "bg-[var(--green-soft)]"}`}>
-                <ShieldAlert className={`h-4 w-4 ${stats.composite > 0 ? "text-[var(--red)]" : "text-[var(--green)]"}`} />
               </div>
             </div>
           </CardContent>
@@ -437,20 +414,6 @@ export default function Dashboard() {
             )}
           </div>
 
-          {stats.composite > 0 && (
-            <div className="flex items-center gap-1 border-l pl-1.5 ml-0.5">
-              <Button
-                variant={filter === "composite" ? "default" : "outline"}
-                size="sm"
-                className={`h-8 text-xs px-2 ${filter !== "composite" ? "border-purple-200 text-purple-700 hover:bg-purple-50 dark:border-purple-800 dark:text-purple-400" : ""}`}
-                onClick={() => setFilter(filter === "composite" ? "all" : "composite")}
-                data-testid="filter-composite"
-              >
-                複合リスク <span className="ml-1 opacity-70">{stats.composite}</span>
-              </Button>
-            </div>
-          )}
-
           <Button
             variant={filter === "clear" ? "default" : "outline"}
             size="sm"
@@ -488,17 +451,12 @@ export default function Dashboard() {
 function EmployeeCard({ emp }: { emp: EmployeeSummary }) {
   const hasDanger = emp.dangerCount > 0;
   const hasWarning = emp.warningCount > 0 && !hasDanger;
-  const hasComposite = emp.compositeRisk !== null;
-  const borderColor = hasComposite
-    ? "border-purple-300 dark:border-purple-800"
-    : hasDanger
+  const borderColor = hasDanger
     ? "border-red-300 dark:border-red-800"
     : hasWarning
     ? "border-amber-300 dark:border-amber-800"
     : "border-border";
-  const bgHighlight = hasComposite
-    ? "bg-purple-50/30 dark:bg-purple-950/10"
-    : hasDanger
+  const bgHighlight = hasDanger
     ? "bg-red-50/50 dark:bg-red-950/20"
     : hasWarning
     ? "bg-amber-50/30 dark:bg-amber-950/10"
@@ -730,31 +688,6 @@ function EmployeeCard({ emp }: { emp: EmployeeSummary }) {
                   繰越未消化
                 </span>
               )}
-            </div>
-          )}
-
-          {/* Composite risk comment */}
-          {emp.compositeRisk && emp.compositeComment && (
-            <div className={`rounded-md px-3 py-2 mb-2 border ${
-              emp.compositeRisk === "high"
-                ? "border-purple-300 bg-purple-50 dark:border-purple-700 dark:bg-purple-950/30"
-                : "border-purple-200 bg-purple-50/50 dark:border-purple-800 dark:bg-purple-950/20"
-            }`}>
-              <div className="flex items-center gap-1.5 mb-1">
-                <ShieldAlert className={`h-3.5 w-3.5 ${
-                  emp.compositeRisk === "high" ? "text-purple-600 dark:text-purple-400" : "text-purple-500 dark:text-purple-400"
-                }`} />
-                <span className={`text-xs font-semibold ${
-                  emp.compositeRisk === "high" ? "text-purple-800 dark:text-purple-300" : "text-purple-700 dark:text-purple-300"
-                }`}>
-                  {emp.compositeRisk === "high" ? "複合リスク：高" : "複合リスク：中"}
-                </span>
-              </div>
-              {emp.compositeComment.split("\n").map((line, i) => (
-                <p key={i} className="text-xs text-purple-800 dark:text-purple-300 leading-relaxed">
-                  {line}
-                </p>
-              ))}
             </div>
           )}
 
