@@ -89,6 +89,9 @@ export const insertLeaveUsageSchema = z.object({
   endDate: z.string(),
   days: z.number().optional(),
   reason: z.string().nullable().optional(),
+  paidLeaveId: z.number().int().positive("有給情報IDは正の整数で指定してください").optional(),
+  recordDate: z.string().optional(),
+  recordType: z.enum(["usage", "adjustment"]).default("usage").optional(),
 });
 export type InsertLeaveUsage = z.infer<typeof insertLeaveUsageSchema>;
 export type LeaveUsage = typeof leaveUsages.$inferSelect;
