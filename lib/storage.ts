@@ -43,6 +43,7 @@ export interface IStorage {
   deleteAssignmentHistory(id: number): Promise<boolean>;
   getCurrentAssignment(employeeId: string): Promise<string>;
   getPaidLeaves(): Promise<PaidLeave[]>;
+  getPaidLeaveById(id: number): Promise<PaidLeave | undefined>;
   getPaidLeaveByEmployee(employeeId: string): Promise<PaidLeaveExtended | undefined>;
   upsertPaidLeave(leave: InsertPaidLeave): Promise<PaidLeave>;
   getLeaveUsages(employeeId?: string): Promise<LeaveUsage[]>;
@@ -272,6 +273,11 @@ export class TursoStorage implements IStorage {
     return await db.select().from(paidLeaves);
   }
 
+  async getPaidLeaveById(id: number): Promise<PaidLeave | undefined> {
+    const rows = await db.select().from(paidLeaves).where(eq(paidLeaves.id, id)).limit(1);
+    return rows[0];
+  }
+
   async getPaidLeaveByEmployee(employeeId: string): Promise<PaidLeaveExtended | undefined> {
     const rows = await db.select().from(paidLeaves)
       .where(eq(paidLeaves.employeeId, employeeId))
@@ -356,12 +362,32 @@ export class TursoStorage implements IStorage {
   }
 
   async createLeaveUsage(usage: InsertLeaveUsage): Promise<LeaveUsage> {
+    if (!usage.paidLeaveId) {
+      throw new Error("paidLeaveId is required");
+    }
+
+    const plRows = await db.select().from(paidLeaves)
+      .where(eq(paidLeaves.id, usage.paidLeaveId)).limit(1);
+    if (!plRows[0]) {
+      throw new Error("対象の有給情報が見つかりません");
+    }
+
+    const recordDate = usage.recordDate || usage.startDate;
+    const now = new Date().toISOString();
     const rows = await db.insert(leaveUsages).values({
       employeeId: usage.employeeId,
       startDate: usage.startDate,
       endDate: usage.endDate,
+      paidLeaveId: usage.paidLeaveId,
+      recordDate,
       days: usage.days ?? 1,
+      recordType: usage.recordType ?? "usage",
       reason: usage.reason ?? "",
+      isVoided: 0,
+      voidedAt: null,
+      voidedReason: null,
+      createdAt: now,
+      updatedAt: now,
     }).returning();
     return rows[0];
   }
