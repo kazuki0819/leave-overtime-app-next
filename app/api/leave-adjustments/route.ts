@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureDbInitialized } from "@/lib/init-db";
 import { storage } from "@/lib/storage";
 import { adjustmentDaysSchema, recordDateSchema, reasonSchema } from "@/lib/validations/leave-usage";
-import { validateRecordDateInCycle } from "@/lib/validations/cycle-validation";
 import { z } from "zod";
 
 const addAdjustmentRequestSchema = z.object({
@@ -18,7 +17,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const data = addAdjustmentRequestSchema.parse(body);
-    await validateRecordDateInCycle(data.recordDate, data.paidLeaveId);
     const usage = await storage.addLeaveAdjustment({
       paidLeaveId: data.paidLeaveId,
       recordDate: data.recordDate,
