@@ -11,6 +11,9 @@ export const employees = sqliteTable("employees", {
   status: text("status").notNull().default("active"),
   tenureMonths: integer("tenure_months").notNull().default(0),
   memo: text("memo").notNull().default(""),
+  baselineRemainingDays: real("baseline_remaining_days"),
+  baselineDate: text("baseline_date"),
+  baselineNote: text("baseline_note"),
 });
 
 export const insertEmployeeSchema = z.object({
@@ -53,6 +56,7 @@ export const paidLeaves = sqliteTable("paid_leaves", {
   grantedDays: real("granted_days").notNull().default(0),
   carriedOverDays: real("carried_over_days").notNull().default(0),
   expiredDays: real("expired_days").notNull().default(0),
+  cycleStartDate: text("cycle_start_date"),
 });
 
 export const insertPaidLeaveSchema = z.object({
