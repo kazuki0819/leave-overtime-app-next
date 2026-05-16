@@ -65,64 +65,6 @@ export interface IStorage {
   bulkImportPaidLeaves(leaves: InsertPaidLeave[]): Promise<{ count: number; skipped: number }>;
 }
 
-// ── 複合リスク判定 + 自動コメント生成 ──
-type CompositeRiskLevel = "high" | "medium" | null;
-function generateCompositeRisk(
-  leaveAlerts: EmployeeAlert[],
-  overtimeAlerts: EmployeeAlert[],
-  usageRateRaw: number,
-  yearlyOT: number,
-): { compositeRisk: CompositeRiskLevel; compositeComment: string | null } {
-  const sevRank = (s: string) => ({ danger: 4, warning: 3, caution: 2, info: 1, notice: 0 }[s] ?? 0);
-  const leaveMax = leaveAlerts.reduce((mx, a) => Math.max(mx, sevRank(a.severity)), 0);
-  const otMax = overtimeAlerts.reduce((mx, a) => Math.max(mx, sevRank(a.severity)), 0);
-
-  const hasLeaveIssue = leaveMax >= 3; // warning以上
-  const hasOtIssue = otMax >= 3;
-
-  if (!hasLeaveIssue || !hasOtIssue) {
-    return { compositeRisk: null, compositeComment: null };
-  }
-
-  // 複合リスク判定
-  const level: CompositeRiskLevel = (leaveMax >= 4 || otMax >= 4) ? "high" : "medium";
-
-  // 状況説明テキスト生成
-  const usageRate = Math.round(usageRateRaw * 100);
-  const otParts: string[] = [];
-  const leaveParts: string[] = [];
-
-  for (const a of overtimeAlerts) {
-    if (a.severity === "danger") otParts.push(a.message);
-    else if (a.severity === "warning" && otParts.length === 0) otParts.push(a.message);
-  }
-  for (const a of leaveAlerts) {
-    if (a.severity === "danger" || a.severity === "warning") leaveParts.push(a.message);
-  }
-
-  const situation = level === "high"
-    ? `【安全配慮義務リスク】残業に法令違反があり、有給取得率${usageRate}%で休息も不十分。疲労蓄積が深刻な状態です。`
-    : `【複合リスク】残業が法令上限に接近中かつ有給取得率${usageRate}%。休息不足による疲労蓄積が懸念されます。`;
-
-  // 改善アクション生成
-  const actions: string[] = [];
-  if (otMax >= 4) {
-    actions.push("残業を直ちに月35h以内に抑制");
-  } else if (otMax >= 3) {
-    actions.push("残業の月45h超過を回避するよう業務調整");
-  }
-  if (usageRate < 30) {
-    actions.push("2週間以内に有給1日以上の取得を指示");
-  } else {
-    actions.push("月1日以上の計画的な有給取得を推奨");
-  }
-  actions.push("所属長との面談を実施し、業務負荷を確認");
-
-  const comment = `${situation}\n推奨アクション: ${actions.join(" / ")}`;
-
-  return { compositeRisk: level, compositeComment: comment };
-}
-
 export class TursoStorage implements IStorage {
 
   // ── Employees ──
@@ -1038,7 +980,6 @@ export class TursoStorage implements IStorage {
         overtimeDangerCount, overtimeWarningCount, overtimeCautionCount, overtimeInfoCount,
         overtimeAlertCount: overtimeAlerts.length,
         alertCount: empAlerts.length,
-        ...generateCompositeRisk(leaveAlerts, overtimeAlerts, empUsageRate, yearlyOT),
       };
     });
   }
