@@ -13,7 +13,7 @@ import {
 import { adjustmentDaysSchema, reasonSchema, voidLeaveUsageSchema } from "./validations/leave-usage";
 import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoExpiredDays, calcConsumedDaysFromUsages, calcRemainingDays, calcUsageRate } from "./leave-calc";
 import { db, client } from "./db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, desc } from "drizzle-orm";
 
 // PR-1: getPaidLeaveByEmployee の拡張戻り値型
 export interface PaidLeaveExtended extends PaidLeave {
@@ -275,6 +275,7 @@ export class TursoStorage implements IStorage {
   async getPaidLeaveByEmployee(employeeId: string): Promise<PaidLeaveExtended | undefined> {
     const rows = await db.select().from(paidLeaves)
       .where(eq(paidLeaves.employeeId, employeeId))
+      .orderBy(desc(paidLeaves.id))
       .limit(1);
     const leave = rows[0];
     if (!leave) return undefined;
