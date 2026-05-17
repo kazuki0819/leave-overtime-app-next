@@ -267,6 +267,10 @@ export class TursoStorage implements IStorage {
     };
   }
 
+  /**
+   * @deprecated PR-B 完了後、本関数は段階的に廃止予定。
+   * 新規の paid_leaves 操作は lib/paid-leave-calc.ts の calculatePaidLeavesForEmployee 経由で行うこと。
+   */
   async upsertPaidLeave(leave: InsertPaidLeave): Promise<PaidLeave> {
     const existing = await this.getPaidLeaveByEmployee(leave.employeeId);
     if (existing) {
