@@ -270,21 +270,31 @@ export class TursoStorage implements IStorage {
   async upsertPaidLeave(leave: InsertPaidLeave): Promise<PaidLeave> {
     const existing = await this.getPaidLeaveByEmployee(leave.employeeId);
     if (existing) {
+      // PR-A 暫定: UPDATE では新カラム(cycle_*, baseline_remaining, current_remaining)は触らない。PR-B で正しい計算ロジックに置き換える。
       const updated = {
         employeeId: leave.employeeId,
         grantedDays: leave.grantedDays ?? existing.grantedDays,
         carriedOverDays: leave.carriedOverDays ?? existing.carriedOverDays,
         expiredDays: leave.expiredDays ?? existing.expiredDays,
+        updatedAt: new Date().toISOString(),
       };
       await db.update(paidLeaves).set(updated).where(eq(paidLeaves.id, existing.id));
       const rows = await db.select().from(paidLeaves).where(eq(paidLeaves.id, existing.id)).limit(1);
       return rows[0]!;
     }
+    // PR-A 暫定: 新カラムにダミー値を設定。PR-B で正しい計算ロジック(サイクル境界判定、繰越計算、再計算トリガー)に置き換える。
     const rows = await db.insert(paidLeaves).values({
       employeeId: leave.employeeId,
+      cycleStartDate: leave.cycleStartDate ?? "1900-01-01",
+      cycleEndDate: leave.cycleEndDate ?? "1900-01-01",
       grantedDays: leave.grantedDays ?? 0,
       carriedOverDays: leave.carriedOverDays ?? 0,
+      baselineRemaining: leave.baselineRemaining ?? ((leave.grantedDays ?? 0) + (leave.carriedOverDays ?? 0)),
+      currentRemaining: leave.currentRemaining ?? ((leave.grantedDays ?? 0) + (leave.carriedOverDays ?? 0)),
+      finalRemaining: leave.finalRemaining ?? null,
       expiredDays: leave.expiredDays ?? 0,
+      createdAt: leave.createdAt ?? new Date().toISOString(),
+      updatedAt: leave.updatedAt ?? new Date().toISOString(),
     }).returning();
     return rows[0];
   }
