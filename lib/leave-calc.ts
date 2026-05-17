@@ -395,6 +395,10 @@ export function calcConsumptionPace(
  * - 付与基準日: 初回は入社+6ヶ月、以降毎年同月同日
  * - 付与日が年度内にある場合、その時点の勤続年数で法定テーブルを参照
  */
+/**
+ * @deprecated PR-B で新ロジック(lib/paid-leave-calc.ts の calculateGrantedDays)に置き換え。
+ * 後続 PR で参照箇所を切り替えた後、本関数を物理削除する。
+ */
 export function calcAutoGrantedDays(joinDateStr: string, fiscalYear: number): number {
   if (!joinDateStr) return 0;
   const joinDate = new Date(joinDateStr);
@@ -452,6 +456,10 @@ export function calcAutoGrantedDays(joinDateStr: string, fiscalYear: number): nu
  * - 繰越日数 = 前年度の残日数（前年度データがある場合）
  *   ※ 前年度の時効処理が正しければ、残日数 = 今年度への繰越可能分
  */
+/**
+ * @deprecated PR-B で新ロジック(lib/paid-leave-calc.ts の calculateCarriedOverDays)に置き換え。
+ * 後続 PR で参照箇所を切り替えた後、本関数を物理削除する。
+ */
 export function calcAutoCarryoverDays(prevYearRemainingDays: number | undefined): number {
   if (prevYearRemainingDays === undefined || prevYearRemainingDays === null) return 0;
   return Math.max(0, prevYearRemainingDays);
@@ -471,6 +479,10 @@ export function calcAutoCarryoverDays(prevYearRemainingDays: number | undefined)
  * - 先入先出原則: 繰越分から先に消化
  * - つまり: 時効日数 = max(0, 繰越日数 - 消化日数)
  *   ※ 消化日数が繰越日数以上なら時効0
+ */
+/**
+ * @deprecated PR-B で新ロジック(lib/paid-leave-calc.ts の calculateExpiredDays)に置き換え。
+ * 後続 PR で参照箇所を切り替えた後、本関数を物理削除する。
  */
 export function calcAutoExpiredDays(
   carriedOverDays: number,
@@ -592,7 +604,8 @@ export type CycleRange = {
 };
 
 /**
- * 社員の現在のサイクル開始日（最新の付与基準日）を返す
+ * @deprecated PR-B で新ロジック(lib/paid-leave-calc.ts の calculateCycleStartDate)に置き換え。
+ * 後続 PR で参照箇所を切り替えた後、本関数を物理削除する。
  */
 export function getCurrentCycleStart(joinDate: string, today?: Date): string {
   const now = today ?? new Date();
@@ -601,7 +614,8 @@ export function getCurrentCycleStart(joinDate: string, today?: Date): string {
 }
 
 /**
- * 社員の現在のサイクル範囲 {startDate, endDate, index} を返す
+ * @deprecated PR-B で新ロジック(lib/paid-leave-calc.ts の getCycleByDate)に置き換え。
+ * 後続 PR で参照箇所を切り替えた後、本関数を物理削除する。
  */
 export function getCurrentCycleRange(joinDate: string, today?: Date): CycleRange {
   const now = today ?? new Date();
@@ -624,7 +638,8 @@ export function getCurrentCycleRange(joinDate: string, today?: Date): CycleRange
 }
 
 /**
- * 社員の全サイクル一覧を返す（今日まで）
+ * @deprecated PR-B で新ロジック(lib/paid-leave-calc.ts)に置き換え。
+ * 後続 PR で参照箇所を切り替えた後、本関数を物理削除する。
  */
 export function getAllCycles(joinDate: string, today?: Date): CycleRange[] {
   const now = today ?? new Date();
@@ -637,7 +652,8 @@ export function getAllCycles(joinDate: string, today?: Date): CycleRange[] {
 }
 
 /**
- * 特定サイクル（index番目）の範囲を返す
+ * @deprecated PR-B で新ロジック(lib/paid-leave-calc.ts)に置き換え。
+ * 後続 PR で参照箇所を切り替えた後、本関数を物理削除する。
  */
 export function getCycleByIndex(joinDate: string, index: number): CycleRange | undefined {
   const join = new Date(joinDate);
@@ -652,7 +668,8 @@ export function getCycleByIndex(joinDate: string, index: number): CycleRange | u
 }
 
 /**
- * 入社日と付与基準日からサイクルのインデックスを算出する
+ * @deprecated PR-B で新ロジック(lib/paid-leave-calc.ts)に置き換え。
+ * 後続 PR で参照箇所を切り替えた後、本関数を物理削除する。
  */
 export function getCycleIndexForGrantDate(joinDate: string, grantDate: string): number {
   const allGrants = calcAllGrantDates(joinDate, new Date(grantDate));
