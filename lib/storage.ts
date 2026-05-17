@@ -12,7 +12,6 @@ import {
 } from "./schema";
 import { adjustmentDaysSchema, reasonSchema, voidLeaveUsageSchema } from "./validations/leave-usage";
 import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoExpiredDays, calcConsumedDaysFromUsages, calcRemainingDays, calcUsageRate } from "./leave-calc";
-import { ensurePaidLeavesUpToDate } from "./paid-leave-calc";
 import { db, client } from "./db";
 import { eq, and, sql, desc } from "drizzle-orm";
 
@@ -894,11 +893,6 @@ export class TursoStorage implements IStorage {
   // ── Employee Summaries ──
   async getEmployeeSummaries(year: number = 2025): Promise<any[]> {
     const emps = await this.getEmployees(false);
-
-    const today = new Date();
-    for (const emp of emps) {
-      await ensurePaidLeavesUpToDate(emp.id, today);
-    }
 
     const leaves = await this.getPaidLeaves();
     const overtimes = await this.getMonthlyOvertimes(undefined, year);
