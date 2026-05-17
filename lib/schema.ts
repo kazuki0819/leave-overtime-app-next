@@ -53,17 +53,30 @@ export type AssignmentHistory = typeof assignmentHistories.$inferSelect;
 export const paidLeaves = sqliteTable("paid_leaves", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   employeeId: text("employee_id").notNull(),
-  grantedDays: real("granted_days").notNull().default(0),
-  carriedOverDays: real("carried_over_days").notNull().default(0),
+  cycleStartDate: text("cycle_start_date").notNull(),
+  cycleEndDate: text("cycle_end_date").notNull(),
+  grantedDays: real("granted_days").notNull(),
+  carriedOverDays: real("carried_over_days").notNull(),
+  baselineRemaining: real("baseline_remaining").notNull(),
+  currentRemaining: real("current_remaining").notNull(),
+  finalRemaining: real("final_remaining"),
   expiredDays: real("expired_days").notNull().default(0),
-  cycleStartDate: text("cycle_start_date"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
 });
 
 export const insertPaidLeaveSchema = z.object({
   employeeId: z.string(),
+  cycleStartDate: z.string().optional(),
+  cycleEndDate: z.string().optional(),
   grantedDays: z.number().optional(),
   carriedOverDays: z.number().optional(),
-  expiredDays: z.number().optional(),
+  baselineRemaining: z.number().optional(),
+  currentRemaining: z.number().optional(),
+  finalRemaining: z.number().nullable().optional(),
+  expiredDays: z.number().optional().default(0),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
 });
 export type InsertPaidLeave = z.infer<typeof insertPaidLeaveSchema>;
 export type PaidLeave = typeof paidLeaves.$inferSelect;
