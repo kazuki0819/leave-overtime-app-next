@@ -893,6 +893,7 @@ export class TursoStorage implements IStorage {
   // ── Employee Summaries ──
   async getEmployeeSummaries(year: number = 2025): Promise<any[]> {
     const emps = await this.getEmployees(false);
+
     const leaves = await this.getPaidLeaves();
     const overtimes = await this.getMonthlyOvertimes(undefined, year);
     const allAlerts = await this.getAllAlerts(year);

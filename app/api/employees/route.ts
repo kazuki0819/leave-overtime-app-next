@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureDbInitialized } from "@/lib/init-db";
 import { storage } from "@/lib/storage";
 import { insertEmployeeSchema } from "@/lib/schema";
+import { ensurePaidLeavesUpToDate } from "@/lib/paid-leave-calc";
 
 export async function GET(request: NextRequest) {
   await ensureDbInitialized();
@@ -16,6 +17,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = insertEmployeeSchema.parse(body) as any;
     const emp = await storage.createEmployee(data);
+    await ensurePaidLeavesUpToDate(emp.id, new Date());
     return NextResponse.json(emp, { status: 201 });
   } catch (e) {
     return NextResponse.json({ message: "入力データが不正です", error: String(e) }, { status: 400 });
