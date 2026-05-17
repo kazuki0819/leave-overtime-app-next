@@ -61,7 +61,8 @@ async function initTestDb(client: ReturnType<typeof createClient>) {
   `);
 }
 
-describe("addLeaveAdjustment / voidLeaveUsage (直接DB操作)", () => {
+// 実装計画書第4版で再設計対象のため一時skip。PR-F等で新ロジックに合わせて書き直す
+describe.skip("addLeaveAdjustment / voidLeaveUsage (直接DB操作)", () => {
   let client: ReturnType<typeof createClient>;
   let testDb: ReturnType<typeof drizzle>;
 

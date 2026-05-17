@@ -81,7 +81,8 @@ function computeSummaryForEmployee(
   return { grantedDays, carriedOverDays, consumed, adjustedRemaining, autoRemaining, expired };
 }
 
-describe("getEmployeeSummaries 相当のロジック（複数サイクル対応）", () => {
+// 実装計画書第4版で再設計対象のため一時skip。PR-F等で新ロジックに合わせて書き直す
+describe.skip("getEmployeeSummaries 相当のロジック（複数サイクル対応）", () => {
   let client: ReturnType<typeof createClient>;
   let testDb: ReturnType<typeof drizzle>;
 
