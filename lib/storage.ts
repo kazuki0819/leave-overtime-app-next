@@ -12,6 +12,7 @@ import {
 } from "./schema";
 import { adjustmentDaysSchema, reasonSchema, voidLeaveUsageSchema } from "./validations/leave-usage";
 import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoExpiredDays, calcConsumedDaysFromUsages, calcRemainingDays, calcUsageRate } from "./leave-calc";
+import { recalculatePaidLeavesAfterUsageChange } from "./paid-leave-calc";
 import { db, client } from "./db";
 import { eq, and, sql, desc } from "drizzle-orm";
 
@@ -319,13 +320,34 @@ export class TursoStorage implements IStorage {
       days: usage.days ?? 1,
       reason: usage.reason ?? "",
     }).returning();
-    return rows[0];
+    const created = rows[0];
+
+    try {
+      await recalculatePaidLeavesAfterUsageChange(usage.employeeId, []);
+    } catch (error) {
+      console.error(
+        `[paid-leave-calc] recalc failed after createLeaveUsage. employeeId=${usage.employeeId}, error=${String(error)}`
+      );
+    }
+
+    return created;
   }
 
   async deleteLeaveUsage(id: number): Promise<boolean> {
     const existingRows = await db.select().from(leaveUsages).where(eq(leaveUsages.id, id)).limit(1);
-    if (!existingRows[0]) return false;
+    const existing = existingRows[0];
+    if (!existing) return false;
+
     await db.delete(leaveUsages).where(eq(leaveUsages.id, id));
+
+    try {
+      await recalculatePaidLeavesAfterUsageChange(existing.employeeId, []);
+    } catch (error) {
+      console.error(
+        `[paid-leave-calc] recalc failed after deleteLeaveUsage. employeeId=${existing.employeeId}, error=${String(error)}`
+      );
+    }
+
     return true;
   }
 
@@ -371,7 +393,7 @@ export class TursoStorage implements IStorage {
   }): Promise<LeaveUsage> {
     voidLeaveUsageSchema.parse({ voided_reason: params.voidedReason });
 
-    return await db.transaction(async (tx) => {
+    const updated = await db.transaction(async (tx) => {
       const existingRows = await tx.select().from(leaveUsages)
         .where(eq(leaveUsages.id, params.leaveUsageId)).limit(1);
       const existing = existingRows[0];
@@ -405,6 +427,16 @@ export class TursoStorage implements IStorage {
         .where(eq(leaveUsages.id, params.leaveUsageId)).limit(1);
       return updatedRows[0];
     });
+
+    try {
+      await recalculatePaidLeavesAfterUsageChange(updated.employeeId, []);
+    } catch (error) {
+      console.error(
+        `[paid-leave-calc] recalc failed after voidLeaveUsage. employeeId=${updated.employeeId}, error=${String(error)}`
+      );
+    }
+
+    return updated;
   }
 
   async splitLeaveAdjustment(params: {

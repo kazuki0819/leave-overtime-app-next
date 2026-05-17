@@ -91,15 +91,20 @@ export function formatISODate(d: Date): string {
 // DB操作関数
 // ═══════════════════════════════════════════════════════════════
 
+export type RecalcSource = "auto-recalc" | "regenerate" | "cron" | "manual" | "test";
+
 interface CalculateOptions {
   exemptCycleNumbers?: number[];
   today?: Date;
+  source?: RecalcSource;
 }
 
 export async function calculatePaidLeavesForEmployee(
   employeeId: string,
   options?: CalculateOptions
 ): Promise<void> {
+  const startTime = Date.now();
+  const source = options?.source ?? "manual";
   const today = options?.today ?? new Date();
   const exemptCycles = new Set(options?.exemptCycleNumbers ?? []);
 
@@ -249,6 +254,11 @@ export async function calculatePaidLeavesForEmployee(
       previousFinalRemaining = isInProgress ? current : final!;
     }
   });
+
+  const durationMs = Date.now() - startTime;
+  console.log(
+    `[paid-leave-calc] employeeId=${employeeId}, source=${source}, durationMs=${durationMs}`
+  );
 }
 
 export async function ensurePaidLeavesUpToDate(
@@ -293,14 +303,14 @@ export async function recalculatePaidLeavesAfterUsageChange(
   employeeId: string,
   affectedDates: Date[]
 ): Promise<void> {
-  await calculatePaidLeavesForEmployee(employeeId);
+  await calculatePaidLeavesForEmployee(employeeId, { source: "auto-recalc" });
 }
 
 export async function generatePaidLeavesUpToDate(
   employeeId: string,
   targetDate: Date
 ): Promise<void> {
-  await calculatePaidLeavesForEmployee(employeeId, { today: targetDate });
+  await calculatePaidLeavesForEmployee(employeeId, { today: targetDate, source: "cron" });
 }
 
 export async function regeneratePaidLeaves(
@@ -317,7 +327,7 @@ export async function regeneratePaidLeaves(
   const results: { employeeId: string; success: boolean; error?: string }[] = [];
   for (const empId of targets) {
     try {
-      await calculatePaidLeavesForEmployee(empId);
+      await calculatePaidLeavesForEmployee(empId, { source: "regenerate" });
       results.push({ employeeId: empId, success: true });
     } catch (err: any) {
       results.push({ employeeId: empId, success: false, error: err.message });
