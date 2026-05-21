@@ -96,10 +96,9 @@ export default function EmployeeDetail() {
   // Feature B: Leave usage history state
   const [showAddLeaveUsage, setShowAddLeaveUsage] = useState(false);
   const [newLeaveUsage, setNewLeaveUsage] = useState({
-    startDate: "",
-    endDate: "",
+    recordDate: "",
     days: 1,
-    reason: "",
+    note: "",
   });
 
   // Special leave state
@@ -267,7 +266,7 @@ export default function EmployeeDetail() {
 
   // Feature B: create leave usage mutation
   const createLeaveUsageMutation = useMutation({
-    mutationFn: async (data: { employeeId: string; startDate: string; endDate: string; days: number; reason: string }) => {
+    mutationFn: async (data: { employeeId: string; recordDate: string; days: number; note: string }) => {
       const res = await apiRequest("POST", "/api/leave-usages", data);
       return res.json();
     },
@@ -278,7 +277,7 @@ export default function EmployeeDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/alerts"] });
       toast({ title: "有給使用を追加しました" });
       setShowAddLeaveUsage(false);
-      setNewLeaveUsage({ startDate: "", endDate: "", days: 1, reason: "" });
+      setNewLeaveUsage({ recordDate: "", days: 1, note: "" });
     },
   });
 
@@ -647,16 +646,15 @@ export default function EmployeeDetail() {
 
   // Feature B: save new leave usage
   const saveNewLeaveUsage = () => {
-    if (!newLeaveUsage.startDate || !newLeaveUsage.endDate || newLeaveUsage.days <= 0) {
-      toast({ title: "入力エラー", description: "開始日・終了日・日数は必須です", variant: "destructive" });
+    if (!newLeaveUsage.recordDate || newLeaveUsage.days <= 0) {
+      toast({ title: "入力エラー", description: "取得日・日数は必須です", variant: "destructive" });
       return;
     }
     createLeaveUsageMutation.mutate({
       employeeId: id,
-      startDate: newLeaveUsage.startDate,
-      endDate: newLeaveUsage.endDate,
+      recordDate: newLeaveUsage.recordDate,
       days: newLeaveUsage.days,
-      reason: newLeaveUsage.reason,
+      note: newLeaveUsage.note,
     });
   };
 
@@ -666,10 +664,10 @@ export default function EmployeeDetail() {
     deleteLeaveUsageMutation.mutate(usageId);
   };
 
-  // Feature B: sort leave usages descending by startDate
+  // Feature B: sort leave usages descending by recordDate
   const sortedLeaveUsages = useMemo(() => {
     return [...(leaveUsages ?? [])].sort((a, b) =>
-      b.startDate.localeCompare(a.startDate)
+      (b.recordDate || b.startDate).localeCompare(a.recordDate || a.startDate)
     );
   }, [leaveUsages]);
 
@@ -2754,7 +2752,7 @@ export default function EmployeeDetail() {
                 e.stopPropagation();
                 setLeaveUsageOpen(true);
                 setShowAddLeaveUsage(true);
-                setNewLeaveUsage({ startDate: "", endDate: "", days: 1, reason: "" });
+                setNewLeaveUsage({ recordDate: "", days: 1, note: "" });
               }}
               data-testid="button-add-leave-usage"
             >
@@ -2769,10 +2767,9 @@ export default function EmployeeDetail() {
             <table className="w-full text-sm" data-testid="leave-usage-table">
               <thead>
                 <tr className="border-b text-left text-muted-foreground">
-                  <th className="pb-2 font-medium">開始日</th>
-                  <th className="pb-2 font-medium">終了日</th>
+                  <th className="pb-2 font-medium">取得日</th>
                   <th className="pb-2 font-medium text-right">日数</th>
-                  <th className="pb-2 font-medium">理由</th>
+                  <th className="pb-2 font-medium">備考</th>
                   <th className="pb-2 font-medium text-right">削除</th>
                 </tr>
               </thead>
@@ -2782,18 +2779,10 @@ export default function EmployeeDetail() {
                   <tr className="border-b bg-muted/30">
                     <td className="py-1 pr-2">
                       <DateInput
-                        value={newLeaveUsage.startDate}
-                        onChange={(v) => setNewLeaveUsage({ ...newLeaveUsage, startDate: v })}
+                        value={newLeaveUsage.recordDate}
+                        onChange={(v) => setNewLeaveUsage({ ...newLeaveUsage, recordDate: v })}
                         className="h-7 text-xs"
-                        data-testid="input-new-leave-start-date"
-                      />
-                    </td>
-                    <td className="py-1 pr-2">
-                      <DateInput
-                        value={newLeaveUsage.endDate}
-                        onChange={(v) => setNewLeaveUsage({ ...newLeaveUsage, endDate: v })}
-                        className="h-7 text-xs"
-                        data-testid="input-new-leave-end-date"
+                        data-testid="input-new-leave-record-date"
                       />
                     </td>
                     <td className="py-1 pr-2">
@@ -2810,11 +2799,11 @@ export default function EmployeeDetail() {
                     </td>
                     <td className="py-1 pr-2">
                       <Input
-                        value={newLeaveUsage.reason}
-                        onChange={(e) => setNewLeaveUsage({ ...newLeaveUsage, reason: e.target.value })}
-                        placeholder="理由（任意）"
+                        value={newLeaveUsage.note}
+                        onChange={(e) => setNewLeaveUsage({ ...newLeaveUsage, note: e.target.value })}
+                        placeholder="備考（任意）"
                         className="h-7 text-xs"
-                        data-testid="input-new-leave-reason"
+                        data-testid="input-new-leave-note"
                       />
                     </td>
                     <td className="py-1 text-right">
@@ -2845,18 +2834,17 @@ export default function EmployeeDetail() {
                 {/* Existing rows */}
                 {sortedLeaveUsages.length === 0 && !showAddLeaveUsage && (
                   <tr>
-                    <td colSpan={5} className="py-4 text-center text-sm text-muted-foreground">
+                    <td colSpan={4} className="py-4 text-center text-sm text-muted-foreground">
                       有給使用履歴がありません
                     </td>
                   </tr>
                 )}
                 {sortedLeaveUsages.map((usage) => (
                   <tr key={usage.id} className="border-b" data-testid={`row-leave-usage-${usage.id}`}>
-                    <td className="py-2 tabular-nums">{usage.startDate}</td>
-                    <td className="py-2 tabular-nums">{usage.endDate}</td>
+                    <td className="py-2 tabular-nums">{usage.recordDate || usage.startDate}</td>
                     <td className="py-2 text-right tabular-nums font-medium">{Number(usage.days).toFixed(2)}日</td>
                     <td className="py-2 text-muted-foreground text-xs max-w-[180px] truncate">
-                      {usage.reason || "-"}
+                      {usage.note || "-"}
                     </td>
                     <td className="py-2 text-right">
                       <Button

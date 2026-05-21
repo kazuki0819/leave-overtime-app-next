@@ -5,7 +5,7 @@ import { db } from "../db";
 import { employees, paidLeaves, leaveUsages, leaveUsageHistory } from "../schema";
 import { eq, asc } from "drizzle-orm";
 
-const TEST_IDS = ["RECALC_01", "RECALC_02", "RECALC_03"];
+const TEST_IDS = ["RECALC_01", "RECALC_02", "RECALC_03", "RECALC_04"];
 
 describe("storage leave_usages → paid_leaves 自動再計算", () => {
   beforeEach(async () => {
@@ -31,10 +31,9 @@ describe("storage leave_usages → paid_leaves 自動再計算", () => {
 
     await storage.createLeaveUsage({
       employeeId: "RECALC_01",
-      startDate: "2026-01-10",
-      endDate: "2026-01-10",
+      recordDate: "2026-01-10",
       days: 1,
-      reason: "テスト消化",
+      note: "テスト消化",
     });
 
     const after = await db.select().from(paidLeaves)
@@ -126,5 +125,42 @@ describe("storage leave_usages → paid_leaves 自動再計算", () => {
     const activeAfter = after.find((pl) => pl.finalRemaining === null);
     expect(activeAfter).toBeDefined();
     expect(activeAfter!.currentRemaining).toBe(10);
+  });
+
+  test("createLeaveUsage が recordDate を正しくセットし、current_remaining が減る", async () => {
+    await db.insert(employees).values({
+      id: "RECALC_04",
+      name: "recordDateテスト",
+      joinDate: "2025-04-01",
+    });
+
+    await calculatePaidLeavesForEmployee("RECALC_04", { today: new Date("2026-05-17"), source: "test" });
+
+    const before = await db.select().from(paidLeaves)
+      .where(eq(paidLeaves.employeeId, "RECALC_04"))
+      .orderBy(asc(paidLeaves.cycleStartDate));
+    const activeBefore = before.find((pl) => pl.finalRemaining === null);
+    expect(activeBefore).toBeDefined();
+    const remainingBefore = activeBefore!.currentRemaining;
+
+    const created = await storage.createLeaveUsage({
+      employeeId: "RECALC_04",
+      recordDate: "2026-04-10",
+      days: 2,
+      note: "recordDate配線テスト",
+    });
+
+    expect(created.recordDate).toBe("2026-04-10");
+    expect(created.startDate).toBe("2026-04-10");
+    expect(created.endDate).toBe("2026-04-10");
+    expect(created.days).toBe(2);
+    expect(created.note).toBe("recordDate配線テスト");
+
+    const after = await db.select().from(paidLeaves)
+      .where(eq(paidLeaves.employeeId, "RECALC_04"))
+      .orderBy(asc(paidLeaves.cycleStartDate));
+    const activeAfter = after.find((pl) => pl.finalRemaining === null);
+    expect(activeAfter).toBeDefined();
+    expect(activeAfter!.currentRemaining).toBe(remainingBefore - 2);
   });
 });
