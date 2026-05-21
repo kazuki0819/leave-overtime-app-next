@@ -1,5 +1,6 @@
 import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
+import { recordDateSchema } from "./validations/leave-usage";
 
 // ── 社員テーブル ──
 export const employees = sqliteTable("employees", {
@@ -101,11 +102,18 @@ export const leaveUsages = sqliteTable("leave_usages", {
 });
 
 export const insertLeaveUsageSchema = z.object({
-  employeeId: z.string(),
-  startDate: z.string(),
-  endDate: z.string(),
-  days: z.number().optional(),
-  reason: z.string().nullable().optional(),
+  employeeId: z.string().min(1),
+  recordDate: recordDateSchema.refine(
+    (v) => {
+      const oneYearLater = new Date();
+      oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
+      const limit = oneYearLater.toISOString().slice(0, 10);
+      return v <= limit;
+    },
+    { message: "取得日は今日から1年以内で入力してください" },
+  ),
+  days: z.number().positive("日数は正の値で入力してください"),
+  note: z.string().optional(),
 });
 export type InsertLeaveUsage = z.infer<typeof insertLeaveUsageSchema>;
 export type LeaveUsage = typeof leaveUsages.$inferSelect;

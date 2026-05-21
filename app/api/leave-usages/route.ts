@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   await ensureDbInitialized();
   try {
     const body = await request.json();
-    const data = insertLeaveUsageSchema.parse(body) as any;
+    const data = insertLeaveUsageSchema.parse(body);
     const usage = await storage.createLeaveUsage(data);
     return NextResponse.json(usage, { status: 201 });
   } catch (e) {
