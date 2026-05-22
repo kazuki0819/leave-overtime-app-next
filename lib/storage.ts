@@ -385,6 +385,15 @@ export class TursoStorage implements IStorage {
       createdAt: now,
       updatedAt: now,
     }).returning();
+
+    try {
+      await recalculatePaidLeavesAfterUsageChange(plRows[0].employeeId, []);
+    } catch (error) {
+      console.error(
+        `[paid-leave-calc] recalc failed after addLeaveAdjustment. employeeId=${plRows[0].employeeId}, error=${String(error)}`
+      );
+    }
+
     return rows[0];
   }
 

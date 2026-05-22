@@ -1,7 +1,7 @@
 import { addMonths, addYears, subDays } from "date-fns";
 import { db } from "./db";
 import { paidLeaves, leaveUsages, employees } from "./schema";
-import { and, eq, gte, lte, asc, desc } from "drizzle-orm";
+import { and, eq, gte, lte, asc, desc, inArray } from "drizzle-orm";
 
 // ═══════════════════════════════════════════════════════════════
 // 純粋関数
@@ -127,7 +127,8 @@ export async function calculatePaidLeavesForEmployee(
   const isMAndA = employee.baselineDate !== null && employee.baselineRemainingDays !== null;
   const baselineDate = isMAndA ? new Date(employee.baselineDate!) : null;
 
-  const usages = await db
+  // 時効計算用: usage のみ（補正値は時効母数に含めない）
+  const usagesOnly = await db
     .select()
     .from(leaveUsages)
     .where(
@@ -135,6 +136,19 @@ export async function calculatePaidLeavesForEmployee(
         eq(leaveUsages.employeeId, employeeId),
         eq(leaveUsages.isVoided, 0),
         eq(leaveUsages.recordType, "usage")
+      )
+    )
+    .orderBy(asc(leaveUsages.recordDate));
+
+  // 残日数計算用: usage + adjustment（符号付き）
+  const usagesAndAdj = await db
+    .select()
+    .from(leaveUsages)
+    .where(
+      and(
+        eq(leaveUsages.employeeId, employeeId),
+        eq(leaveUsages.isVoided, 0),
+        inArray(leaveUsages.recordType, ["usage", "adjustment"])
       )
     )
     .orderBy(asc(leaveUsages.recordDate));
@@ -184,7 +198,7 @@ export async function calculatePaidLeavesForEmployee(
           carry = calculateCarriedOverDays(previousFinalRemaining, 0);
         } else if (cycleNumber === 3) {
           granted = calculateGrantedDays(joinDate, cycleNumber, exemptCycles.has(cycleNumber));
-          const cumulativeUsageFromMAndAStart = usages
+          const cumulativeUsageFromMAndAStart = usagesOnly
             .filter((u) => new Date(u.recordDate) >= baselineDate!)
             .reduce((sum, u) => sum + u.days, 0);
           const expired = Math.max(0, employee.baselineRemainingDays! - cumulativeUsageFromMAndAStart);
@@ -192,7 +206,7 @@ export async function calculatePaidLeavesForEmployee(
         } else {
           granted = calculateGrantedDays(joinDate, cycleNumber, exemptCycles.has(cycleNumber));
           const cumulativeUsageFromTwoBack = twoCyclesBackStart
-            ? usages
+            ? usagesOnly
                 .filter((u) => new Date(u.recordDate) >= twoCyclesBackStart!)
                 .reduce((sum, u) => sum + u.days, 0)
             : 0;
@@ -209,7 +223,7 @@ export async function calculatePaidLeavesForEmployee(
           carry = 0;
         } else {
           const cumulativeUsageFromTwoBack = twoCyclesBackStart
-            ? usages
+            ? usagesOnly
                 .filter((u) => new Date(u.recordDate) >= twoCyclesBackStart!)
                 .reduce((sum, u) => sum + u.days, 0)
             : 0;
@@ -222,7 +236,7 @@ export async function calculatePaidLeavesForEmployee(
 
       const cycleStartStr = formatISODate(cycleStart);
       const cycleEndStr = formatISODate(cycleEnd);
-      const cycleUsage = usages
+      const cycleUsage = usagesAndAdj
         .filter((u) => u.recordDate >= cycleStartStr && u.recordDate <= cycleEndStr)
         .reduce((sum, u) => sum + u.days, 0);
 
