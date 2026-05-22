@@ -60,8 +60,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import type { Employee, PaidLeave, MonthlyOvertime, EmployeeAlert, LeaveUsage, AssignmentHistory, SpecialLeave } from "@/lib/schema";
-import type { PaidLeaveExtended } from "@/lib/storage";
-import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoGrantedDays, calcAutoCarryoverDays, calcAutoExpiredDays, getCurrentCycleRange, getAllCycles, getLegalGrantDays, type CycleRange, type LeaveDeadlineInfo, type ExpiryRiskInfo, type ConsumptionPaceInfo, type CarryoverUtilInfo } from "@/lib/leave-calc";
+import type { PaidLeaveExtended, PaidLeaveCycleSummary } from "@/lib/storage";
+import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoGrantedDays, calcAutoCarryoverDays, calcAutoExpiredDays, getCurrentCycleRange, type CycleRange, type LeaveDeadlineInfo, type ExpiryRiskInfo, type ConsumptionPaceInfo, type CarryoverUtilInfo } from "@/lib/leave-calc";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { AddAdjustmentDialog } from "@/components/add-adjustment-dialog";
 import { VoidLeaveUsageDialog } from "@/components/void-leave-usage-dialog";
@@ -192,6 +192,14 @@ export default function EmployeeDetail() {
     queryKey: ["/api/leave-usages", id],
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/leave-usages?employeeId=${id}`);
+      return res.json();
+    },
+  });
+
+  const { data: cycleSummaries } = useQuery<PaidLeaveCycleSummary[]>({
+    queryKey: ["/api/paid-leaves/all", id],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/paid-leaves/${id}/all`);
       return res.json();
     },
   });
@@ -526,12 +534,38 @@ export default function EmployeeDetail() {
     return getCurrentCycleRange(employee.joinDate);
   }, [employee?.joinDate]);
 
-  const pastCycles = useMemo(() => {
-    if (!employee?.joinDate) return [];
-    const all = getAllCycles(employee.joinDate);
-    if (all.length <= 1) return [];
-    return all.slice(0, -1).reverse();
-  }, [employee?.joinDate]);
+  // DB値ベースの現在サイクル: isInProgress===true の最後の要素、なければ配列末尾をフォールバック
+  const currentCycleSummary = useMemo(() => {
+    if (!cycleSummaries || cycleSummaries.length === 0) return null;
+    const inProgress = cycleSummaries.filter((c) => c.isInProgress);
+    if (inProgress.length > 0) return inProgress[inProgress.length - 1];
+    return cycleSummaries[cycleSummaries.length - 1];
+  }, [cycleSummaries]);
+
+  // 前サイクルの補正影響(繰越ポップオーバー用)
+  const prevCycleSummary = useMemo(() => {
+    if (!cycleSummaries || !currentCycleSummary) return null;
+    const idx = cycleSummaries.indexOf(currentCycleSummary);
+    return idx > 0 ? cycleSummaries[idx - 1] : null;
+  }, [cycleSummaries, currentCycleSummary]);
+
+  // 現在サイクルの補正レコード件数(差分ノート用)
+  const currentCycleAdjCount = useMemo(() => {
+    if (!leaveUsages || !currentCycleSummary) return 0;
+    return leaveUsages.filter(
+      (u) => u.recordType === "adjustment" && !u.isVoided
+        && u.recordDate >= currentCycleSummary.cycleStartDate
+        && u.recordDate <= currentCycleSummary.cycleEndDate
+    ).length;
+  }, [leaveUsages, currentCycleSummary]);
+
+  const pastCycleSummaries = useMemo(() => {
+    if (!cycleSummaries || !currentCycleSummary) return [];
+    return cycleSummaries
+      .filter((c) => c !== currentCycleSummary)
+      .slice()
+      .reverse();
+  }, [cycleSummaries, currentCycleSummary]);
 
   // 自動計算値
   const autoGrantedDays = useMemo(() => {
@@ -1179,7 +1213,7 @@ export default function EmployeeDetail() {
       </div>
 
       {/* ═══ v24 2窓表示: 残日数サマリ ═══ */}
-      {paidLeave && !isEditing && (
+      {paidLeave && currentCycleSummary && !isEditing && (
         <>
           <div className="flex justify-between items-center mt-1 mb-3">
             <h2 className="text-[15px] font-semibold text-[var(--ink)] tracking-tight">
@@ -1187,7 +1221,7 @@ export default function EmployeeDetail() {
             </h2>
             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-[var(--accent-soft)] text-[var(--pr4-accent)] rounded-full text-[10px] font-semibold tracking-wide">
               <span className="w-[5px] h-[5px] rounded-full bg-current" />
-              進行中{currentCycle ? ` · ${currentCycle.startDate} 〜 ${currentCycle.endDate}` : ""}
+              進行中{` · ${currentCycleSummary.cycleStartDate} 〜 ${currentCycleSummary.cycleEndDate}`}
             </span>
           </div>
 
@@ -1205,25 +1239,25 @@ export default function EmployeeDetail() {
               </div>
               <div className="flex items-baseline gap-3 flex-wrap my-4">
                 <span className="text-[56px] font-semibold leading-[0.9] tracking-tighter text-[var(--ink)]">
-                  {paidLeave.adjustedRemainingDays.toFixed(1)}
+                  {currentCycleSummary.adjustedRemaining.toFixed(1)}
                 </span>
                 <span className="text-[13px] font-normal text-[var(--ink-50)]">日</span>
-                {adjustmentTotal !== 0 && (
+                {currentCycleSummary.adjustmentDays !== 0 && (
                   <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--pr4-accent)] bg-[var(--accent-soft)] px-2 py-[3px] rounded self-center">
-                    {adjustmentTotal < 0 ? "+" : ""}
-                    {(-adjustmentTotal).toFixed(1)} 補正
+                    {currentCycleSummary.adjustmentDays < 0 ? "+" : ""}
+                    {(-currentCycleSummary.adjustmentDays).toFixed(1)} 補正
                   </span>
                 )}
               </div>
               <div className="pt-3 border-t border-[var(--pr4-border)] text-xs">
                 <div className="flex justify-between py-1 text-[var(--ink-70)]">
                   <span>付与日数</span>
-                  <span className="font-mono font-medium text-[var(--ink)]">+{Number(paidLeave.grantedDays).toFixed(1)}</span>
+                  <span className="font-mono font-medium text-[var(--ink)]">+{Number(currentCycleSummary.grantedDays).toFixed(1)}</span>
                 </div>
                 <div className="flex justify-between py-1 text-[var(--ink-70)]">
                   <span className="flex items-center gap-1">
                     繰越日数
-                    {paidLeave.carriedOverBreakdown && paidLeave.carriedOverBreakdown.adjustmentDerived !== 0 && (
+                    {prevCycleSummary && (prevCycleSummary.adjustedRemaining - prevCycleSummary.autoRemaining) !== 0 && (
                       <Popover>
                         <PopoverTrigger asChild>
                           <button
@@ -1242,12 +1276,12 @@ export default function EmployeeDetail() {
                           <div className="font-semibold text-[var(--surface)] mb-1.5 pb-1.5 border-b border-white/15 text-[11px]">繰越日数の内訳</div>
                           <div className="flex justify-between py-0.5 text-white/70">
                             <span>自動計算分</span>
-                            <span className="font-mono font-medium text-[var(--surface)]">{paidLeave.carriedOverBreakdown.auto.toFixed(1)}</span>
+                            <span className="font-mono font-medium text-[var(--surface)]">{currentCycleSummary.carriedOverDays.toFixed(1)}</span>
                           </div>
                           <div className="flex justify-between py-0.5 text-white/70">
                             <span>補正値由来分</span>
                             <span className="font-mono font-semibold text-[#5eead4]">
-                              {paidLeave.carriedOverBreakdown.adjustmentDerived >= 0 ? "+" : ""}{paidLeave.carriedOverBreakdown.adjustmentDerived.toFixed(1)}
+                              {(prevCycleSummary.adjustedRemaining - prevCycleSummary.autoRemaining) >= 0 ? "+" : ""}{(prevCycleSummary.adjustedRemaining - prevCycleSummary.autoRemaining).toFixed(1)}
                             </span>
                           </div>
                           <div className="text-[10px] text-white/55 mt-1.5 pt-1.5 border-t border-white/10 italic">
@@ -1257,16 +1291,16 @@ export default function EmployeeDetail() {
                       </Popover>
                     )}
                   </span>
-                  <span className="font-mono font-medium text-[var(--ink)]">+{Number(paidLeave.carriedOverDays).toFixed(1)}</span>
+                  <span className="font-mono font-medium text-[var(--ink)]">+{Number(currentCycleSummary.carriedOverDays).toFixed(1)}</span>
                 </div>
                 <div className="flex justify-between py-1 text-[var(--ink-70)]">
                   <span>消化日数（取得）</span>
-                  <span className="font-mono font-medium text-[var(--ink)]">−{Number(paidLeave.consumedDays).toFixed(1)}</span>
+                  <span className="font-mono font-medium text-[var(--ink)]">−{Number(currentCycleSummary.usageOnlyDays).toFixed(1)}</span>
                 </div>
-                {adjustmentTotal !== 0 && (
+                {currentCycleSummary.adjustmentDays !== 0 && (
                   <div className="flex justify-between py-1 text-[var(--pr4-accent)] font-semibold">
                     <span>補正値合計（増減）</span>
-                    <span className="font-mono">{adjustmentTotal < 0 ? "+" : ""}{(-adjustmentTotal).toFixed(1)}</span>
+                    <span className="font-mono">{currentCycleSummary.adjustmentDays < 0 ? "+" : ""}{(-currentCycleSummary.adjustmentDays).toFixed(1)}</span>
                   </div>
                 )}
               </div>
@@ -1285,22 +1319,22 @@ export default function EmployeeDetail() {
               </div>
               <div className="flex items-baseline gap-3 flex-wrap my-4">
                 <span className="text-[42px] font-medium leading-[0.9] tracking-tighter text-[var(--ink-50)]">
-                  {paidLeave.autoRemainingDays.toFixed(1)}
+                  {currentCycleSummary.autoRemaining.toFixed(1)}
                 </span>
                 <span className="text-[13px] font-normal text-[var(--ink-50)]">日</span>
               </div>
               <div className="pt-3 border-t border-[var(--pr4-border)] text-xs">
                 <div className="flex justify-between py-1 text-[var(--ink-70)]">
                   <span>付与日数</span>
-                  <span className="font-mono font-medium text-[var(--ink)]">+{Number(paidLeave.grantedDays).toFixed(1)}</span>
+                  <span className="font-mono font-medium text-[var(--ink)]">+{Number(currentCycleSummary.grantedDays).toFixed(1)}</span>
                 </div>
                 <div className="flex justify-between py-1 text-[var(--ink-70)]">
                   <span>繰越日数（自動計算分のみ）</span>
-                  <span className="font-mono font-medium text-[var(--ink)]">+{Number(paidLeave.carriedOverDays).toFixed(1)}</span>
+                  <span className="font-mono font-medium text-[var(--ink)]">+{Number(currentCycleSummary.carriedOverDays).toFixed(1)}</span>
                 </div>
                 <div className="flex justify-between py-1 text-[var(--ink-70)]">
                   <span>消化日数（取得）</span>
-                  <span className="font-mono font-medium text-[var(--ink)]">−{Number(paidLeave.consumedDays).toFixed(1)}</span>
+                  <span className="font-mono font-medium text-[var(--ink)]">−{Number(currentCycleSummary.usageOnlyDays).toFixed(1)}</span>
                 </div>
                 <div className="flex justify-between py-1 text-[var(--ink-70)]">
                   <span>補正値の反映</span>
@@ -1311,14 +1345,17 @@ export default function EmployeeDetail() {
           </div>
 
           {/* 2窓の差分説明ノート */}
-          {adjustmentTotal !== 0 && (
-            <div className="flex gap-3 items-start bg-[var(--accent-soft)] border border-[var(--pr4-accent)]/12 border-l-[3px] border-l-[var(--pr4-accent)] rounded-md px-4 py-3 mb-5">
-              <span className="w-[18px] h-[18px] rounded-full bg-[var(--pr4-accent)] text-white inline-flex items-center justify-center text-[11px] font-bold shrink-0 mt-0.5">i</span>
-              <p className="text-xs leading-relaxed text-[var(--ink-70)]">
-                二窓の差分 <strong className="font-semibold text-[var(--pr4-accent)]">{adjustmentTotal < 0 ? "+" : ""}{(-adjustmentTotal).toFixed(1)}日</strong> は、現在アクティブな補正値（{activeAdjustmentCount}件）が残日数に与えている影響です。過渡的補正値の場合、過去履歴の入力が進めば自動計算窓と一致していき、担当者の判断で解除できます。
-              </p>
-            </div>
-          )}
+          {(() => {
+            const twoWindowDiff = currentCycleSummary.adjustedRemaining - currentCycleSummary.autoRemaining;
+            return twoWindowDiff !== 0 ? (
+              <div className="flex gap-3 items-start bg-[var(--accent-soft)] border border-[var(--pr4-accent)]/12 border-l-[3px] border-l-[var(--pr4-accent)] rounded-md px-4 py-3 mb-5">
+                <span className="w-[18px] h-[18px] rounded-full bg-[var(--pr4-accent)] text-white inline-flex items-center justify-center text-[11px] font-bold shrink-0 mt-0.5">i</span>
+                <p className="text-xs leading-relaxed text-[var(--ink-70)]">
+                  補正反映済みと自動計算の差は <strong className="font-semibold text-[var(--pr4-accent)]">{twoWindowDiff >= 0 ? "+" : ""}{twoWindowDiff.toFixed(1)}日</strong> です（補正値{currentCycleAdjCount}件）。過渡的補正値の場合、過去履歴の入力が進めば両窓が一致していき、担当者の判断で解除できます。
+                </p>
+              </div>
+            ) : null;
+          })()}
 
           {/* 5日義務・期限・健全性は既存ロジックを維持 */}
           <div className="mb-5 bg-[var(--surface)] border border-[var(--pr4-border)] rounded-[10px] p-5 shadow-xs">
@@ -1920,40 +1957,30 @@ export default function EmployeeDetail() {
       )}
 
       {/* ═══ 過去サイクル ═══ */}
-      {paidLeave && !isEditing && pastCycles.length > 0 && (
+      {paidLeave && !isEditing && pastCycleSummaries.length > 0 && (
         <div className="mb-5">
           <div className="flex justify-between items-center mb-3">
             <h2 className="text-[15px] font-semibold text-[var(--ink)] tracking-tight">過去サイクル</h2>
-            <span className="text-[11px] text-[var(--ink-50)] font-mono">過去{pastCycles.length}サイクル表示中</span>
+            <span className="text-[11px] text-[var(--ink-50)] font-mono">過去{pastCycleSummaries.length}サイクル表示中</span>
           </div>
           <div className="space-y-2">
-            {pastCycles.map((cycle, idx) => {
+            {pastCycleSummaries.map((cycle, idx) => {
               const cycleLabel = idx === 0 ? "前サイクル" : `${idx + 1}サイクル前`;
               const cycleUsages = (leaveUsages ?? []).filter((u) => {
                 const d = u.recordDate || u.startDate;
-                return d >= cycle.startDate && d < cycle.endDate;
+                return d >= cycle.cycleStartDate && d <= cycle.cycleEndDate;
               });
-              const cycleUsageOnly = cycleUsages.filter((u) => u.recordType === "usage" && !u.isVoided);
-              const cycleAdjustments = cycleUsages.filter((u) => u.recordType === "adjustment" && !u.isVoided);
-              const cycleConsumed = cycleUsageOnly.reduce((s, u) => s + u.days, 0);
-              const cycleAdjTotal = cycleAdjustments.reduce((s, u) => s + u.days, 0);
-              const cycleAdjDisplayTotal = -cycleAdjTotal;
+              const adjDisplayTotal = -cycle.adjustmentDays;
+              const twoWindowDiff = cycle.adjustedRemaining - cycle.autoRemaining;
 
-              const tenureAtCycle = (() => {
-                if (!employee?.joinDate) return 0;
-                const join = new Date(employee.joinDate);
-                const start = new Date(cycle.startDate);
-                return (start.getTime() - join.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-              })();
-              const cycleGranted = getLegalGrantDays(tenureAtCycle);
-              const cycleCarryover = 0;
-              const cycleTotal = cycleGranted + cycleCarryover;
-              const cycleEndRemaining = Math.max(0, cycleTotal - cycleConsumed + cycleAdjDisplayTotal);
+              const nextCycleSummary = cycleSummaries
+                ? cycleSummaries[cycleSummaries.indexOf(cycle) + 1] ?? null
+                : null;
 
               const isOpen = pastCycleOpenMap[idx] ?? false;
               return (
                 <Collapsible
-                  key={cycle.index}
+                  key={`${cycle.cycleStartDate}`}
                   open={isOpen}
                   onOpenChange={(v) => setPastCycleOpenMap((prev) => ({ ...prev, [idx]: v }))}
                 >
@@ -1961,68 +1988,144 @@ export default function EmployeeDetail() {
                         <ChevronDown className={`h-3.5 w-3.5 text-[var(--ink-50)] transition-transform shrink-0 ${isOpen ? "rotate-0" : "-rotate-90"}`} />
                         <div className="flex-1 min-w-0">
                           <div className="text-[13px] font-semibold text-[var(--ink)]">{cycleLabel}</div>
-                          <div className="text-[11px] text-[var(--ink-50)] font-mono">{cycle.startDate} 〜 {cycle.endDate}</div>
+                          <div className="text-[11px] text-[var(--ink-50)] font-mono">{cycle.cycleStartDate} 〜 {cycle.cycleEndDate}</div>
                         </div>
                         <div className="flex items-center gap-5 shrink-0">
                           <div className="text-right">
                             <div className="text-[10px] text-[var(--ink-50)]">付与</div>
-                            <div className="text-[13px] font-semibold tabular-nums text-[var(--ink)]">{cycleGranted.toFixed(1)}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">日</span></div>
+                            <div className="text-[13px] font-semibold tabular-nums text-[var(--ink)]">{cycle.grantedDays.toFixed(1)}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">日</span></div>
                           </div>
                           <div className="text-right">
                             <div className="text-[10px] text-[var(--ink-50)]">補正値合計</div>
-                            <div className={`text-[13px] font-semibold tabular-nums ${cycleAdjTotal !== 0 ? "text-[var(--pr4-accent)]" : "text-[var(--ink-35)]"}`}>
-                              {cycleAdjTotal !== 0 ? `${cycleAdjDisplayTotal >= 0 ? "+" : ""}${cycleAdjDisplayTotal.toFixed(1)}` : "─"}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">{cycleAdjTotal !== 0 ? "日" : ""}</span>
+                            <div className={`text-[13px] font-semibold tabular-nums ${cycle.adjustmentDays !== 0 ? "text-[var(--pr4-accent)]" : "text-[var(--ink-35)]"}`}>
+                              {cycle.adjustmentDays !== 0 ? `${adjDisplayTotal >= 0 ? "+" : ""}${adjDisplayTotal.toFixed(1)}` : "─"}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">{cycle.adjustmentDays !== 0 ? "日" : ""}</span>
                             </div>
                           </div>
                           <div className="text-right">
                             <div className="text-[10px] text-[var(--ink-50)]">サイクル末残</div>
-                            <div className="text-[13px] font-semibold tabular-nums text-[var(--ink)]">{cycleEndRemaining.toFixed(1)}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">日</span></div>
+                            <div className="text-[13px] font-semibold tabular-nums text-[var(--ink)]">{cycle.adjustedRemaining.toFixed(1)}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">日</span></div>
                           </div>
                         </div>
                       </CollapsibleTrigger>
                       <CollapsibleContent>
                         <div className="bg-[var(--surface)] border border-t-0 border-[var(--pr4-border)] rounded-b-[10px] -mt-[1px] px-5 py-4">
+                          {/* 二窓表示: 補正反映済み / 自動計算のみ */}
+                          <div className="grid grid-cols-2 gap-3 mb-4">
+                            {/* PRIMARY: 補正反映済み */}
+                            <div className="bg-[var(--surface)] border-2 border-[var(--pr4-accent)]/30 rounded-lg p-4">
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <span className="w-[6px] h-[6px] rounded-full bg-[var(--pr4-accent)]" />
+                                <span className="text-[10px] font-semibold text-[var(--pr4-accent)] tracking-wide uppercase">補正反映済み</span>
+                              </div>
+                              <div className="flex items-baseline gap-2 mb-3">
+                                <span className="text-[32px] font-semibold leading-[0.9] tracking-tighter text-[var(--ink)]">
+                                  {cycle.adjustedRemaining.toFixed(1)}
+                                </span>
+                                <span className="text-[11px] text-[var(--ink-50)]">日</span>
+                                {cycle.adjustmentDays !== 0 && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--pr4-accent)] bg-[var(--accent-soft)] px-1.5 py-[2px] rounded">
+                                    {adjDisplayTotal >= 0 ? "+" : ""}{adjDisplayTotal.toFixed(1)} 補正
+                                  </span>
+                                )}
+                              </div>
+                              <div className="pt-2 border-t border-[var(--pr4-border)] text-[11px] space-y-1">
+                                <div className="flex justify-between text-[var(--ink-70)]">
+                                  <span>付与</span>
+                                  <span className="font-mono font-medium text-[var(--ink)]">+{cycle.grantedDays.toFixed(1)}</span>
+                                </div>
+                                <div className="flex justify-between text-[var(--ink-70)]">
+                                  <span>繰越</span>
+                                  <span className="font-mono font-medium text-[var(--ink)]">+{cycle.carriedOverDays.toFixed(1)}</span>
+                                </div>
+                                <div className="flex justify-between text-[var(--ink-70)]">
+                                  <span>消化（取得）</span>
+                                  <span className="font-mono font-medium text-[var(--ink)]">−{cycle.usageOnlyDays.toFixed(1)}</span>
+                                </div>
+                                {cycle.adjustmentDays !== 0 && (
+                                  <div className="flex justify-between text-[var(--pr4-accent)] font-semibold">
+                                    <span>補正値合計</span>
+                                    <span className="font-mono">{adjDisplayTotal >= 0 ? "+" : ""}{adjDisplayTotal.toFixed(1)}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            {/* REFERENCE: 自動計算のみ */}
+                            <div className="bg-[var(--surface-2)] border border-[var(--pr4-border)] rounded-lg p-4">
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <span className="w-[6px] h-[6px] rounded-full bg-[var(--ink-35)]" />
+                                <span className="text-[10px] font-semibold text-[var(--ink-50)] tracking-wide uppercase">自動計算のみ</span>
+                              </div>
+                              <div className="flex items-baseline gap-2 mb-3">
+                                <span className="text-[28px] font-medium leading-[0.9] tracking-tighter text-[var(--ink-50)]">
+                                  {cycle.autoRemaining.toFixed(1)}
+                                </span>
+                                <span className="text-[11px] text-[var(--ink-50)]">日</span>
+                              </div>
+                              <div className="pt-2 border-t border-[var(--pr4-border)] text-[11px] space-y-1">
+                                <div className="flex justify-between text-[var(--ink-70)]">
+                                  <span>付与</span>
+                                  <span className="font-mono font-medium text-[var(--ink)]">+{cycle.grantedDays.toFixed(1)}</span>
+                                </div>
+                                <div className="flex justify-between text-[var(--ink-70)]">
+                                  <span>繰越</span>
+                                  <span className="font-mono font-medium text-[var(--ink)]">+{cycle.carriedOverDays.toFixed(1)}</span>
+                                </div>
+                                <div className="flex justify-between text-[var(--ink-70)]">
+                                  <span>消化（取得）</span>
+                                  <span className="font-mono font-medium text-[var(--ink)]">−{cycle.usageOnlyDays.toFixed(1)}</span>
+                                </div>
+                                <div className="flex justify-between text-[var(--ink-70)]">
+                                  <span>補正値の反映</span>
+                                  <span className="font-mono font-medium text-[var(--ink-50)]">なし</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          {/* 二窓の差分ノート */}
+                          {twoWindowDiff !== 0 && (
+                            <div className="flex gap-2.5 items-start bg-[var(--accent-soft)] border border-[var(--pr4-accent)]/12 border-l-[3px] border-l-[var(--pr4-accent)] rounded-md px-3 py-2.5 mb-4">
+                              <span className="w-[16px] h-[16px] rounded-full bg-[var(--pr4-accent)] text-white inline-flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">i</span>
+                              <p className="text-[11px] leading-relaxed text-[var(--ink-70)]">
+                                補正反映済みと自動計算の差は <strong className="font-semibold text-[var(--pr4-accent)]">{twoWindowDiff >= 0 ? "+" : ""}{twoWindowDiff.toFixed(1)}日</strong> です
+                              </p>
+                            </div>
+                          )}
                           {/* サイクル全体サマリ */}
                           <div className="bg-[var(--surface-2)] border border-[var(--pr4-border)] rounded-md p-4 mb-4">
                             <div className="flex justify-between items-center mb-3">
                               <span className="text-xs font-semibold text-[var(--ink)]">サイクル全体サマリ</span>
-                              {cycleAdjustments.length > 0 && (
-                                <span className="text-[10px] text-[var(--pr4-accent)] font-semibold bg-[var(--accent-soft)] px-2 py-0.5 rounded-full">
-                                  補正値{cycleAdjustments.length}件 · 次サイクル繰越に反映
-                                </span>
-                              )}
                             </div>
                             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                               <div className="text-center">
                                 <div className="text-[10px] text-[var(--ink-50)]">付与日数</div>
-                                <div className="text-sm font-semibold tabular-nums text-[var(--ink)]">{cycleGranted.toFixed(1)}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">日</span></div>
+                                <div className="text-sm font-semibold tabular-nums text-[var(--ink)]">{cycle.grantedDays.toFixed(1)}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">日</span></div>
                               </div>
                               <div className="text-center">
                                 <div className="text-[10px] text-[var(--ink-50)]">繰越日数</div>
-                                <div className="text-sm font-semibold tabular-nums text-[var(--ink)]">{cycleCarryover.toFixed(1)}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">日</span></div>
+                                <div className="text-sm font-semibold tabular-nums text-[var(--ink)]">{cycle.carriedOverDays.toFixed(1)}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">日</span></div>
                               </div>
                               <div className="text-center">
                                 <div className="text-[10px] text-[var(--ink-50)]">合計</div>
-                                <div className="text-sm font-semibold tabular-nums text-[var(--ink)]">{cycleTotal.toFixed(1)}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">日</span></div>
+                                <div className="text-sm font-semibold tabular-nums text-[var(--ink)]">{cycle.baselineRemaining.toFixed(1)}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">日</span></div>
                               </div>
                               <div className="text-center">
                                 <div className="text-[10px] text-[var(--ink-50)]">使用日数</div>
-                                <div className="text-sm font-semibold tabular-nums text-[var(--ink)]">{cycleConsumed.toFixed(1)}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">日</span></div>
+                                <div className="text-sm font-semibold tabular-nums text-[var(--ink)]">{cycle.usageOnlyDays.toFixed(1)}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">日</span></div>
                               </div>
                               <div className="text-center bg-[var(--accent-soft)] rounded p-1">
                                 <div className="text-[10px] text-[var(--pr4-accent)]">補正値合計</div>
                                 <div className="text-sm font-semibold tabular-nums text-[var(--pr4-accent)]">
-                                  {cycleAdjTotal !== 0 ? `${cycleAdjDisplayTotal >= 0 ? "+" : ""}${cycleAdjDisplayTotal.toFixed(1)}` : "─"}<span className="text-[10px] font-normal ml-0.5">{cycleAdjTotal !== 0 ? "日" : ""}</span>
+                                  {cycle.adjustmentDays !== 0 ? `${adjDisplayTotal >= 0 ? "+" : ""}${adjDisplayTotal.toFixed(1)}` : "─"}<span className="text-[10px] font-normal ml-0.5">{cycle.adjustmentDays !== 0 ? "日" : ""}</span>
                                 </div>
                               </div>
                               <div className="text-center bg-[var(--accent-soft)] rounded p-1">
                                 <div className="text-[10px] text-[var(--pr4-accent)]">次サイクル繰越</div>
-                                <div className="text-sm font-semibold tabular-nums text-[var(--pr4-accent)]">{cycleEndRemaining.toFixed(1)}<span className="text-[10px] font-normal ml-0.5">日</span></div>
+                                <div className="text-sm font-semibold tabular-nums text-[var(--pr4-accent)]">{nextCycleSummary ? nextCycleSummary.carriedOverDays.toFixed(1) : "─"}<span className="text-[10px] font-normal ml-0.5">{nextCycleSummary ? "日" : ""}</span></div>
                               </div>
                             </div>
-                            {cycleAdjustments.length > 0 && (
+                            {twoWindowDiff !== 0 && nextCycleSummary && (
                               <div className="mt-3 pt-3 border-t border-[var(--pr4-border)] text-[11px] text-[var(--ink-70)] leading-relaxed">
-                                <strong>次サイクル繰越 {cycleEndRemaining.toFixed(1)}日</strong> のうち、補正値由来分は <strong className="text-[var(--pr4-accent)]">{cycleAdjDisplayTotal >= 0 ? "+" : ""}{cycleAdjDisplayTotal.toFixed(1)}日</strong> です。
+                                次サイクル繰越 <strong>{nextCycleSummary.carriedOverDays.toFixed(1)}日</strong>。このサイクルの補正反映済みと自動計算の差は <strong className="text-[var(--pr4-accent)]">{twoWindowDiff >= 0 ? "+" : ""}{twoWindowDiff.toFixed(1)}日</strong> でした。
                               </div>
                             )}
                           </div>

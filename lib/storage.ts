@@ -14,7 +14,7 @@ import { adjustmentDaysSchema, reasonSchema, voidLeaveUsageSchema } from "./vali
 import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoExpiredDays, calcConsumedDaysFromUsages, calcRemainingDays, calcUsageRate } from "./leave-calc";
 import { recalculatePaidLeavesAfterUsageChange } from "./paid-leave-calc";
 import { db, client } from "./db";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { eq, and, sql, desc, asc } from "drizzle-orm";
 
 // PR-1: getPaidLeaveByEmployee の拡張戻り値型
 export interface PaidLeaveExtended extends PaidLeave {
@@ -27,6 +27,14 @@ export interface PaidLeaveExtended extends PaidLeave {
     auto: number;
     adjustmentDerived: number;
   };
+}
+
+export interface PaidLeaveCycleSummary extends PaidLeave {
+  adjustedRemaining: number;
+  autoRemaining: number;
+  usageOnlyDays: number;
+  adjustmentDays: number;
+  isInProgress: boolean;
 }
 
 export interface IStorage {
@@ -45,6 +53,7 @@ export interface IStorage {
   getCurrentAssignment(employeeId: string): Promise<string>;
   getPaidLeaves(): Promise<PaidLeave[]>;
   getPaidLeaveByEmployee(employeeId: string): Promise<PaidLeaveExtended | undefined>;
+  getPaidLeavesByEmployee(employeeId: string): Promise<PaidLeaveCycleSummary[]>;
   upsertPaidLeave(leave: InsertPaidLeave): Promise<PaidLeave>;
   getLeaveUsages(employeeId?: string): Promise<LeaveUsage[]>;
   createLeaveUsage(usage: InsertLeaveUsage): Promise<LeaveUsage>;
@@ -266,6 +275,51 @@ export class TursoStorage implements IStorage {
         adjustmentDerived: -adjustmentTotal,
       },
     };
+  }
+
+  async getPaidLeavesByEmployee(employeeId: string): Promise<PaidLeaveCycleSummary[]> {
+    const cycles = await db.select().from(paidLeaves)
+      .where(eq(paidLeaves.employeeId, employeeId))
+      .orderBy(asc(paidLeaves.cycleStartDate));
+
+    if (cycles.length === 0) return [];
+
+    const usageRows = await db.select().from(leaveUsages)
+      .where(and(
+        eq(leaveUsages.employeeId, employeeId),
+        eq(leaveUsages.isVoided, 0),
+        eq(leaveUsages.recordType, "usage"),
+      ));
+
+    const adjRows = await db.select().from(leaveUsages)
+      .where(and(
+        eq(leaveUsages.employeeId, employeeId),
+        eq(leaveUsages.isVoided, 0),
+        eq(leaveUsages.recordType, "adjustment"),
+      ));
+
+    return cycles.map((cycle) => {
+      const usageOnlyDays = usageRows
+        .filter((u) => u.recordDate >= cycle.cycleStartDate && u.recordDate <= cycle.cycleEndDate)
+        .reduce((sum, u) => sum + u.days, 0);
+
+      const adjustmentDays = adjRows
+        .filter((u) => u.recordDate >= cycle.cycleStartDate && u.recordDate <= cycle.cycleEndDate)
+        .reduce((sum, u) => sum + u.days, 0);
+
+      const isInProgress = cycle.finalRemaining === null;
+      const adjustedRemaining = cycle.finalRemaining ?? cycle.currentRemaining;
+      const autoRemaining = Math.max(0, cycle.baselineRemaining - usageOnlyDays);
+
+      return {
+        ...cycle,
+        adjustedRemaining,
+        autoRemaining,
+        usageOnlyDays,
+        adjustmentDays,
+        isInProgress,
+      };
+    });
   }
 
   /**
