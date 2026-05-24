@@ -26,6 +26,7 @@ import {
   Plus,
   Check,
   Trash2,
+  Ban,
   Building2,
   UserX,
   UserCheck,
@@ -2143,13 +2144,14 @@ export default function EmployeeDetail() {
                                   <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "14%" }}>種別</th>
                                   <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "12%" }}>日数</th>
                                   <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]">理由</th>
-                                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "12%" }}>状態</th>
+                                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "10%" }}>状態</th>
+                                  <th className="text-right px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "10%" }}>操作</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {cycleUsages.length === 0 && (
                                   <tr>
-                                    <td colSpan={5} className="px-4 py-6 text-center text-xs text-[var(--ink-50)] italic">
+                                    <td colSpan={6} className="px-4 py-6 text-center text-xs text-[var(--ink-50)] italic">
                                       このサイクルの履歴はありません
                                     </td>
                                   </tr>
@@ -2190,6 +2192,31 @@ export default function EmployeeDetail() {
                                       </td>
                                       <td className="px-4 py-2.5">
                                         {isVoided ? <Badge variant="voided" className="text-[10px]">解除済</Badge> : <Badge variant="neut" className="text-[10px]">有効</Badge>}
+                                      </td>
+                                      <td className="px-4 py-2.5 text-right">
+                                        <div className="flex items-center justify-end gap-1">
+                                          {!isVoided && (
+                                            <Button
+                                              size="icon"
+                                              variant="ghost"
+                                              className="h-6 w-6 text-[var(--ink-50)] hover:text-amber-600 hover:bg-amber-50"
+                                              title="解除（論理削除）"
+                                              onClick={() => { setVoidTarget(u); setVoidDialogOpen(true); }}
+                                            >
+                                              <Ban className="h-3 w-3" />
+                                            </Button>
+                                          )}
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-6 w-6 text-[var(--ink-50)] hover:text-red-600 hover:bg-red-50"
+                                            title="削除"
+                                            disabled={deleteLeaveUsageMutation.isPending}
+                                            onClick={() => handleDeleteLeaveUsage(u.id)}
+                                          >
+                                            <Trash2 className="h-3 w-3" />
+                                          </Button>
+                                        </div>
                                       </td>
                                     </tr>
                                   );
