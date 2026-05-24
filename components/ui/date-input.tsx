@@ -9,11 +9,13 @@ import { cn } from "@/lib/utils";
  * Props:
  *  - value: "YYYY-MM-DD" 形式の文字列（API互換）
  *  - onChange: "YYYY-MM-DD" 形式で返す
+ *  - enableWareki: true にすると和暦入力(R4.7.19等)を西暦に自動変換
  *  - className / data-testid 等、Input と同様に使える
  */
 interface DateInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange" | "type"> {
   value: string;
   onChange: (value: string) => void;
+  enableWareki?: boolean;
 }
 
 // YYYY-MM-DD → YYYY/MM/DD
@@ -39,8 +41,27 @@ function formatInput(raw: string): string {
   return result;
 }
 
+const WAREKI_OFFSETS: Record<string, number> = { r: 2018, h: 1988, s: 1925 };
+const WAREKI_RE = /^([RHSrhs])(\d{1,2})[./\-年](\d{1,2})[./\-月](\d{1,2})[日]?$/;
+
+export function parseWareki(raw: string): string | null {
+  const trimmed = raw.trim();
+  const m = WAREKI_RE.exec(trimmed);
+  if (!m) return null;
+  const offset = WAREKI_OFFSETS[m[1].toLowerCase()];
+  if (offset === undefined) return null;
+  const year = offset + Number(m[2]);
+  const month = Number(m[3]);
+  const day = Number(m[4]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const iso = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const d = new Date(iso);
+  if (isNaN(d.getTime()) || d.getMonth() + 1 !== month || d.getDate() !== day) return null;
+  return iso;
+}
+
 export const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
-  ({ value, onChange, className, ...props }, ref) => {
+  ({ value, onChange, enableWareki, className, ...props }, ref) => {
     const [display, setDisplay] = React.useState(() => toDisplay(value));
 
     // 外部 value が変わったら表示も更新（ただし入力中は上書きしない）
@@ -52,14 +73,25 @@ export const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
       }
     }, [value]);
 
+    const startsWithEra = (s: string) => /^[RHSrhs]/.test(s);
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const formatted = formatInput(e.target.value);
+      const raw = e.target.value;
+
+      if (enableWareki && startsWithEra(raw)) {
+        setDisplay(raw);
+        const iso = parseWareki(raw);
+        if (iso) {
+          onChange(iso);
+        }
+        return;
+      }
+
+      const formatted = formatInput(raw);
       setDisplay(formatted);
 
-      // 完全な日付（YYYY/MM/DD = 10文字）になったら onChange を発火
       if (formatted.length === 10) {
         const iso = toISO(formatted);
-        // 簡易バリデーション
         const d = new Date(iso);
         if (!isNaN(d.getTime())) {
           onChange(iso);
@@ -70,7 +102,15 @@ export const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
     };
 
     const handleBlur = () => {
-      // フォーカスを外したとき、不完全な入力なら元の値に戻す
+      if (enableWareki && startsWithEra(display)) {
+        const iso = parseWareki(display);
+        if (iso) {
+          setDisplay(toDisplay(iso));
+        } else {
+          setDisplay(toDisplay(value));
+        }
+        return;
+      }
       if (display.length > 0 && display.length < 10) {
         setDisplay(toDisplay(value));
       }
@@ -84,9 +124,9 @@ export const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
           else if (ref) (ref as React.MutableRefObject<HTMLInputElement | null>).current = el;
         }}
         type="text"
-        inputMode="numeric"
-        placeholder="YYYY/MM/DD"
-        maxLength={10}
+        inputMode={enableWareki ? undefined : "numeric"}
+        placeholder={enableWareki ? "YYYY/MM/DD or R6.5.24" : "YYYY/MM/DD"}
+        maxLength={enableWareki ? 15 : 10}
         value={display}
         onChange={handleChange}
         onBlur={handleBlur}
