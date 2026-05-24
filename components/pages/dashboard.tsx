@@ -93,19 +93,17 @@ export default function Dashboard() {
       ? withLeave.reduce((s, e) => s + (e.paidLeave?.usageRate ?? 0), 0) / withLeave.length
       : 0;
     const fiveDayFailing = withLeave.filter(e => (e.paidLeave?.consumedDays ?? 0) < 5).length;
+    const avgConsumedDays = withLeave.length > 0
+      ? withLeave.reduce((s, e) => s + (e.paidLeave?.consumedDays ?? 0), 0) / withLeave.length
+      : 0;
 
-    const totalAdjustedRemaining = withLeave.reduce((s, e) => s + (e.paidLeave?.adjustedRemainingDays ?? 0), 0);
-    const totalAutoRemaining = withLeave.reduce((s, e) => s + (e.paidLeave?.autoRemainingDays ?? 0), 0);
-    const adjustmentDelta = totalAdjustedRemaining - totalAutoRemaining;
     const totalActiveAdjustments = withLeave.reduce((s, e) => s + (e.paidLeave?.activeAdjustmentCount ?? 0), 0);
 
     return {
       totalEmployees: summaries.length,
       avgUsageRate,
+      avgConsumedDays,
       fiveDayFailing,
-      totalAdjustedRemaining,
-      totalAutoRemaining,
-      adjustmentDelta,
       totalActiveAdjustments,
       leaveDanger: summaries.filter(e => e.leaveDangerCount > 0).length,
       leaveWarning: summaries.filter(e => e.leaveWarningCount > 0 && e.leaveDangerCount === 0).length,
@@ -249,45 +247,30 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* 全社合計 2窓表示 */}
+      {/* 全社平均 2窓表示 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <div className="bg-[var(--surface)] border border-[var(--ink)] rounded-[10px] p-4 shadow-md">
-          <div className="flex justify-between items-center mb-2">
-            <div>
-              <div className="text-sm font-semibold text-[var(--ink)]">全社合計 — 補正計算（実残日数）</div>
-              <div className="text-[11px] text-[var(--ink-50)] mt-0.5">補正値を反映した実運用値</div>
-            </div>
-            <span className="inline-flex items-center gap-[5px] text-[10px] font-semibold px-2 py-[3px] rounded bg-[var(--ink)] text-[var(--surface)] tracking-wide">
-              <span className="w-[5px] h-[5px] rounded-full bg-current" />PRIMARY
-            </span>
+          <div className="mb-2">
+            <div className="text-sm font-semibold text-[var(--ink)]">平均取得日数</div>
+            <div className="text-[11px] text-[var(--ink-50)] mt-0.5">在籍社員の現サイクル消化日数の平均</div>
           </div>
           <div className="flex items-baseline gap-2 my-3">
             <span className="text-[42px] font-semibold leading-[0.9] tracking-tighter text-[var(--ink)]">
-              {stats.totalAdjustedRemaining.toFixed(1)}
+              {stats.avgConsumedDays.toFixed(1)}
             </span>
             <span className="text-[13px] font-normal text-[var(--ink-50)]">日</span>
-            {stats.adjustmentDelta !== 0 && (
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--pr4-accent)] bg-[var(--accent-soft)] px-2 py-[3px] rounded">
-                {stats.adjustmentDelta > 0 ? "+" : ""}{stats.adjustmentDelta.toFixed(1)} 補正影響
-              </span>
-            )}
           </div>
         </div>
-        <div className="bg-[var(--surface-2)] border border-dashed border-[var(--pr4-border)] rounded-[10px] p-4">
-          <div className="flex justify-between items-center mb-2">
-            <div>
-              <div className="text-sm font-medium text-[var(--ink-70)]">全社合計 — 自動計算（補正値なし）</div>
-              <div className="text-[11px] text-[var(--ink-50)] mt-0.5">補正値を除いた参考値</div>
-            </div>
-            <span className="inline-flex items-center text-[10px] font-semibold px-2 py-[3px] rounded border border-[var(--border-strong)] text-[var(--ink-50)] tracking-wide">
-              REFERENCE
-            </span>
+        <div className="bg-[var(--surface)] border border-[var(--ink)] rounded-[10px] p-4 shadow-md">
+          <div className="mb-2">
+            <div className="text-sm font-semibold text-[var(--ink)]">有給平均取得率</div>
+            <div className="text-[11px] text-[var(--ink-50)] mt-0.5">各社員の取得率(消化÷付与+繰越)の平均</div>
           </div>
           <div className="flex items-baseline gap-2 my-3">
-            <span className="text-[42px] font-medium leading-[0.9] tracking-tighter text-[var(--ink-50)]">
-              {stats.totalAutoRemaining.toFixed(1)}
+            <span className="text-[42px] font-semibold leading-[0.9] tracking-tighter text-[var(--ink)]">
+              {(stats.avgUsageRate * 100).toFixed(1)}
             </span>
-            <span className="text-[13px] font-normal text-[var(--ink-50)]">日</span>
+            <span className="text-[13px] font-normal text-[var(--ink-50)]">%</span>
           </div>
         </div>
       </div>
