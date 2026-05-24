@@ -2884,6 +2884,7 @@ export default function EmployeeDetail() {
                       <DateInput
                         value={newLeaveUsage.recordDate}
                         onChange={(v) => setNewLeaveUsage({ ...newLeaveUsage, recordDate: v })}
+                        enableWareki
                         className="h-7 text-xs"
                         data-testid="input-new-leave-record-date"
                       />
