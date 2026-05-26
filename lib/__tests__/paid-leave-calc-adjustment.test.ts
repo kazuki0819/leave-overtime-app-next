@@ -89,21 +89,21 @@ describe("選択肢B: 補正値を残日数計算に反映", () => {
     expect(results[2].baselineRemaining).toBe(19);
     expect(results[2].finalRemaining).toBe(16);
 
-    // cycle3: granted=12, carry=12, usage=1, expired=4
-    //   時効: cycle1付与=10, 累積消化(cycle1以降)=2+3+1=6 → expired=max(0,10-6)=4
-    //   carry = max(0, 16-4) = 12
+    // cycle3: granted=12, carry=11, usage=1, expired=5
+    //   時効: cycle1付与=10, 累積消化(cycle1開始～cycle3開始前)=2+3=5 → expired=max(0,10-5)=5
+    //   carry = max(0, 16-5) = 11, min(11, previousGranted=11) = 11
     expect(results[3].grantedDays).toBe(12);
-    expect(results[3].carriedOverDays).toBe(12);
-    expect(results[3].baselineRemaining).toBe(24);
-    expect(results[3].finalRemaining).toBe(23);
+    expect(results[3].carriedOverDays).toBe(11);
+    expect(results[3].baselineRemaining).toBe(23);
+    expect(results[3].finalRemaining).toBe(22);
 
-    // cycle4: granted=14, carry=16, usage=0, expired=7
-    //   時効: cycle2付与=11, 累積消化(cycle2以降)=3+1=4 → expired=max(0,11-4)=7
-    //   carry = max(0, 23-7) = 16
+    // cycle4: granted=14, carry=12, usage=0, expired=7
+    //   時効: cycle2付与=11, 累積消化(cycle2開始～cycle4開始前)=3+1=4 → expired=max(0,11-4)=7
+    //   carry = max(0, 22-7) = 15, min(15, previousGranted=12) = 12
     expect(results[4].grantedDays).toBe(14);
-    expect(results[4].carriedOverDays).toBe(16);
-    expect(results[4].baselineRemaining).toBe(30);
-    expect(results[4].finalRemaining).toBe(30);
+    expect(results[4].carriedOverDays).toBe(12);
+    expect(results[4].baselineRemaining).toBe(26);
+    expect(results[4].finalRemaining).toBe(26);
   });
 
   // joinDate=2024-04-01 のサイクル構造:
@@ -194,14 +194,14 @@ describe("選択肢B: 補正値を残日数計算に反映", () => {
 
     // cycle3(進行中): 時効計算が二系統分離の核心
     //   twoCyclesBackGranted = cycle1付与 = 10
-    //   cumulativeUsage(usageOnlyで算出) = 2  ← adjustmentの-2は含まない
+    //   cumulativeUsage(usageOnly, cycle1開始～cycle3開始前) = 2  ← adjustmentの-2は含まない
     //   expired = max(0, 10-2) = 8
-    //   carry = max(0, 21-8) = 13
-    //   baseline = 12+13 = 25
+    //   carry = max(0, 21-8) = 13, min(13, previousGranted=11) = 11
+    //   baseline = 12+11 = 23
     expect(results[3].grantedDays).toBe(12);
-    expect(results[3].carriedOverDays).toBe(13);
-    expect(results[3].baselineRemaining).toBe(25);
-    expect(results[3].currentRemaining).toBe(25);
+    expect(results[3].carriedOverDays).toBe(11);
+    expect(results[3].baselineRemaining).toBe(23);
+    expect(results[3].currentRemaining).toBe(23);
     expect(results[3].finalRemaining).toBe(null);
   });
 });

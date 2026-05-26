@@ -171,25 +171,27 @@ export async function calculatePaidLeavesForEmployee(
 
       cycleStart = calculateCycleStartDate(joinDate, cycleNumber);
       cycleEnd = calculateCycleEndDate(joinDate, cycleNumber);
+      const cycleStartStr = formatISODate(cycleStart);
+      const cycleEndStr = formatISODate(cycleEnd);
 
       granted = calculateGrantedDays(joinDate, cycleNumber, exemptCycles.has(cycleNumber));
 
       if (cycleNumber === 0 || cycleNumber === 1) {
         carry = 0;
       } else {
-        const cumulativeUsageFromTwoBack = twoCyclesBackStart
-          ? usagesOnly
-              .filter((u) => new Date(u.recordDate) >= twoCyclesBackStart!)
-              .reduce((sum, u) => sum + u.days, 0)
-          : 0;
+        let cumulativeUsageFromTwoBack = 0;
+        if (twoCyclesBackStart) {
+          const twoCyclesBackStartStr = formatISODate(twoCyclesBackStart);
+          cumulativeUsageFromTwoBack = usagesOnly
+            .filter((u) => u.recordDate >= twoCyclesBackStartStr && u.recordDate < cycleStartStr)
+            .reduce((sum, u) => sum + u.days, 0);
+        }
         const expired = calculateExpiredDays(twoCyclesBackGranted, cumulativeUsageFromTwoBack);
         carry = calculateCarriedOverDays(previousFinalRemaining, expired);
+        carry = Math.min(carry, previousGrantedDays);
       }
 
       const baseline = granted + carry;
-
-      const cycleStartStr = formatISODate(cycleStart);
-      const cycleEndStr = formatISODate(cycleEnd);
       const cycleUsage = usagesAndAdj
         .filter((u) => u.recordDate >= cycleStartStr && u.recordDate <= cycleEndStr)
         .reduce((sum, u) => sum + u.days, 0);
