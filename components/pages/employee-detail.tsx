@@ -144,6 +144,10 @@ export default function EmployeeDetail() {
   // Past cycle accordion state (first one open by default)
   const [pastCycleOpenMap, setPastCycleOpenMap] = useState<Record<number, boolean>>({ 0: true });
 
+  // Cycle card add-form state: which cycle's form is open (null = none)
+  const [cycleAddFormOpen, setCycleAddFormOpen] = useState<string | null>(null);
+  const [cycleAddForm, setCycleAddForm] = useState({ recordDate: "", days: 1, note: "" });
+
   // Assignment history state
   const [showAddHistory, setShowAddHistory] = useState(false);
   const [editingHistoryId, setEditingHistoryId] = useState<number | null>(null);
@@ -282,11 +286,13 @@ export default function EmployeeDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/leave-usages", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/paid-leaves"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/paid-leaves/all", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/employee-summaries"] });
       queryClient.invalidateQueries({ queryKey: ["/api/alerts"] });
       toast({ title: "有給使用を追加しました" });
       setShowAddLeaveUsage(false);
       setNewLeaveUsage({ recordDate: "", days: 1, note: "" });
+      setCycleAddForm({ recordDate: "", days: 1, note: "" });
     },
   });
 
@@ -299,6 +305,7 @@ export default function EmployeeDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/leave-usages", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/paid-leaves"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/paid-leaves/all", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/employee-summaries"] });
       queryClient.invalidateQueries({ queryKey: ["/api/alerts"] });
       toast({ title: "有給使用を削除しました" });
@@ -568,6 +575,14 @@ export default function EmployeeDetail() {
       .reverse();
   }, [cycleSummaries, currentCycleSummary]);
 
+  const currentCycleUsages = useMemo(() => {
+    if (!leaveUsages || !currentCycleSummary) return [];
+    return leaveUsages.filter((u) => {
+      const d = u.recordDate || u.startDate;
+      return d >= currentCycleSummary.cycleStartDate && d <= currentCycleSummary.cycleEndDate;
+    });
+  }, [leaveUsages, currentCycleSummary]);
+
   // 自動計算値
   const autoGrantedDays = useMemo(() => {
     if (!employee?.joinDate || !currentCycle) return 0;
@@ -690,6 +705,23 @@ export default function EmployeeDetail() {
       recordDate: newLeaveUsage.recordDate,
       days: newLeaveUsage.days,
       note: newLeaveUsage.note,
+    });
+  };
+
+  const saveCycleLeaveUsage = (cycleStart: string, cycleEnd: string) => {
+    if (!cycleAddForm.recordDate || cycleAddForm.days <= 0) {
+      toast({ title: "入力エラー", description: "取得日・日数は必須です", variant: "destructive" });
+      return;
+    }
+    if (cycleAddForm.recordDate < cycleStart || cycleAddForm.recordDate > cycleEnd) {
+      toast({ title: "入力エラー", description: `取得日はサイクル期間（${cycleStart} 〜 ${cycleEnd}）の範囲内で入力してください`, variant: "destructive" });
+      return;
+    }
+    createLeaveUsageMutation.mutate({
+      employeeId: id,
+      recordDate: cycleAddForm.recordDate,
+      days: cycleAddForm.days,
+      note: cycleAddForm.note,
     });
   };
 
@@ -1019,201 +1051,7 @@ export default function EmployeeDetail() {
         </Card>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        {/* 社員情報 */}
-        <Card className="border">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base font-semibold">
-              <User className="h-4 w-4 text-blue-500" />
-              社員情報
-              <Button
-                size="sm"
-                variant={isMemoEditing ? "default" : employee?.memo ? "outline" : "ghost"}
-                className={`h-6 px-2 text-xs ml-auto gap-1 ${
-                  !isMemoEditing && employee?.memo ? "border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-400" : ""
-                }`}
-                onClick={() => {
-                  if (isMemoEditing) {
-                    setIsMemoEditing(false);
-                  } else {
-                    setMemoText(employee?.memo ?? "");
-                    setIsMemoEditing(true);
-                  }
-                }}
-              >
-                <MessageSquare className="h-3 w-3" />
-                メモ
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isEditing ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <Label className="text-xs">氏名</Label>
-                  <Input
-                    value={editForm.name ?? ""}
-                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    data-testid="input-name"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">配属先</Label>
-                  <Input
-                    value={editForm.assignment ?? ""}
-                    onChange={(e) => setEditForm({ ...editForm, assignment: e.target.value })}
-                    data-testid="input-assignment"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">入社日</Label>
-                  <DateInput
-                    value={editForm.joinDate ?? ""}
-                    onChange={(v) => setEditForm({ ...editForm, joinDate: v })}
-                    data-testid="input-join-date"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">勤続月数</Label>
-                  <Input
-                    type="number"
-                    value={editForm.tenureMonths ?? 0}
-                    onChange={(e) => setEditForm({ ...editForm, tenureMonths: parseInt(e.target.value) || 0 })}
-                    data-testid="input-tenure"
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <Label className="text-xs">メモ</Label>
-                  <textarea
-                    className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[60px] resize-y"
-                    value={editForm.memo ?? ""}
-                    onChange={(e) => setEditForm({ ...editForm, memo: e.target.value })}
-                    placeholder="フリーコメント（任意）"
-                    data-testid="input-memo"
-                  />
-                </div>
-              </div>
-            ) : (
-              <dl className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <dt className="text-xs text-muted-foreground">氏名</dt>
-                  <dd className="text-sm font-medium">{employee.name}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">配属先</dt>
-                  <dd className="text-sm font-medium">{employee.assignment}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">入社日</dt>
-                  <dd className="text-sm font-medium">{employee.joinDate || "-"}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">勤続期間</dt>
-                  <dd className="text-sm font-medium">{Math.floor(employee.tenureMonths / 12)}年{employee.tenureMonths % 12}ヶ月</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">ステータス</dt>
-                  <dd className="text-sm font-medium">
-                    {isRetired ? (
-                      <span className="text-slate-500">退職済</span>
-                    ) : (
-                      <span className="text-emerald-600 dark:text-emerald-400">在籍中</span>
-                    )}
-                  </dd>
-                </div>
-                {isRetired && employee.retiredDate && (
-                  <div>
-                    <dt className="text-xs text-muted-foreground">退職日</dt>
-                    <dd className="text-sm font-medium text-slate-500">{employee.retiredDate}</dd>
-                  </div>
-                )}
-                {/* 配属履歴 */}
-                {sortedHistories.length > 0 && (
-                  <div className="sm:col-span-2 pt-1 border-t border-border/50 mt-1">
-                    <dt className="text-xs text-muted-foreground mb-1.5">配属履歴</dt>
-                    <dd className="space-y-1">
-                      {sortedHistories.map((h, i) => (
-                        <div key={h.id} className="flex items-center gap-2 text-xs">
-                          <span className={`font-medium ${
-                            i === 0 && !h.endDate ? "text-foreground" : "text-muted-foreground"
-                          }`}>
-                            {h.assignment === "-" ? "本社" : h.assignment}
-                          </span>
-                          <span className="text-muted-foreground tabular-nums">
-                            {h.startDate} 〜 {h.endDate || "現在"}
-                          </span>
-                          {i === 0 && !h.endDate && (
-                            <Badge variant="outline" className="text-[10px] px-1 py-0 border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
-                              現在
-                            </Badge>
-                          )}
-                        </div>
-                      ))}
-                    </dd>
-                  </div>
-                )}
-                {/* 特別休暇 */}
-                {specialLeavesData && specialLeavesData.length > 0 && (
-                  <div className="sm:col-span-2 pt-1 border-t border-border/50 mt-1">
-                    <dt className="text-xs text-muted-foreground mb-1.5">特別休暇（{specialLeavesData.length}件）</dt>
-                    <dd className="space-y-1">
-                      {[...specialLeavesData].sort((a, b) => b.startDate.localeCompare(a.startDate)).map((sl) => (
-                        <div key={sl.id} className="flex items-center gap-2 text-xs">
-                          <Badge variant="outline" className="text-[10px] px-1 py-0 border-purple-300 bg-purple-50 text-purple-700 dark:border-purple-700 dark:bg-purple-950/40 dark:text-purple-400">
-                            {sl.leaveType}
-                          </Badge>
-                          <span className="text-muted-foreground tabular-nums">
-                            {sl.startDate} 〜 {sl.endDate}
-                          </span>
-                          <span className="font-medium">{Number(sl.days).toFixed(2)}日</span>
-                          {sl.reason && (
-                            <span className="text-muted-foreground/60 truncate max-w-[150px]">{sl.reason}</span>
-                          )}
-                        </div>
-                      ))}
-                    </dd>
-                  </div>
-                )}
-                {/* メモ（表示モード） */}
-                {!isMemoEditing && employee.memo && (
-                  <div className="sm:col-span-2 pt-1 border-t border-border/50 mt-1">
-                    <dt className="text-xs text-muted-foreground mb-1">メモ</dt>
-                    <dd className="text-sm text-muted-foreground whitespace-pre-wrap">{employee.memo}</dd>
-                  </div>
-                )}
-                {/* メモ（インライン編集） */}
-                {isMemoEditing && (
-                  <div className="sm:col-span-2 pt-1 border-t border-border/50 mt-1">
-                    <dt className="text-xs text-muted-foreground mb-1">メモ</dt>
-                    <dd>
-                      <textarea
-                        className="flex w-full rounded-md border border-blue-300 dark:border-blue-700 bg-background px-3 py-2 text-sm min-h-[60px] resize-y focus:outline-none focus:ring-2 focus:ring-blue-400"
-                        value={memoText}
-                        onChange={(e) => setMemoText(e.target.value)}
-                        placeholder="フリーコメント（任意）"
-                        autoFocus
-                      />
-                      <div className="flex gap-2 mt-1.5">
-                        <Button size="sm" className="h-7 text-xs" disabled={saveMemoMutation.isPending}
-                          onClick={() => saveMemoMutation.mutate(memoText)}>
-                          {saveMemoMutation.isPending ? "保存中..." : "保存"}
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-7 text-xs"
-                          onClick={() => setIsMemoEditing(false)}>
-                          キャンセル
-                        </Button>
-                      </div>
-                    </dd>
-                  </div>
-                )}
-              </dl>
-            )}
-          </CardContent>
-        </Card>
-
-      </div>
-
-      {/* ═══ v24 2窓表示: 残日数サマリ ═══ */}
+      {/* ═══ v24 2窓表示: 残日数サマリ（最上部配置） ═══ */}
       {paidLeave && currentCycleSummary && !isEditing && (
         <>
           <div className="flex justify-between items-center mt-1 mb-3">
@@ -1455,8 +1293,364 @@ export default function EmployeeDetail() {
               </div>
             )}
           </div>
+
+          {/* ═══ 現在サイクル 履歴一覧テーブル ═══ */}
+          <div className="border border-[var(--pr4-border)] rounded-md overflow-hidden mb-5">
+            <div className="px-4 py-2.5 border-b border-[var(--pr4-border)] flex justify-between items-center bg-[var(--surface-2)]">
+              <h3 className="text-[13px] font-semibold text-[var(--ink)]">履歴一覧</h3>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-[var(--ink-50)] font-mono">{currentCycleUsages.length} 件</span>
+                <Button
+                  size="sm"
+                  variant={cycleAddFormOpen === "__current__" ? "default" : "outline"}
+                  className="h-6 px-2 text-[10px] gap-1"
+                  onClick={() => {
+                    if (cycleAddFormOpen === "__current__") {
+                      setCycleAddFormOpen(null);
+                    } else {
+                      setCycleAddFormOpen("__current__");
+                      setCycleAddForm({ recordDate: "", days: 1, note: "" });
+                    }
+                  }}
+                >
+                  {cycleAddFormOpen === "__current__" ? (
+                    <><X className="h-3 w-3" />閉じる</>
+                  ) : (
+                    <><Plus className="h-3 w-3" />追加</>
+                  )}
+                </Button>
+              </div>
+            </div>
+            {cycleAddFormOpen === "__current__" && (
+              <div className="px-4 py-3 border-b border-[var(--pr4-border)] bg-emerald-50/30 dark:bg-emerald-950/10">
+                <div className="flex items-end gap-2 flex-wrap">
+                  <div>
+                    <Label className="text-[10px] text-[var(--ink-50)]">取得日</Label>
+                    <DateInput
+                      value={cycleAddForm.recordDate}
+                      onChange={(v) => setCycleAddForm({ ...cycleAddForm, recordDate: v })}
+                      enableWareki
+                      className="h-7 text-xs w-[160px]"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-[var(--ink-50)]">日数</Label>
+                    <Input
+                      type="number"
+                      step="0.5"
+                      min="0.5"
+                      value={cycleAddForm.days}
+                      onChange={(e) => setCycleAddForm({ ...cycleAddForm, days: parseFloat(e.target.value) || 0.5 })}
+                      className="h-7 w-20 text-right text-xs"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-[120px]">
+                    <Label className="text-[10px] text-[var(--ink-50)]">備考</Label>
+                    <Input
+                      value={cycleAddForm.note}
+                      onChange={(e) => setCycleAddForm({ ...cycleAddForm, note: e.target.value })}
+                      placeholder="任意"
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    className="h-7 px-3 text-xs gap-1"
+                    onClick={() => saveCycleLeaveUsage(currentCycleSummary.cycleStartDate, currentCycleSummary.cycleEndDate)}
+                    disabled={createLeaveUsageMutation.isPending}
+                  >
+                    <Check className="h-3 w-3" />
+                    保存
+                  </Button>
+                </div>
+                <div className="text-[10px] text-[var(--ink-50)] mt-1.5">
+                  対象期間: {currentCycleSummary.cycleStartDate} 〜 {currentCycleSummary.cycleEndDate}
+                </div>
+              </div>
+            )}
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-[var(--surface-2)]">
+                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "14%" }}>日付</th>
+                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "14%" }}>種別</th>
+                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "12%" }}>日数</th>
+                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]">理由</th>
+                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "10%" }}>状態</th>
+                  <th className="text-right px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "10%" }}>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentCycleUsages.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-xs text-[var(--ink-50)] italic">
+                      このサイクルの履歴はありません
+                    </td>
+                  </tr>
+                )}
+                {currentCycleUsages.map((u) => {
+                  const isVoided = !!u.isVoided;
+                  const isAdj = u.recordType === "adjustment";
+                  const isIncrease = isAdj && u.days < 0;
+                  const displayDate = u.recordDate || u.startDate;
+                  const daysStr = isAdj
+                    ? (isIncrease ? `+${Math.abs(u.days).toFixed(1)}` : `−${Math.abs(u.days).toFixed(1)}`)
+                    : u.days.toFixed(1);
+                  return (
+                    <tr key={u.id} className={`border-b border-[var(--pr4-border)] last:border-b-0 ${isVoided ? "text-[var(--ink-35)]" : ""}`}>
+                      <td className="px-4 py-2.5">
+                        <span className={`font-mono text-xs ${isVoided ? "line-through text-[var(--ink-35)]" : "text-[var(--ink)]"}`}>{displayDate}</span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {isVoided ? (
+                          <Badge variant="voided" className="text-[10px]">{isAdj ? (isIncrease ? "補正（増）" : "補正（減）") : "取得"}</Badge>
+                        ) : (
+                          <Badge variant={isAdj ? (isIncrease ? "success" : "danger") : "neut"} className="text-[10px]">
+                            <span className="w-1 h-1 rounded-full bg-current mr-1" />
+                            {isAdj ? (isIncrease ? "補正（増）" : "補正（減）") : "取得"}
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className={`text-xs font-semibold ${
+                          isVoided ? "line-through text-[var(--ink-35)]"
+                          : isAdj && isIncrease ? "text-[var(--green)]"
+                          : isAdj ? "text-[var(--red)]"
+                          : "text-[var(--ink)]"
+                        }`}>{daysStr}</span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className={`text-xs ${isVoided ? "line-through text-[var(--ink-35)]" : "text-[var(--ink-70)]"}`}>{u.reason || u.note || "-"}</span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {isVoided ? <Badge variant="voided" className="text-[10px]">解除済</Badge> : <Badge variant="neut" className="text-[10px]">有効</Badge>}
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {!isVoided && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6 text-[var(--ink-50)] hover:text-amber-600 hover:bg-amber-50"
+                              title="解除（論理削除）"
+                              onClick={() => { setVoidTarget(u); setVoidDialogOpen(true); }}
+                            >
+                              <Ban className="h-3 w-3" />
+                            </Button>
+                          )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-[var(--ink-50)] hover:text-red-600 hover:bg-red-50"
+                            title="削除"
+                            disabled={deleteLeaveUsageMutation.isPending}
+                            onClick={() => handleDeleteLeaveUsage(u.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        {/* 社員情報 */}
+        <Card className="border">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base font-semibold">
+              <User className="h-4 w-4 text-blue-500" />
+              社員情報
+              <Button
+                size="sm"
+                variant={isMemoEditing ? "default" : employee?.memo ? "outline" : "ghost"}
+                className={`h-6 px-2 text-xs ml-auto gap-1 ${
+                  !isMemoEditing && employee?.memo ? "border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-400" : ""
+                }`}
+                onClick={() => {
+                  if (isMemoEditing) {
+                    setIsMemoEditing(false);
+                  } else {
+                    setMemoText(employee?.memo ?? "");
+                    setIsMemoEditing(true);
+                  }
+                }}
+              >
+                <MessageSquare className="h-3 w-3" />
+                メモ
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isEditing ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label className="text-xs">氏名</Label>
+                  <Input
+                    value={editForm.name ?? ""}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    data-testid="input-name"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">配属先</Label>
+                  <Input
+                    value={editForm.assignment ?? ""}
+                    onChange={(e) => setEditForm({ ...editForm, assignment: e.target.value })}
+                    data-testid="input-assignment"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">入社日</Label>
+                  <DateInput
+                    value={editForm.joinDate ?? ""}
+                    onChange={(v) => setEditForm({ ...editForm, joinDate: v })}
+                    data-testid="input-join-date"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">勤続月数</Label>
+                  <Input
+                    type="number"
+                    value={editForm.tenureMonths ?? 0}
+                    onChange={(e) => setEditForm({ ...editForm, tenureMonths: parseInt(e.target.value) || 0 })}
+                    data-testid="input-tenure"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <Label className="text-xs">メモ</Label>
+                  <textarea
+                    className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[60px] resize-y"
+                    value={editForm.memo ?? ""}
+                    onChange={(e) => setEditForm({ ...editForm, memo: e.target.value })}
+                    placeholder="フリーコメント（任意）"
+                    data-testid="input-memo"
+                  />
+                </div>
+              </div>
+            ) : (
+              <dl className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <dt className="text-xs text-muted-foreground">氏名</dt>
+                  <dd className="text-sm font-medium">{employee.name}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">配属先</dt>
+                  <dd className="text-sm font-medium">{employee.assignment}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">入社日</dt>
+                  <dd className="text-sm font-medium">{employee.joinDate || "-"}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">勤続期間</dt>
+                  <dd className="text-sm font-medium">{Math.floor(employee.tenureMonths / 12)}年{employee.tenureMonths % 12}ヶ月</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">ステータス</dt>
+                  <dd className="text-sm font-medium">
+                    {isRetired ? (
+                      <span className="text-slate-500">退職済</span>
+                    ) : (
+                      <span className="text-emerald-600 dark:text-emerald-400">在籍中</span>
+                    )}
+                  </dd>
+                </div>
+                {isRetired && employee.retiredDate && (
+                  <div>
+                    <dt className="text-xs text-muted-foreground">退職日</dt>
+                    <dd className="text-sm font-medium text-slate-500">{employee.retiredDate}</dd>
+                  </div>
+                )}
+                {/* 配属履歴 */}
+                {sortedHistories.length > 0 && (
+                  <div className="sm:col-span-2 pt-1 border-t border-border/50 mt-1">
+                    <dt className="text-xs text-muted-foreground mb-1.5">配属履歴</dt>
+                    <dd className="space-y-1">
+                      {sortedHistories.map((h, i) => (
+                        <div key={h.id} className="flex items-center gap-2 text-xs">
+                          <span className={`font-medium ${
+                            i === 0 && !h.endDate ? "text-foreground" : "text-muted-foreground"
+                          }`}>
+                            {h.assignment === "-" ? "本社" : h.assignment}
+                          </span>
+                          <span className="text-muted-foreground tabular-nums">
+                            {h.startDate} 〜 {h.endDate || "現在"}
+                          </span>
+                          {i === 0 && !h.endDate && (
+                            <Badge variant="outline" className="text-[10px] px-1 py-0 border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
+                              現在
+                            </Badge>
+                          )}
+                        </div>
+                      ))}
+                    </dd>
+                  </div>
+                )}
+                {/* 特別休暇 */}
+                {specialLeavesData && specialLeavesData.length > 0 && (
+                  <div className="sm:col-span-2 pt-1 border-t border-border/50 mt-1">
+                    <dt className="text-xs text-muted-foreground mb-1.5">特別休暇（{specialLeavesData.length}件）</dt>
+                    <dd className="space-y-1">
+                      {[...specialLeavesData].sort((a, b) => b.startDate.localeCompare(a.startDate)).map((sl) => (
+                        <div key={sl.id} className="flex items-center gap-2 text-xs">
+                          <Badge variant="outline" className="text-[10px] px-1 py-0 border-purple-300 bg-purple-50 text-purple-700 dark:border-purple-700 dark:bg-purple-950/40 dark:text-purple-400">
+                            {sl.leaveType}
+                          </Badge>
+                          <span className="text-muted-foreground tabular-nums">
+                            {sl.startDate} 〜 {sl.endDate}
+                          </span>
+                          <span className="font-medium">{Number(sl.days).toFixed(2)}日</span>
+                          {sl.reason && (
+                            <span className="text-muted-foreground/60 truncate max-w-[150px]">{sl.reason}</span>
+                          )}
+                        </div>
+                      ))}
+                    </dd>
+                  </div>
+                )}
+                {/* メモ（表示モード） */}
+                {!isMemoEditing && employee.memo && (
+                  <div className="sm:col-span-2 pt-1 border-t border-border/50 mt-1">
+                    <dt className="text-xs text-muted-foreground mb-1">メモ</dt>
+                    <dd className="text-sm text-muted-foreground whitespace-pre-wrap">{employee.memo}</dd>
+                  </div>
+                )}
+                {/* メモ（インライン編集） */}
+                {isMemoEditing && (
+                  <div className="sm:col-span-2 pt-1 border-t border-border/50 mt-1">
+                    <dt className="text-xs text-muted-foreground mb-1">メモ</dt>
+                    <dd>
+                      <textarea
+                        className="flex w-full rounded-md border border-blue-300 dark:border-blue-700 bg-background px-3 py-2 text-sm min-h-[60px] resize-y focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        value={memoText}
+                        onChange={(e) => setMemoText(e.target.value)}
+                        placeholder="フリーコメント（任意）"
+                        autoFocus
+                      />
+                      <div className="flex gap-2 mt-1.5">
+                        <Button size="sm" className="h-7 text-xs" disabled={saveMemoMutation.isPending}
+                          onClick={() => saveMemoMutation.mutate(memoText)}>
+                          {saveMemoMutation.isPending ? "保存中..." : "保存"}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 text-xs"
+                          onClick={() => setIsMemoEditing(false)}>
+                          キャンセル
+                        </Button>
+                      </div>
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            )}
+          </CardContent>
+        </Card>
+
+      </div>
 
       {/* 有給休暇 — 編集モード / 未登録時 */}
       {(isEditing || !paidLeave) && (
@@ -2135,8 +2329,76 @@ export default function EmployeeDetail() {
                           <div className="border border-[var(--pr4-border)] rounded-md overflow-hidden">
                             <div className="px-4 py-2.5 border-b border-[var(--pr4-border)] flex justify-between items-center bg-[var(--surface-2)]">
                               <h3 className="text-[13px] font-semibold text-[var(--ink)]">履歴一覧</h3>
-                              <span className="text-[11px] text-[var(--ink-50)] font-mono">{cycleUsages.length} 件</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] text-[var(--ink-50)] font-mono">{cycleUsages.length} 件</span>
+                                <Button
+                                  size="sm"
+                                  variant={cycleAddFormOpen === cycle.cycleStartDate ? "default" : "outline"}
+                                  className="h-6 px-2 text-[10px] gap-1"
+                                  onClick={() => {
+                                    if (cycleAddFormOpen === cycle.cycleStartDate) {
+                                      setCycleAddFormOpen(null);
+                                    } else {
+                                      setCycleAddFormOpen(cycle.cycleStartDate);
+                                      setCycleAddForm({ recordDate: "", days: 1, note: "" });
+                                    }
+                                  }}
+                                >
+                                  {cycleAddFormOpen === cycle.cycleStartDate ? (
+                                    <><X className="h-3 w-3" />閉じる</>
+                                  ) : (
+                                    <><Plus className="h-3 w-3" />追加</>
+                                  )}
+                                </Button>
+                              </div>
                             </div>
+                            {cycleAddFormOpen === cycle.cycleStartDate && (
+                              <div className="px-4 py-3 border-b border-[var(--pr4-border)] bg-emerald-50/30 dark:bg-emerald-950/10">
+                                <div className="flex items-end gap-2 flex-wrap">
+                                  <div>
+                                    <Label className="text-[10px] text-[var(--ink-50)]">取得日</Label>
+                                    <DateInput
+                                      value={cycleAddForm.recordDate}
+                                      onChange={(v) => setCycleAddForm({ ...cycleAddForm, recordDate: v })}
+                                      enableWareki
+                                      className="h-7 text-xs w-[160px]"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-[10px] text-[var(--ink-50)]">日数</Label>
+                                    <Input
+                                      type="number"
+                                      step="0.5"
+                                      min="0.5"
+                                      value={cycleAddForm.days}
+                                      onChange={(e) => setCycleAddForm({ ...cycleAddForm, days: parseFloat(e.target.value) || 0.5 })}
+                                      className="h-7 w-20 text-right text-xs"
+                                    />
+                                  </div>
+                                  <div className="flex-1 min-w-[120px]">
+                                    <Label className="text-[10px] text-[var(--ink-50)]">備考</Label>
+                                    <Input
+                                      value={cycleAddForm.note}
+                                      onChange={(e) => setCycleAddForm({ ...cycleAddForm, note: e.target.value })}
+                                      placeholder="任意"
+                                      className="h-7 text-xs"
+                                    />
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    className="h-7 px-3 text-xs gap-1"
+                                    onClick={() => saveCycleLeaveUsage(cycle.cycleStartDate, cycle.cycleEndDate)}
+                                    disabled={createLeaveUsageMutation.isPending}
+                                  >
+                                    <Check className="h-3 w-3" />
+                                    保存
+                                  </Button>
+                                </div>
+                                <div className="text-[10px] text-[var(--ink-50)] mt-1.5">
+                                  対象期間: {cycle.cycleStartDate} 〜 {cycle.cycleEndDate}
+                                </div>
+                              </div>
+                            )}
                             <table className="w-full text-xs">
                               <thead>
                                 <tr className="bg-[var(--surface-2)]">

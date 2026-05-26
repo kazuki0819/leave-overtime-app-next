@@ -111,8 +111,10 @@ export function SplitAdjustmentDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/paid-leaves", employeeId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/paid-leaves/all", employeeId] });
       queryClient.invalidateQueries({ queryKey: ["/api/leave-usages"] });
       queryClient.invalidateQueries({ queryKey: ["/api/employee-summaries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/alerts"] });
       toast({ title: "補正値を分割しました" });
       resetForm();
       onOpenChange(false);
