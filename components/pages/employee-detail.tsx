@@ -148,6 +148,10 @@ export default function EmployeeDetail() {
   const [cycleAddFormOpen, setCycleAddFormOpen] = useState<string | null>(null);
   const [cycleAddForm, setCycleAddForm] = useState({ recordDate: "", days: 1, note: "" });
 
+  // Cycle card adjustment-form state (independent from usage add-form)
+  const [cycleAdjFormOpen, setCycleAdjFormOpen] = useState<string | null>(null);
+  const [cycleAdjForm, setCycleAdjForm] = useState({ recordDate: "", days: "", adjustmentType: "increase" as "increase" | "decrease", reason: "" });
+
   // Assignment history state
   const [showAddHistory, setShowAddHistory] = useState(false);
   const [editingHistoryId, setEditingHistoryId] = useState<number | null>(null);
@@ -293,6 +297,24 @@ export default function EmployeeDetail() {
       setShowAddLeaveUsage(false);
       setNewLeaveUsage({ recordDate: "", days: 1, note: "" });
       setCycleAddForm({ recordDate: "", days: 1, note: "" });
+    },
+  });
+
+  // Cycle card: add adjustment mutation
+  const addCycleAdjustmentMutation = useMutation({
+    mutationFn: async (data: { paidLeaveId: number; recordDate: string; days: number; reason: string }) => {
+      const res = await apiRequest("POST", "/api/leave-adjustments", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leave-usages", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/paid-leaves", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/paid-leaves/all", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/paid-leaves"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/employee-summaries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/alerts"] });
+      toast({ title: "補正値を追加しました" });
+      setCycleAdjForm({ recordDate: "", days: "", adjustmentType: "increase", reason: "" });
     },
   });
 
@@ -746,6 +768,33 @@ export default function EmployeeDetail() {
       recordDate: cycleAddForm.recordDate,
       days: cycleAddForm.days,
       note: cycleAddForm.note,
+    });
+  };
+
+  const saveCycleAdjustment = (paidLeaveId: number, cycleStart: string, cycleEnd: string) => {
+    if (!cycleAdjForm.recordDate) {
+      toast({ title: "入力エラー", description: "日付は必須です", variant: "destructive" });
+      return;
+    }
+    if (cycleAdjForm.recordDate < cycleStart || cycleAdjForm.recordDate > cycleEnd) {
+      toast({ title: "入力エラー", description: `日付はサイクル期間（${cycleStart} 〜 ${cycleEnd}）の範囲内で入力してください`, variant: "destructive" });
+      return;
+    }
+    const absValue = Math.abs(parseFloat(cycleAdjForm.days));
+    if (!cycleAdjForm.days || isNaN(absValue) || absValue === 0) {
+      toast({ title: "入力エラー", description: "日数を入力してください", variant: "destructive" });
+      return;
+    }
+    if (!cycleAdjForm.reason.trim()) {
+      toast({ title: "入力エラー", description: "理由は必須です", variant: "destructive" });
+      return;
+    }
+    const days = cycleAdjForm.adjustmentType === "increase" ? -absValue : absValue;
+    addCycleAdjustmentMutation.mutate({
+      paidLeaveId,
+      recordDate: cycleAdjForm.recordDate,
+      days,
+      reason: cycleAdjForm.reason,
     });
   };
 
@@ -2258,6 +2307,25 @@ export default function EmployeeDetail() {
                 <span className="text-[11px] text-[var(--ink-50)] font-mono">{currentCycleUsages.length} 件</span>
                 <Button
                   size="sm"
+                  variant={cycleAdjFormOpen === "__current__" ? "default" : "outline"}
+                  className="h-6 px-2 text-[10px] gap-1"
+                  onClick={() => {
+                    if (cycleAdjFormOpen === "__current__") {
+                      setCycleAdjFormOpen(null);
+                    } else {
+                      setCycleAdjFormOpen("__current__");
+                      setCycleAdjForm({ recordDate: "", days: "", adjustmentType: "increase", reason: "" });
+                    }
+                  }}
+                >
+                  {cycleAdjFormOpen === "__current__" ? (
+                    <><X className="h-3 w-3" />閉じる</>
+                  ) : (
+                    <><Plus className="h-3 w-3" />補正</>
+                  )}
+                </Button>
+                <Button
+                  size="sm"
                   variant={cycleAddFormOpen === "__current__" ? "default" : "outline"}
                   className="h-6 px-2 text-[10px] gap-1"
                   onClick={() => {
@@ -2277,6 +2345,64 @@ export default function EmployeeDetail() {
                 </Button>
               </div>
             </div>
+            {cycleAdjFormOpen === "__current__" && (
+              <div className="px-4 py-3 border-b border-[var(--pr4-border)] bg-amber-50/30 dark:bg-amber-950/10">
+                <div className="flex items-end gap-2 flex-wrap">
+                  <div>
+                    <Label className="text-[10px] text-[var(--ink-50)]">日付</Label>
+                    <DateInput
+                      value={cycleAdjForm.recordDate}
+                      onChange={(v) => setCycleAdjForm({ ...cycleAdjForm, recordDate: v })}
+                      enableWareki
+                      className="h-7 text-xs w-[160px]"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-[var(--ink-50)]">増減</Label>
+                    <select
+                      value={cycleAdjForm.adjustmentType}
+                      onChange={(e) => setCycleAdjForm({ ...cycleAdjForm, adjustmentType: e.target.value as "increase" | "decrease" })}
+                      className="h-7 text-xs rounded border border-input bg-background px-2"
+                    >
+                      <option value="increase">残を増やす</option>
+                      <option value="decrease">残を減らす</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-[var(--ink-50)]">日数</Label>
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      value={cycleAdjForm.days}
+                      onChange={(e) => setCycleAdjForm({ ...cycleAdjForm, days: e.target.value })}
+                      placeholder="0.0"
+                      className="h-7 w-20 text-right text-xs font-mono"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-[120px]">
+                    <Label className="text-[10px] text-[var(--ink-50)]">理由 <span className="text-[var(--red)]">*</span></Label>
+                    <Input
+                      value={cycleAdjForm.reason}
+                      onChange={(e) => setCycleAdjForm({ ...cycleAdjForm, reason: e.target.value })}
+                      placeholder="理由を入力（必須）"
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    className="h-7 px-3 text-xs gap-1"
+                    onClick={() => saveCycleAdjustment(currentCycleSummary.id, currentCycleSummary.cycleStartDate, currentCycleSummary.cycleEndDate)}
+                    disabled={addCycleAdjustmentMutation.isPending}
+                  >
+                    <Check className="h-3 w-3" />
+                    保存
+                  </Button>
+                </div>
+                <div className="text-[10px] text-[var(--ink-50)] mt-1.5">
+                  対象期間: {currentCycleSummary.cycleStartDate} 〜 {currentCycleSummary.cycleEndDate} ・ 0.125日刻み
+                </div>
+              </div>
+            )}
             {cycleAddFormOpen === "__current__" && (
               <div className="px-4 py-3 border-b border-[var(--pr4-border)] bg-emerald-50/30 dark:bg-emerald-950/10">
                 <div className="flex items-end gap-2 flex-wrap">
@@ -2731,6 +2857,25 @@ export default function EmployeeDetail() {
                                 <span className="text-[11px] text-[var(--ink-50)] font-mono">{cycleUsages.length} 件</span>
                                 <Button
                                   size="sm"
+                                  variant={cycleAdjFormOpen === cycle.cycleStartDate ? "default" : "outline"}
+                                  className="h-6 px-2 text-[10px] gap-1"
+                                  onClick={() => {
+                                    if (cycleAdjFormOpen === cycle.cycleStartDate) {
+                                      setCycleAdjFormOpen(null);
+                                    } else {
+                                      setCycleAdjFormOpen(cycle.cycleStartDate);
+                                      setCycleAdjForm({ recordDate: "", days: "", adjustmentType: "increase", reason: "" });
+                                    }
+                                  }}
+                                >
+                                  {cycleAdjFormOpen === cycle.cycleStartDate ? (
+                                    <><X className="h-3 w-3" />閉じる</>
+                                  ) : (
+                                    <><Plus className="h-3 w-3" />補正</>
+                                  )}
+                                </Button>
+                                <Button
+                                  size="sm"
                                   variant={cycleAddFormOpen === cycle.cycleStartDate ? "default" : "outline"}
                                   className="h-6 px-2 text-[10px] gap-1"
                                   onClick={() => {
@@ -2750,6 +2895,64 @@ export default function EmployeeDetail() {
                                 </Button>
                               </div>
                             </div>
+                            {cycleAdjFormOpen === cycle.cycleStartDate && (
+                              <div className="px-4 py-3 border-b border-[var(--pr4-border)] bg-amber-50/30 dark:bg-amber-950/10">
+                                <div className="flex items-end gap-2 flex-wrap">
+                                  <div>
+                                    <Label className="text-[10px] text-[var(--ink-50)]">日付</Label>
+                                    <DateInput
+                                      value={cycleAdjForm.recordDate}
+                                      onChange={(v) => setCycleAdjForm({ ...cycleAdjForm, recordDate: v })}
+                                      enableWareki
+                                      className="h-7 text-xs w-[160px]"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-[10px] text-[var(--ink-50)]">増減</Label>
+                                    <select
+                                      value={cycleAdjForm.adjustmentType}
+                                      onChange={(e) => setCycleAdjForm({ ...cycleAdjForm, adjustmentType: e.target.value as "increase" | "decrease" })}
+                                      className="h-7 text-xs rounded border border-input bg-background px-2"
+                                    >
+                                      <option value="increase">残を増やす</option>
+                                      <option value="decrease">残を減らす</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <Label className="text-[10px] text-[var(--ink-50)]">日数</Label>
+                                    <Input
+                                      type="text"
+                                      inputMode="decimal"
+                                      value={cycleAdjForm.days}
+                                      onChange={(e) => setCycleAdjForm({ ...cycleAdjForm, days: e.target.value })}
+                                      placeholder="0.0"
+                                      className="h-7 w-20 text-right text-xs font-mono"
+                                    />
+                                  </div>
+                                  <div className="flex-1 min-w-[120px]">
+                                    <Label className="text-[10px] text-[var(--ink-50)]">理由 <span className="text-[var(--red)]">*</span></Label>
+                                    <Input
+                                      value={cycleAdjForm.reason}
+                                      onChange={(e) => setCycleAdjForm({ ...cycleAdjForm, reason: e.target.value })}
+                                      placeholder="理由を入力（必須）"
+                                      className="h-7 text-xs"
+                                    />
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    className="h-7 px-3 text-xs gap-1"
+                                    onClick={() => saveCycleAdjustment(cycle.id, cycle.cycleStartDate, cycle.cycleEndDate)}
+                                    disabled={addCycleAdjustmentMutation.isPending}
+                                  >
+                                    <Check className="h-3 w-3" />
+                                    保存
+                                  </Button>
+                                </div>
+                                <div className="text-[10px] text-[var(--ink-50)] mt-1.5">
+                                  対象期間: {cycle.cycleStartDate} 〜 {cycle.cycleEndDate} ・ 0.125日刻み
+                                </div>
+                              </div>
+                            )}
                             {cycleAddFormOpen === cycle.cycleStartDate && (
                               <div className="px-4 py-3 border-b border-[var(--pr4-border)] bg-emerald-50/30 dark:bg-emerald-950/10">
                                 <div className="flex items-end gap-2 flex-wrap">
