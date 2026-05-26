@@ -1051,413 +1051,6 @@ export default function EmployeeDetail() {
         </Card>
       )}
 
-      {/* ═══ v24 2窓表示: 残日数サマリ（最上部配置） ═══ */}
-      {paidLeave && currentCycleSummary && !isEditing && (
-        <>
-          <div className="flex justify-between items-center mt-1 mb-3">
-            <h2 className="text-[15px] font-semibold text-[var(--ink)] tracking-tight">
-              現在のサイクル — 残日数サマリ
-            </h2>
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-[var(--accent-soft)] text-[var(--pr4-accent)] rounded-full text-[10px] font-semibold tracking-wide">
-              <span className="w-[5px] h-[5px] rounded-full bg-current" />
-              進行中{` · ${currentCycleSummary.cycleStartDate} 〜 ${currentCycleSummary.cycleEndDate}`}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-3 mb-4">
-            {/* Primary: 補正計算（実残日数） */}
-            <article className="bg-[var(--surface)] border border-[var(--ink)] rounded-[10px] p-[22px_24px] shadow-md relative">
-              <div className="flex justify-between items-center mb-4">
-                <div>
-                  <div className="text-[15px] font-semibold text-[var(--ink)] tracking-tight">補正計算（実残日数）</div>
-                  <div className="text-[11px] text-[var(--ink-50)] mt-0.5">業務での参照値・補正値あり</div>
-                </div>
-                <span className="inline-flex items-center gap-[5px] text-[10px] font-semibold px-2 py-[3px] rounded bg-[var(--ink)] text-[var(--surface)] tracking-wide">
-                  <span className="w-[5px] h-[5px] rounded-full bg-current" />PRIMARY
-                </span>
-              </div>
-              <div className="flex items-baseline gap-3 flex-wrap my-4">
-                <span className="text-[56px] font-semibold leading-[0.9] tracking-tighter text-[var(--ink)]">
-                  {currentCycleSummary.adjustedRemaining.toFixed(1)}
-                </span>
-                <span className="text-[13px] font-normal text-[var(--ink-50)]">日</span>
-                {currentCycleSummary.adjustmentDays !== 0 && (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--pr4-accent)] bg-[var(--accent-soft)] px-2 py-[3px] rounded self-center">
-                    {currentCycleSummary.adjustmentDays < 0 ? "+" : ""}
-                    {(-currentCycleSummary.adjustmentDays).toFixed(1)} 補正
-                  </span>
-                )}
-              </div>
-              <div className="pt-3 border-t border-[var(--pr4-border)] text-xs">
-                <div className="flex justify-between py-1 text-[var(--ink-70)]">
-                  <span>付与日数</span>
-                  <span className="font-mono font-medium text-[var(--ink)]">+{Number(currentCycleSummary.grantedDays).toFixed(1)}</span>
-                </div>
-                <div className="flex justify-between py-1 text-[var(--ink-70)]">
-                  <span className="flex items-center gap-1">
-                    繰越日数
-                    {prevCycleSummary && (prevCycleSummary.adjustedRemaining - prevCycleSummary.autoRemaining) !== 0 && (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <button
-                            type="button"
-                            className="inline-flex items-center justify-center w-[14px] h-[14px] rounded-full bg-[var(--accent-soft)] text-[var(--pr4-accent)] text-[9px] font-bold border border-[var(--pr4-accent)]/20 cursor-help"
-                          >
-                            i
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          side="bottom"
-                          align="center"
-                          sideOffset={8}
-                          className="w-[240px] bg-[var(--ink)] text-[var(--surface)] border-none shadow-lg p-[12px_14px] rounded-md text-[11px] leading-[1.6]"
-                        >
-                          <div className="font-semibold text-[var(--surface)] mb-1.5 pb-1.5 border-b border-white/15 text-[11px]">繰越日数の内訳</div>
-                          <div className="flex justify-between py-0.5 text-white/70">
-                            <span>自動計算分</span>
-                            <span className="font-mono font-medium text-[var(--surface)]">{currentCycleSummary.carriedOverDays.toFixed(1)}</span>
-                          </div>
-                          <div className="flex justify-between py-0.5 text-white/70">
-                            <span>補正値由来分</span>
-                            <span className="font-mono font-semibold text-[#5eead4]">
-                              {(prevCycleSummary.adjustedRemaining - prevCycleSummary.autoRemaining) >= 0 ? "+" : ""}{(prevCycleSummary.adjustedRemaining - prevCycleSummary.autoRemaining).toFixed(1)}
-                            </span>
-                          </div>
-                          <div className="text-[10px] text-white/55 mt-1.5 pt-1.5 border-t border-white/10 italic">
-                            補正値由来分は、前サイクルの補正値が繰越に与えた影響を示します
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    )}
-                  </span>
-                  <span className="font-mono font-medium text-[var(--ink)]">+{Number(currentCycleSummary.carriedOverDays).toFixed(1)}</span>
-                </div>
-                <div className="flex justify-between py-1 text-[var(--ink-70)]">
-                  <span>消化日数（取得）</span>
-                  <span className="font-mono font-medium text-[var(--ink)]">−{Number(currentCycleSummary.usageOnlyDays).toFixed(1)}</span>
-                </div>
-                {currentCycleSummary.adjustmentDays !== 0 && (
-                  <div className="flex justify-between py-1 text-[var(--pr4-accent)] font-semibold">
-                    <span>補正値合計（増減）</span>
-                    <span className="font-mono">{currentCycleSummary.adjustmentDays < 0 ? "+" : ""}{(-currentCycleSummary.adjustmentDays).toFixed(1)}</span>
-                  </div>
-                )}
-              </div>
-            </article>
-
-            {/* Secondary: 自動計算（補正値なし） */}
-            <article className="bg-[var(--surface-2)] border border-dashed border-[var(--pr4-border)] rounded-[10px] p-[22px_24px] relative">
-              <div className="flex justify-between items-center mb-4">
-                <div>
-                  <div className="text-[15px] font-medium text-[var(--ink-70)] tracking-tight">自動計算（補正値なし）</div>
-                  <div className="text-[11px] text-[var(--ink-50)] mt-0.5">参考値・影響を切り分け</div>
-                </div>
-                <span className="inline-flex items-center gap-[5px] text-[10px] font-semibold px-2 py-[3px] rounded border border-[var(--border-strong)] text-[var(--ink-50)] tracking-wide">
-                  REFERENCE
-                </span>
-              </div>
-              <div className="flex items-baseline gap-3 flex-wrap my-4">
-                <span className="text-[42px] font-medium leading-[0.9] tracking-tighter text-[var(--ink-50)]">
-                  {currentCycleSummary.autoRemaining.toFixed(1)}
-                </span>
-                <span className="text-[13px] font-normal text-[var(--ink-50)]">日</span>
-              </div>
-              <div className="pt-3 border-t border-[var(--pr4-border)] text-xs">
-                <div className="flex justify-between py-1 text-[var(--ink-70)]">
-                  <span>付与日数</span>
-                  <span className="font-mono font-medium text-[var(--ink)]">+{Number(currentCycleSummary.grantedDays).toFixed(1)}</span>
-                </div>
-                <div className="flex justify-between py-1 text-[var(--ink-70)]">
-                  <span>繰越日数（自動計算分のみ）</span>
-                  <span className="font-mono font-medium text-[var(--ink)]">+{Number(currentCycleSummary.carriedOverDays).toFixed(1)}</span>
-                </div>
-                <div className="flex justify-between py-1 text-[var(--ink-70)]">
-                  <span>消化日数（取得）</span>
-                  <span className="font-mono font-medium text-[var(--ink)]">−{Number(currentCycleSummary.usageOnlyDays).toFixed(1)}</span>
-                </div>
-                <div className="flex justify-between py-1 text-[var(--ink-70)]">
-                  <span>補正値の反映</span>
-                  <span className="font-mono text-[var(--ink-35)]">─</span>
-                </div>
-              </div>
-            </article>
-          </div>
-
-          {/* 2窓の差分説明ノート */}
-          {(() => {
-            const twoWindowDiff = currentCycleSummary.adjustedRemaining - currentCycleSummary.autoRemaining;
-            return twoWindowDiff !== 0 ? (
-              <div className="flex gap-3 items-start bg-[var(--accent-soft)] border border-[var(--pr4-accent)]/12 border-l-[3px] border-l-[var(--pr4-accent)] rounded-md px-4 py-3 mb-5">
-                <span className="w-[18px] h-[18px] rounded-full bg-[var(--pr4-accent)] text-white inline-flex items-center justify-center text-[11px] font-bold shrink-0 mt-0.5">i</span>
-                <p className="text-xs leading-relaxed text-[var(--ink-70)]">
-                  補正反映済みと自動計算の差は <strong className="font-semibold text-[var(--pr4-accent)]">{twoWindowDiff >= 0 ? "+" : ""}{twoWindowDiff.toFixed(1)}日</strong> です（補正値{currentCycleAdjCount}件）。過渡的補正値の場合、過去履歴の入力が進めば両窓が一致していき、担当者の判断で解除できます。
-                </p>
-              </div>
-            ) : null;
-          })()}
-
-          {/* 5日義務・期限・健全性は既存ロジックを維持 */}
-          <div className="mb-5 bg-[var(--surface)] border border-[var(--pr4-border)] rounded-[10px] p-5 shadow-xs">
-            {/* 5-day progress bar */}
-            <div>
-              <div className="flex justify-between text-xs text-[var(--ink-50)] mb-1">
-                <span>年5日義務達成状況</span>
-                <span className="tabular-nums font-medium">
-                  {Math.min(paidLeave.consumedDays, 5).toFixed(2)}/5.00日
-                </span>
-              </div>
-              <div className="h-2.5 rounded-full bg-[var(--surface-3)] overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all ${
-                    paidLeave.consumedDays >= 5
-                      ? "bg-[var(--green)]"
-                      : paidLeave.consumedDays >= 3
-                      ? "bg-[var(--amber)]"
-                      : "bg-[var(--red)]"
-                  }`}
-                  style={{ width: `${Math.min(100, (paidLeave.consumedDays / 5) * 100)}%` }}
-                />
-              </div>
-            </div>
-
-            {/* 期限・ペース情報 */}
-            {deadline && deadline.paceStatus !== "not_eligible" && (
-              <div className="mt-3 pt-3 border-t border-[var(--pr4-border)]">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <CalendarClock className="h-3.5 w-3.5 text-[var(--ink-50)]" />
-                  <span className="text-xs font-medium text-[var(--ink-50)]">取得期限・ペース</span>
-                  <Badge
-                    variant={deadline.paceStatus === "overdue" || deadline.paceStatus === "danger" ? "danger" : deadline.paceStatus === "ok" ? "success" : "warn"}
-                    className="text-xs ml-auto px-1.5 py-0"
-                  >
-                    {deadline.paceStatus === "ok" && "余裕あり"}
-                    {deadline.paceStatus === "tight" && "やや注意"}
-                    {deadline.paceStatus === "danger" && "ペース不足"}
-                    {deadline.paceStatus === "overdue" && "期限超過"}
-                  </Badge>
-                </div>
-                <dl className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <dt className="text-[var(--ink-50)]">付与基準日</dt>
-                    <dd className="font-medium tabular-nums text-[var(--ink)]">{deadline.currentGrantDate}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-[var(--ink-50)]">義務期限</dt>
-                    <dd className="font-medium tabular-nums text-[var(--ink)]">{deadline.obligationDeadline}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-[var(--ink-50)]">期限まで</dt>
-                    <dd className={`font-bold tabular-nums ${
-                      deadline.daysUntilDeadline <= 30
-                        ? "text-[var(--red)]"
-                        : deadline.daysUntilDeadline <= 90
-                        ? "text-[var(--amber)]"
-                        : "text-[var(--ink)]"
-                    }`}>
-                      {deadline.daysUntilDeadline > 0 ? `${deadline.daysUntilDeadline}日` : "期限超過"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-[var(--ink-50)]">残り必要日数</dt>
-                    <dd className={`font-bold tabular-nums ${
-                      deadline.remainingObligation > 0 ? "text-[var(--amber)]" : "text-[var(--green)]"
-                    }`}>
-                      {deadline.remainingObligation > 0
-                        ? `あと${deadline.remainingObligation}日`
-                        : <span className="inline-flex items-center gap-0.5"><CheckCircle2 className="h-3 w-3" />達成</span>
-                      }
-                    </dd>
-                  </div>
-                </dl>
-                <div className={`mt-2 rounded px-2 py-1.5 text-xs ${
-                  deadline.paceStatus === "ok"
-                    ? "bg-[var(--green-soft)] text-[var(--green)]"
-                    : deadline.paceStatus === "tight"
-                    ? "bg-[var(--amber-soft)] text-[var(--amber)]"
-                    : "bg-[var(--red-soft)] text-[var(--red)]"
-                }`}>
-                  {deadline.paceMessage}
-                </div>
-                <div className="mt-1.5 flex items-center gap-3 text-xs text-[var(--ink-50)]">
-                  <span>勤続 {deadline.tenureYears}年</span>
-                  <span>法定付与 {deadline.legalGrantDays}日</span>
-                </div>
-              </div>
-            )}
-            {deadline && deadline.paceStatus === "not_eligible" && (
-              <div className="mt-3 pt-3 border-t border-[var(--pr4-border)]">
-                <div className="flex items-center gap-1.5">
-                  <CalendarClock className="h-3.5 w-3.5 text-[var(--ink-50)]" />
-                  <span className="text-xs text-[var(--ink-50)]">{deadline.paceMessage}</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* ═══ 現在サイクル 履歴一覧テーブル ═══ */}
-          <div className="border border-[var(--pr4-border)] rounded-md overflow-hidden mb-5">
-            <div className="px-4 py-2.5 border-b border-[var(--pr4-border)] flex justify-between items-center bg-[var(--surface-2)]">
-              <h3 className="text-[13px] font-semibold text-[var(--ink)]">履歴一覧</h3>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-[var(--ink-50)] font-mono">{currentCycleUsages.length} 件</span>
-                <Button
-                  size="sm"
-                  variant={cycleAddFormOpen === "__current__" ? "default" : "outline"}
-                  className="h-6 px-2 text-[10px] gap-1"
-                  onClick={() => {
-                    if (cycleAddFormOpen === "__current__") {
-                      setCycleAddFormOpen(null);
-                    } else {
-                      setCycleAddFormOpen("__current__");
-                      setCycleAddForm({ recordDate: "", days: 1, note: "" });
-                    }
-                  }}
-                >
-                  {cycleAddFormOpen === "__current__" ? (
-                    <><X className="h-3 w-3" />閉じる</>
-                  ) : (
-                    <><Plus className="h-3 w-3" />追加</>
-                  )}
-                </Button>
-              </div>
-            </div>
-            {cycleAddFormOpen === "__current__" && (
-              <div className="px-4 py-3 border-b border-[var(--pr4-border)] bg-emerald-50/30 dark:bg-emerald-950/10">
-                <div className="flex items-end gap-2 flex-wrap">
-                  <div>
-                    <Label className="text-[10px] text-[var(--ink-50)]">取得日</Label>
-                    <DateInput
-                      value={cycleAddForm.recordDate}
-                      onChange={(v) => setCycleAddForm({ ...cycleAddForm, recordDate: v })}
-                      enableWareki
-                      className="h-7 text-xs w-[160px]"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-[10px] text-[var(--ink-50)]">日数</Label>
-                    <Input
-                      type="number"
-                      step="0.5"
-                      min="0.5"
-                      value={cycleAddForm.days}
-                      onChange={(e) => setCycleAddForm({ ...cycleAddForm, days: parseFloat(e.target.value) || 0.5 })}
-                      className="h-7 w-20 text-right text-xs"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-[120px]">
-                    <Label className="text-[10px] text-[var(--ink-50)]">備考</Label>
-                    <Input
-                      value={cycleAddForm.note}
-                      onChange={(e) => setCycleAddForm({ ...cycleAddForm, note: e.target.value })}
-                      placeholder="任意"
-                      className="h-7 text-xs"
-                    />
-                  </div>
-                  <Button
-                    size="sm"
-                    className="h-7 px-3 text-xs gap-1"
-                    onClick={() => saveCycleLeaveUsage(currentCycleSummary.cycleStartDate, currentCycleSummary.cycleEndDate)}
-                    disabled={createLeaveUsageMutation.isPending}
-                  >
-                    <Check className="h-3 w-3" />
-                    保存
-                  </Button>
-                </div>
-                <div className="text-[10px] text-[var(--ink-50)] mt-1.5">
-                  対象期間: {currentCycleSummary.cycleStartDate} 〜 {currentCycleSummary.cycleEndDate}
-                </div>
-              </div>
-            )}
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="bg-[var(--surface-2)]">
-                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "14%" }}>日付</th>
-                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "14%" }}>種別</th>
-                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "12%" }}>日数</th>
-                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]">理由</th>
-                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "10%" }}>状態</th>
-                  <th className="text-right px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "10%" }}>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentCycleUsages.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center text-xs text-[var(--ink-50)] italic">
-                      このサイクルの履歴はありません
-                    </td>
-                  </tr>
-                )}
-                {currentCycleUsages.map((u) => {
-                  const isVoided = !!u.isVoided;
-                  const isAdj = u.recordType === "adjustment";
-                  const isIncrease = isAdj && u.days < 0;
-                  const displayDate = u.recordDate || u.startDate;
-                  const daysStr = isAdj
-                    ? (isIncrease ? `+${Math.abs(u.days).toFixed(1)}` : `−${Math.abs(u.days).toFixed(1)}`)
-                    : u.days.toFixed(1);
-                  return (
-                    <tr key={u.id} className={`border-b border-[var(--pr4-border)] last:border-b-0 ${isVoided ? "text-[var(--ink-35)]" : ""}`}>
-                      <td className="px-4 py-2.5">
-                        <span className={`font-mono text-xs ${isVoided ? "line-through text-[var(--ink-35)]" : "text-[var(--ink)]"}`}>{displayDate}</span>
-                      </td>
-                      <td className="px-4 py-2.5">
-                        {isVoided ? (
-                          <Badge variant="voided" className="text-[10px]">{isAdj ? (isIncrease ? "補正（増）" : "補正（減）") : "取得"}</Badge>
-                        ) : (
-                          <Badge variant={isAdj ? (isIncrease ? "success" : "danger") : "neut"} className="text-[10px]">
-                            <span className="w-1 h-1 rounded-full bg-current mr-1" />
-                            {isAdj ? (isIncrease ? "補正（増）" : "補正（減）") : "取得"}
-                          </Badge>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <span className={`text-xs font-semibold ${
-                          isVoided ? "line-through text-[var(--ink-35)]"
-                          : isAdj && isIncrease ? "text-[var(--green)]"
-                          : isAdj ? "text-[var(--red)]"
-                          : "text-[var(--ink)]"
-                        }`}>{daysStr}</span>
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <span className={`text-xs ${isVoided ? "line-through text-[var(--ink-35)]" : "text-[var(--ink-70)]"}`}>{u.reason || u.note || "-"}</span>
-                      </td>
-                      <td className="px-4 py-2.5">
-                        {isVoided ? <Badge variant="voided" className="text-[10px]">解除済</Badge> : <Badge variant="neut" className="text-[10px]">有効</Badge>}
-                      </td>
-                      <td className="px-4 py-2.5 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {!isVoided && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6 text-[var(--ink-50)] hover:text-amber-600 hover:bg-amber-50"
-                              title="解除（論理削除）"
-                              onClick={() => { setVoidTarget(u); setVoidDialogOpen(true); }}
-                            >
-                              <Ban className="h-3 w-3" />
-                            </Button>
-                          )}
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-6 w-6 text-[var(--ink-50)] hover:text-red-600 hover:bg-red-50"
-                            title="削除"
-                            disabled={deleteLeaveUsageMutation.isPending}
-                            onClick={() => handleDeleteLeaveUsage(u.id)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-
       <div className="grid gap-5 lg:grid-cols-2">
         {/* 社員情報 */}
         <Card className="border">
@@ -2015,6 +1608,245 @@ export default function EmployeeDetail() {
         </Card>
       )}
 
+      {/* ─── 配属履歴 ─── */}
+      <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
+      <Card className="border">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <CollapsibleTrigger asChild>
+              <button type="button" className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
+                <Building2 className="h-4 w-4 text-indigo-500" />
+                配属履歴
+                <span className="text-xs font-normal text-muted-foreground">
+                  {sortedHistories.length}件
+                </span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+              </button>
+            </CollapsibleTrigger>
+            {!isRetired && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="ml-auto h-7 text-xs gap-1"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setHistoryOpen(true);
+                  setShowAddHistory(true);
+                  setEditingHistoryId(null);
+                  setHistoryForm({ assignment: "", startDate: "", endDate: "", note: "" });
+                }}
+                data-testid="button-add-history"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                追加
+              </Button>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CollapsibleContent>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm" data-testid="assignment-history-table">
+              <thead>
+                <tr className="border-b text-left text-muted-foreground">
+                  <th className="pb-2 font-medium">配属先</th>
+                  <th className="pb-2 font-medium">開始日</th>
+                  <th className="pb-2 font-medium">終了日</th>
+                  <th className="pb-2 font-medium">備考</th>
+                  <th className="pb-2 font-medium text-right">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* Add row */}
+                {showAddHistory && (
+                  <tr className="border-b bg-muted/30">
+                    <td className="py-1 pr-2">
+                      <Input
+                        value={historyForm.assignment}
+                        onChange={(e) => setHistoryForm({ ...historyForm, assignment: e.target.value })}
+                        placeholder="配属先名（本社は「-」）"
+                        className="h-7 text-xs"
+                        data-testid="input-new-history-assignment"
+                      />
+                    </td>
+                    <td className="py-1 pr-2">
+                      <DateInput
+                        value={historyForm.startDate}
+                        onChange={(v) => setHistoryForm({ ...historyForm, startDate: v })}
+                        className="h-7 text-xs"
+                        data-testid="input-new-history-start-date"
+                      />
+                    </td>
+                    <td className="py-1 pr-2">
+                      <DateInput
+                        value={historyForm.endDate}
+                        onChange={(v) => setHistoryForm({ ...historyForm, endDate: v })}
+                        className="h-7 text-xs"
+                        placeholder="空欄=現在"
+                        data-testid="input-new-history-end-date"
+                      />
+                    </td>
+                    <td className="py-1 pr-2">
+                      <Input
+                        value={historyForm.note}
+                        onChange={(e) => setHistoryForm({ ...historyForm, note: e.target.value })}
+                        placeholder="備考（任意）"
+                        className="h-7 text-xs"
+                        data-testid="input-new-history-note"
+                      />
+                    </td>
+                    <td className="py-1 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                          onClick={saveHistory}
+                          disabled={createHistoryMutation.isPending || !historyForm.startDate}
+                          data-testid="button-save-new-history"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                          onClick={() => setShowAddHistory(false)}
+                          data-testid="button-cancel-new-history"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                {/* Existing rows */}
+                {sortedHistories.length === 0 && !showAddHistory && (
+                  <tr>
+                    <td colSpan={5} className="py-4 text-center text-sm text-muted-foreground">
+                      配属履歴がありません
+                    </td>
+                  </tr>
+                )}
+                {sortedHistories.map((h) => {
+                  const isEditingThis = editingHistoryId === h.id;
+                  const isCurrent = !h.endDate;
+                  return (
+                    <tr key={h.id} className={`border-b ${isCurrent ? "bg-indigo-50/50 dark:bg-indigo-950/20" : ""}`} data-testid={`row-history-${h.id}`}>
+                      {isEditingThis ? (
+                        <>
+                          <td className="py-1 pr-2">
+                            <Input
+                              value={historyForm.assignment}
+                              onChange={(e) => setHistoryForm({ ...historyForm, assignment: e.target.value })}
+                              className="h-7 text-xs"
+                              data-testid={`input-edit-history-assignment-${h.id}`}
+                            />
+                          </td>
+                          <td className="py-1 pr-2">
+                            <DateInput
+                              value={historyForm.startDate}
+                              onChange={(v) => setHistoryForm({ ...historyForm, startDate: v })}
+                              className="h-7 text-xs"
+                              data-testid={`input-edit-history-start-${h.id}`}
+                            />
+                          </td>
+                          <td className="py-1 pr-2">
+                            <DateInput
+                              value={historyForm.endDate}
+                              onChange={(v) => setHistoryForm({ ...historyForm, endDate: v })}
+                              className="h-7 text-xs"
+                              data-testid={`input-edit-history-end-${h.id}`}
+                            />
+                          </td>
+                          <td className="py-1 pr-2">
+                            <Input
+                              value={historyForm.note}
+                              onChange={(e) => setHistoryForm({ ...historyForm, note: e.target.value })}
+                              className="h-7 text-xs"
+                              data-testid={`input-edit-history-note-${h.id}`}
+                            />
+                          </td>
+                          <td className="py-1 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                onClick={saveHistory}
+                                disabled={updateHistoryMutation.isPending}
+                                data-testid={`button-save-history-${h.id}`}
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                onClick={() => setEditingHistoryId(null)}
+                                data-testid={`button-cancel-history-${h.id}`}
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="py-2">
+                            <div className="flex items-center gap-1.5">
+                              {isCurrent && (
+                                <span className="inline-block h-2 w-2 rounded-full bg-indigo-500 shrink-0" />
+                              )}
+                              <span className={`font-medium ${isCurrent ? "text-indigo-700 dark:text-indigo-400" : ""}`}>
+                                {h.assignment === "-" ? "本社" : h.assignment}
+                              </span>
+                              {isCurrent && (
+                                <Badge variant="outline" className="text-xs px-1 py-0 border-indigo-300 bg-indigo-100 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-400">
+                                  現在
+                                </Badge>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-2 tabular-nums text-muted-foreground">{h.startDate}</td>
+                          <td className="py-2 tabular-nums text-muted-foreground">{h.endDate || "―"}</td>
+                          <td className="py-2 text-xs text-muted-foreground max-w-[180px] truncate">{h.note || "―"}</td>
+                          <td className="py-2 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                onClick={() => startEditHistory(h)}
+                                data-testid={`button-edit-history-${h.id}`}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                                onClick={() => handleDeleteHistory(h.id)}
+                                disabled={deleteHistoryMutation.isPending}
+                                data-testid={`button-delete-history-${h.id}`}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+        </CollapsibleContent>
+      </Card>
+      </Collapsible>
+
       {/* ═══ 補正値セクション ═══ */}
       {paidLeave && !isEditing && (
         <>
@@ -2150,6 +1982,548 @@ export default function EmployeeDetail() {
           </div>
         </>
       )}
+
+      {/* ═══ v24 2窓表示: 残日数サマリ（最上部配置） ═══ */}
+      {paidLeave && currentCycleSummary && !isEditing && (
+        <>
+          <div className="flex justify-between items-center mt-1 mb-3">
+            <h2 className="text-[15px] font-semibold text-[var(--ink)] tracking-tight">
+              現在のサイクル — 残日数サマリ
+            </h2>
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-[var(--accent-soft)] text-[var(--pr4-accent)] rounded-full text-[10px] font-semibold tracking-wide">
+              <span className="w-[5px] h-[5px] rounded-full bg-current" />
+              進行中{` · ${currentCycleSummary.cycleStartDate} 〜 ${currentCycleSummary.cycleEndDate}`}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-3 mb-4">
+            {/* Primary: 補正計算（実残日数） */}
+            <article className="bg-[var(--surface)] border border-[var(--ink)] rounded-[10px] p-[22px_24px] shadow-md relative">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <div className="text-[15px] font-semibold text-[var(--ink)] tracking-tight">補正計算（実残日数）</div>
+                  <div className="text-[11px] text-[var(--ink-50)] mt-0.5">業務での参照値・補正値あり</div>
+                </div>
+                <span className="inline-flex items-center gap-[5px] text-[10px] font-semibold px-2 py-[3px] rounded bg-[var(--ink)] text-[var(--surface)] tracking-wide">
+                  <span className="w-[5px] h-[5px] rounded-full bg-current" />PRIMARY
+                </span>
+              </div>
+              <div className="flex items-baseline gap-3 flex-wrap my-4">
+                <span className="text-[56px] font-semibold leading-[0.9] tracking-tighter text-[var(--ink)]">
+                  {currentCycleSummary.adjustedRemaining.toFixed(1)}
+                </span>
+                <span className="text-[13px] font-normal text-[var(--ink-50)]">日</span>
+                {currentCycleSummary.adjustmentDays !== 0 && (
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--pr4-accent)] bg-[var(--accent-soft)] px-2 py-[3px] rounded self-center">
+                    {currentCycleSummary.adjustmentDays < 0 ? "+" : ""}
+                    {(-currentCycleSummary.adjustmentDays).toFixed(1)} 補正
+                  </span>
+                )}
+              </div>
+              <div className="pt-3 border-t border-[var(--pr4-border)] text-xs">
+                <div className="flex justify-between py-1 text-[var(--ink-70)]">
+                  <span>付与日数</span>
+                  <span className="font-mono font-medium text-[var(--ink)]">+{Number(currentCycleSummary.grantedDays).toFixed(1)}</span>
+                </div>
+                <div className="flex justify-between py-1 text-[var(--ink-70)]">
+                  <span className="flex items-center gap-1">
+                    繰越日数
+                    {prevCycleSummary && (prevCycleSummary.adjustedRemaining - prevCycleSummary.autoRemaining) !== 0 && (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="inline-flex items-center justify-center w-[14px] h-[14px] rounded-full bg-[var(--accent-soft)] text-[var(--pr4-accent)] text-[9px] font-bold border border-[var(--pr4-accent)]/20 cursor-help"
+                          >
+                            i
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          side="bottom"
+                          align="center"
+                          sideOffset={8}
+                          className="w-[240px] bg-[var(--ink)] text-[var(--surface)] border-none shadow-lg p-[12px_14px] rounded-md text-[11px] leading-[1.6]"
+                        >
+                          <div className="font-semibold text-[var(--surface)] mb-1.5 pb-1.5 border-b border-white/15 text-[11px]">繰越日数の内訳</div>
+                          <div className="flex justify-between py-0.5 text-white/70">
+                            <span>自動計算分</span>
+                            <span className="font-mono font-medium text-[var(--surface)]">{currentCycleSummary.carriedOverDays.toFixed(1)}</span>
+                          </div>
+                          <div className="flex justify-between py-0.5 text-white/70">
+                            <span>補正値由来分</span>
+                            <span className="font-mono font-semibold text-[#5eead4]">
+                              {(prevCycleSummary.adjustedRemaining - prevCycleSummary.autoRemaining) >= 0 ? "+" : ""}{(prevCycleSummary.adjustedRemaining - prevCycleSummary.autoRemaining).toFixed(1)}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-white/55 mt-1.5 pt-1.5 border-t border-white/10 italic">
+                            補正値由来分は、前サイクルの補正値が繰越に与えた影響を示します
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  </span>
+                  <span className="font-mono font-medium text-[var(--ink)]">+{Number(currentCycleSummary.carriedOverDays).toFixed(1)}</span>
+                </div>
+                <div className="flex justify-between py-1 text-[var(--ink-70)]">
+                  <span>消化日数（取得）</span>
+                  <span className="font-mono font-medium text-[var(--ink)]">−{Number(currentCycleSummary.usageOnlyDays).toFixed(1)}</span>
+                </div>
+                {currentCycleSummary.adjustmentDays !== 0 && (
+                  <div className="flex justify-between py-1 text-[var(--pr4-accent)] font-semibold">
+                    <span>補正値合計（増減）</span>
+                    <span className="font-mono">{currentCycleSummary.adjustmentDays < 0 ? "+" : ""}{(-currentCycleSummary.adjustmentDays).toFixed(1)}</span>
+                  </div>
+                )}
+              </div>
+            </article>
+
+            {/* Secondary: 自動計算（補正値なし） */}
+            <article className="bg-[var(--surface-2)] border border-dashed border-[var(--pr4-border)] rounded-[10px] p-[22px_24px] relative">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <div className="text-[15px] font-medium text-[var(--ink-70)] tracking-tight">自動計算（補正値なし）</div>
+                  <div className="text-[11px] text-[var(--ink-50)] mt-0.5">参考値・影響を切り分け</div>
+                </div>
+                <span className="inline-flex items-center gap-[5px] text-[10px] font-semibold px-2 py-[3px] rounded border border-[var(--border-strong)] text-[var(--ink-50)] tracking-wide">
+                  REFERENCE
+                </span>
+              </div>
+              <div className="flex items-baseline gap-3 flex-wrap my-4">
+                <span className="text-[42px] font-medium leading-[0.9] tracking-tighter text-[var(--ink-50)]">
+                  {currentCycleSummary.autoRemaining.toFixed(1)}
+                </span>
+                <span className="text-[13px] font-normal text-[var(--ink-50)]">日</span>
+              </div>
+              <div className="pt-3 border-t border-[var(--pr4-border)] text-xs">
+                <div className="flex justify-between py-1 text-[var(--ink-70)]">
+                  <span>付与日数</span>
+                  <span className="font-mono font-medium text-[var(--ink)]">+{Number(currentCycleSummary.grantedDays).toFixed(1)}</span>
+                </div>
+                <div className="flex justify-between py-1 text-[var(--ink-70)]">
+                  <span>繰越日数（自動計算分のみ）</span>
+                  <span className="font-mono font-medium text-[var(--ink)]">+{Number(currentCycleSummary.carriedOverDays).toFixed(1)}</span>
+                </div>
+                <div className="flex justify-between py-1 text-[var(--ink-70)]">
+                  <span>消化日数（取得）</span>
+                  <span className="font-mono font-medium text-[var(--ink)]">−{Number(currentCycleSummary.usageOnlyDays).toFixed(1)}</span>
+                </div>
+                <div className="flex justify-between py-1 text-[var(--ink-70)]">
+                  <span>補正値の反映</span>
+                  <span className="font-mono text-[var(--ink-35)]">─</span>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          {/* 2窓の差分説明ノート */}
+          {(() => {
+            const twoWindowDiff = currentCycleSummary.adjustedRemaining - currentCycleSummary.autoRemaining;
+            return twoWindowDiff !== 0 ? (
+              <div className="flex gap-3 items-start bg-[var(--accent-soft)] border border-[var(--pr4-accent)]/12 border-l-[3px] border-l-[var(--pr4-accent)] rounded-md px-4 py-3 mb-5">
+                <span className="w-[18px] h-[18px] rounded-full bg-[var(--pr4-accent)] text-white inline-flex items-center justify-center text-[11px] font-bold shrink-0 mt-0.5">i</span>
+                <p className="text-xs leading-relaxed text-[var(--ink-70)]">
+                  補正反映済みと自動計算の差は <strong className="font-semibold text-[var(--pr4-accent)]">{twoWindowDiff >= 0 ? "+" : ""}{twoWindowDiff.toFixed(1)}日</strong> です（補正値{currentCycleAdjCount}件）。過渡的補正値の場合、過去履歴の入力が進めば両窓が一致していき、担当者の判断で解除できます。
+                </p>
+              </div>
+            ) : null;
+          })()}
+
+          {/* 5日義務・期限・健全性は既存ロジックを維持 */}
+          <div className="mb-5 bg-[var(--surface)] border border-[var(--pr4-border)] rounded-[10px] p-5 shadow-xs">
+            {/* 5-day progress bar */}
+            <div>
+              <div className="flex justify-between text-xs text-[var(--ink-50)] mb-1">
+                <span>年5日義務達成状況</span>
+                <span className="tabular-nums font-medium">
+                  {Math.min(paidLeave.consumedDays, 5).toFixed(2)}/5.00日
+                </span>
+              </div>
+              <div className="h-2.5 rounded-full bg-[var(--surface-3)] overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    paidLeave.consumedDays >= 5
+                      ? "bg-[var(--green)]"
+                      : paidLeave.consumedDays >= 3
+                      ? "bg-[var(--amber)]"
+                      : "bg-[var(--red)]"
+                  }`}
+                  style={{ width: `${Math.min(100, (paidLeave.consumedDays / 5) * 100)}%` }}
+                />
+              </div>
+            </div>
+
+            {/* 期限・ペース情報 */}
+            {deadline && deadline.paceStatus !== "not_eligible" && (
+              <div className="mt-3 pt-3 border-t border-[var(--pr4-border)]">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <CalendarClock className="h-3.5 w-3.5 text-[var(--ink-50)]" />
+                  <span className="text-xs font-medium text-[var(--ink-50)]">取得期限・ペース</span>
+                  <Badge
+                    variant={deadline.paceStatus === "overdue" || deadline.paceStatus === "danger" ? "danger" : deadline.paceStatus === "ok" ? "success" : "warn"}
+                    className="text-xs ml-auto px-1.5 py-0"
+                  >
+                    {deadline.paceStatus === "ok" && "余裕あり"}
+                    {deadline.paceStatus === "tight" && "やや注意"}
+                    {deadline.paceStatus === "danger" && "ペース不足"}
+                    {deadline.paceStatus === "overdue" && "期限超過"}
+                  </Badge>
+                </div>
+                <dl className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <dt className="text-[var(--ink-50)]">付与基準日</dt>
+                    <dd className="font-medium tabular-nums text-[var(--ink)]">{deadline.currentGrantDate}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[var(--ink-50)]">義務期限</dt>
+                    <dd className="font-medium tabular-nums text-[var(--ink)]">{deadline.obligationDeadline}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[var(--ink-50)]">期限まで</dt>
+                    <dd className={`font-bold tabular-nums ${
+                      deadline.daysUntilDeadline <= 30
+                        ? "text-[var(--red)]"
+                        : deadline.daysUntilDeadline <= 90
+                        ? "text-[var(--amber)]"
+                        : "text-[var(--ink)]"
+                    }`}>
+                      {deadline.daysUntilDeadline > 0 ? `${deadline.daysUntilDeadline}日` : "期限超過"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[var(--ink-50)]">残り必要日数</dt>
+                    <dd className={`font-bold tabular-nums ${
+                      deadline.remainingObligation > 0 ? "text-[var(--amber)]" : "text-[var(--green)]"
+                    }`}>
+                      {deadline.remainingObligation > 0
+                        ? `あと${deadline.remainingObligation}日`
+                        : <span className="inline-flex items-center gap-0.5"><CheckCircle2 className="h-3 w-3" />達成</span>
+                      }
+                    </dd>
+                  </div>
+                </dl>
+                <div className={`mt-2 rounded px-2 py-1.5 text-xs ${
+                  deadline.paceStatus === "ok"
+                    ? "bg-[var(--green-soft)] text-[var(--green)]"
+                    : deadline.paceStatus === "tight"
+                    ? "bg-[var(--amber-soft)] text-[var(--amber)]"
+                    : "bg-[var(--red-soft)] text-[var(--red)]"
+                }`}>
+                  {deadline.paceMessage}
+                </div>
+                <div className="mt-1.5 flex items-center gap-3 text-xs text-[var(--ink-50)]">
+                  <span>勤続 {deadline.tenureYears}年</span>
+                  <span>法定付与 {deadline.legalGrantDays}日</span>
+                </div>
+              </div>
+            )}
+            {deadline && deadline.paceStatus === "not_eligible" && (
+              <div className="mt-3 pt-3 border-t border-[var(--pr4-border)]">
+                <div className="flex items-center gap-1.5">
+                  <CalendarClock className="h-3.5 w-3.5 text-[var(--ink-50)]" />
+                  <span className="text-xs text-[var(--ink-50)]">{deadline.paceMessage}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ═══ 現在サイクル 履歴一覧テーブル ═══ */}
+          <div className="border border-[var(--pr4-border)] rounded-md overflow-hidden mb-5">
+            <div className="px-4 py-2.5 border-b border-[var(--pr4-border)] flex justify-between items-center bg-[var(--surface-2)]">
+              <h3 className="text-[13px] font-semibold text-[var(--ink)]">履歴一覧</h3>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-[var(--ink-50)] font-mono">{currentCycleUsages.length} 件</span>
+                <Button
+                  size="sm"
+                  variant={cycleAddFormOpen === "__current__" ? "default" : "outline"}
+                  className="h-6 px-2 text-[10px] gap-1"
+                  onClick={() => {
+                    if (cycleAddFormOpen === "__current__") {
+                      setCycleAddFormOpen(null);
+                    } else {
+                      setCycleAddFormOpen("__current__");
+                      setCycleAddForm({ recordDate: "", days: 1, note: "" });
+                    }
+                  }}
+                >
+                  {cycleAddFormOpen === "__current__" ? (
+                    <><X className="h-3 w-3" />閉じる</>
+                  ) : (
+                    <><Plus className="h-3 w-3" />追加</>
+                  )}
+                </Button>
+              </div>
+            </div>
+            {cycleAddFormOpen === "__current__" && (
+              <div className="px-4 py-3 border-b border-[var(--pr4-border)] bg-emerald-50/30 dark:bg-emerald-950/10">
+                <div className="flex items-end gap-2 flex-wrap">
+                  <div>
+                    <Label className="text-[10px] text-[var(--ink-50)]">取得日</Label>
+                    <DateInput
+                      value={cycleAddForm.recordDate}
+                      onChange={(v) => setCycleAddForm({ ...cycleAddForm, recordDate: v })}
+                      enableWareki
+                      className="h-7 text-xs w-[160px]"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-[var(--ink-50)]">日数</Label>
+                    <Input
+                      type="number"
+                      step="0.5"
+                      min="0.5"
+                      value={cycleAddForm.days}
+                      onChange={(e) => setCycleAddForm({ ...cycleAddForm, days: parseFloat(e.target.value) || 0.5 })}
+                      className="h-7 w-20 text-right text-xs"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-[120px]">
+                    <Label className="text-[10px] text-[var(--ink-50)]">備考</Label>
+                    <Input
+                      value={cycleAddForm.note}
+                      onChange={(e) => setCycleAddForm({ ...cycleAddForm, note: e.target.value })}
+                      placeholder="任意"
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    className="h-7 px-3 text-xs gap-1"
+                    onClick={() => saveCycleLeaveUsage(currentCycleSummary.cycleStartDate, currentCycleSummary.cycleEndDate)}
+                    disabled={createLeaveUsageMutation.isPending}
+                  >
+                    <Check className="h-3 w-3" />
+                    保存
+                  </Button>
+                </div>
+                <div className="text-[10px] text-[var(--ink-50)] mt-1.5">
+                  対象期間: {currentCycleSummary.cycleStartDate} 〜 {currentCycleSummary.cycleEndDate}
+                </div>
+              </div>
+            )}
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-[var(--surface-2)]">
+                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "14%" }}>日付</th>
+                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "14%" }}>種別</th>
+                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "12%" }}>日数</th>
+                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]">理由</th>
+                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "10%" }}>状態</th>
+                  <th className="text-right px-4 py-2 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "10%" }}>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentCycleUsages.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-xs text-[var(--ink-50)] italic">
+                      このサイクルの履歴はありません
+                    </td>
+                  </tr>
+                )}
+                {currentCycleUsages.map((u) => {
+                  const isVoided = !!u.isVoided;
+                  const isAdj = u.recordType === "adjustment";
+                  const isIncrease = isAdj && u.days < 0;
+                  const displayDate = u.recordDate || u.startDate;
+                  const daysStr = isAdj
+                    ? (isIncrease ? `+${Math.abs(u.days).toFixed(1)}` : `−${Math.abs(u.days).toFixed(1)}`)
+                    : u.days.toFixed(1);
+                  return (
+                    <tr key={u.id} className={`border-b border-[var(--pr4-border)] last:border-b-0 ${isVoided ? "text-[var(--ink-35)]" : ""}`}>
+                      <td className="px-4 py-2.5">
+                        <span className={`font-mono text-xs ${isVoided ? "line-through text-[var(--ink-35)]" : "text-[var(--ink)]"}`}>{displayDate}</span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {isVoided ? (
+                          <Badge variant="voided" className="text-[10px]">{isAdj ? (isIncrease ? "補正（増）" : "補正（減）") : "取得"}</Badge>
+                        ) : (
+                          <Badge variant={isAdj ? (isIncrease ? "success" : "danger") : "neut"} className="text-[10px]">
+                            <span className="w-1 h-1 rounded-full bg-current mr-1" />
+                            {isAdj ? (isIncrease ? "補正（増）" : "補正（減）") : "取得"}
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className={`text-xs font-semibold ${
+                          isVoided ? "line-through text-[var(--ink-35)]"
+                          : isAdj && isIncrease ? "text-[var(--green)]"
+                          : isAdj ? "text-[var(--red)]"
+                          : "text-[var(--ink)]"
+                        }`}>{daysStr}</span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className={`text-xs ${isVoided ? "line-through text-[var(--ink-35)]" : "text-[var(--ink-70)]"}`}>{u.reason || u.note || "-"}</span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {isVoided ? <Badge variant="voided" className="text-[10px]">解除済</Badge> : <Badge variant="neut" className="text-[10px]">有効</Badge>}
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {!isVoided && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6 text-[var(--ink-50)] hover:text-amber-600 hover:bg-amber-50"
+                              title="解除（論理削除）"
+                              onClick={() => { setVoidTarget(u); setVoidDialogOpen(true); }}
+                            >
+                              <Ban className="h-3 w-3" />
+                            </Button>
+                          )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-[var(--ink-50)] hover:text-red-600 hover:bg-red-50"
+                            title="削除"
+                            disabled={deleteLeaveUsageMutation.isPending}
+                            onClick={() => handleDeleteLeaveUsage(u.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* ─── 特別休暇 ─── */}
+      <Collapsible open={specialLeaveOpen} onOpenChange={setSpecialLeaveOpen}>
+      <Card className="border">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <CollapsibleTrigger asChild>
+              <button type="button" className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
+                <Gift className="h-4 w-4 text-purple-500" />
+                特別休暇
+                <span className="text-xs font-normal text-muted-foreground">
+                  {(specialLeavesData ?? []).length}件
+                </span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+              </button>
+            </CollapsibleTrigger>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-xs ml-auto"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSpecialLeaveOpen(true);
+                setShowAddSpecialLeave(!showAddSpecialLeave);
+              }}
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              追加
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CollapsibleContent>
+        <CardContent className="pt-0">
+          {/* 追加フォーム */}
+          {showAddSpecialLeave && (
+            <div className="rounded-md bg-purple-50/50 dark:bg-purple-950/10 border border-purple-200 dark:border-purple-800 p-3 mb-3">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                <div>
+                  <Label className="text-xs">種別</Label>
+                  <select
+                    className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
+                    value={newSpecialLeave.leaveType}
+                    onChange={(e) => setNewSpecialLeave({ ...newSpecialLeave, leaveType: e.target.value })}
+                  >
+                    <option value="慶弔休暇">慶弔休暇</option>
+                    <option value="結婚休暇">結婚休暇</option>
+                    <option value="忌引休暇">忌引休暇</option>
+                    <option value="産前産後休暇">産前産後休暇</option>
+                    <option value="育児休暇">育児休暇</option>
+                    <option value="介護休暇">介護休暇</option>
+                    <option value="裁判員休暇">裁判員休暇</option>
+                    <option value="その他">その他</option>
+                  </select>
+                </div>
+                <div>
+                  <Label className="text-xs">開始日</Label>
+                  <DateInput className="h-8 text-xs" value={newSpecialLeave.startDate}
+                    onChange={(v) => setNewSpecialLeave({ ...newSpecialLeave, startDate: v })} />
+                </div>
+                <div>
+                  <Label className="text-xs">終了日</Label>
+                  <DateInput className="h-8 text-xs" value={newSpecialLeave.endDate}
+                    onChange={(v) => setNewSpecialLeave({ ...newSpecialLeave, endDate: v })} />
+                </div>
+                <div>
+                  <Label className="text-xs">日数</Label>
+                  <Input type="number" step="0.5" min="0.5" className="h-8 text-xs" value={newSpecialLeave.days}
+                    onChange={(e) => setNewSpecialLeave({ ...newSpecialLeave, days: parseFloat(e.target.value) || 1 })} />
+                </div>
+                <div>
+                  <Label className="text-xs">理由</Label>
+                  <Input className="h-8 text-xs" placeholder="任意" value={newSpecialLeave.reason}
+                    onChange={(e) => setNewSpecialLeave({ ...newSpecialLeave, reason: e.target.value })} />
+                </div>
+              </div>
+              <div className="flex gap-2 mt-2">
+                <Button size="sm" className="h-7 text-xs"
+                  disabled={!newSpecialLeave.startDate || !newSpecialLeave.endDate || createSpecialLeaveMutation.isPending}
+                  onClick={() => createSpecialLeaveMutation.mutate({
+                    employeeId: id, ...newSpecialLeave,
+                  })}>
+                  {createSpecialLeaveMutation.isPending ? "登録中..." : "登録"}
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowAddSpecialLeave(false)}>
+                  キャンセル
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* 一覧 */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/30 text-left text-muted-foreground">
+                  <th className="py-2 font-medium text-xs">種別</th>
+                  <th className="py-2 font-medium text-xs">期間</th>
+                  <th className="py-2 font-medium text-xs text-right">日数</th>
+                  <th className="py-2 font-medium text-xs">理由</th>
+                  <th className="py-2 font-medium text-xs text-right" />
+                </tr>
+              </thead>
+              <tbody>
+                {(!specialLeavesData || specialLeavesData.length === 0) && (
+                  <tr><td colSpan={5} className="py-4 text-center text-sm text-muted-foreground">特別休暇の記録なし</td></tr>
+                )}
+                {[...(specialLeavesData ?? [])].sort((a, b) => b.startDate.localeCompare(a.startDate)).map((sl) => (
+                  <tr key={sl.id} className="border-b">
+                    <td className="py-2">
+                      <Badge variant="outline" className="text-xs px-1.5 py-0 border-purple-300 bg-purple-50 text-purple-700 dark:border-purple-700 dark:bg-purple-950/40 dark:text-purple-400">
+                        {sl.leaveType}
+                      </Badge>
+                    </td>
+                    <td className="py-2 text-xs tabular-nums text-muted-foreground">
+                      {sl.startDate} 〜 {sl.endDate}
+                    </td>
+                    <td className="py-2 text-right tabular-nums font-medium">{Number(sl.days).toFixed(2)}日</td>
+                    <td className="py-2 text-muted-foreground text-xs max-w-[180px] truncate">{sl.reason || "-"}</td>
+                    <td className="py-2 text-right">
+                      <Button size="icon" variant="ghost"
+                        className="h-7 w-7 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                        onClick={() => { if (window.confirm("この特別休暇を削除しますか？")) deleteSpecialLeaveMutation.mutate(sl.id); }}
+                        disabled={deleteSpecialLeaveMutation.isPending}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+        </CollapsibleContent>
+      </Card>
+      </Collapsible>
 
       {/* ═══ 過去サイクル ═══ */}
       {paidLeave && !isEditing && pastCycleSummaries.length > 0 && (
@@ -2882,245 +3256,6 @@ export default function EmployeeDetail() {
         </CardContent>
       </Card>
 
-      {/* ─── 配属履歴 ─── */}
-      <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
-      <Card className="border">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <CollapsibleTrigger asChild>
-              <button type="button" className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
-                <Building2 className="h-4 w-4 text-indigo-500" />
-                配属履歴
-                <span className="text-xs font-normal text-muted-foreground">
-                  {sortedHistories.length}件
-                </span>
-                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
-              </button>
-            </CollapsibleTrigger>
-            {!isRetired && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="ml-auto h-7 text-xs gap-1"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setHistoryOpen(true);
-                  setShowAddHistory(true);
-                  setEditingHistoryId(null);
-                  setHistoryForm({ assignment: "", startDate: "", endDate: "", note: "" });
-                }}
-                data-testid="button-add-history"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                追加
-              </Button>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CollapsibleContent>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm" data-testid="assignment-history-table">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="pb-2 font-medium">配属先</th>
-                  <th className="pb-2 font-medium">開始日</th>
-                  <th className="pb-2 font-medium">終了日</th>
-                  <th className="pb-2 font-medium">備考</th>
-                  <th className="pb-2 font-medium text-right">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* Add row */}
-                {showAddHistory && (
-                  <tr className="border-b bg-muted/30">
-                    <td className="py-1 pr-2">
-                      <Input
-                        value={historyForm.assignment}
-                        onChange={(e) => setHistoryForm({ ...historyForm, assignment: e.target.value })}
-                        placeholder="配属先名（本社は「-」）"
-                        className="h-7 text-xs"
-                        data-testid="input-new-history-assignment"
-                      />
-                    </td>
-                    <td className="py-1 pr-2">
-                      <DateInput
-                        value={historyForm.startDate}
-                        onChange={(v) => setHistoryForm({ ...historyForm, startDate: v })}
-                        className="h-7 text-xs"
-                        data-testid="input-new-history-start-date"
-                      />
-                    </td>
-                    <td className="py-1 pr-2">
-                      <DateInput
-                        value={historyForm.endDate}
-                        onChange={(v) => setHistoryForm({ ...historyForm, endDate: v })}
-                        className="h-7 text-xs"
-                        placeholder="空欄=現在"
-                        data-testid="input-new-history-end-date"
-                      />
-                    </td>
-                    <td className="py-1 pr-2">
-                      <Input
-                        value={historyForm.note}
-                        onChange={(e) => setHistoryForm({ ...historyForm, note: e.target.value })}
-                        placeholder="備考（任意）"
-                        className="h-7 text-xs"
-                        data-testid="input-new-history-note"
-                      />
-                    </td>
-                    <td className="py-1 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                          onClick={saveHistory}
-                          disabled={createHistoryMutation.isPending || !historyForm.startDate}
-                          data-testid="button-save-new-history"
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                          onClick={() => setShowAddHistory(false)}
-                          data-testid="button-cancel-new-history"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-                {/* Existing rows */}
-                {sortedHistories.length === 0 && !showAddHistory && (
-                  <tr>
-                    <td colSpan={5} className="py-4 text-center text-sm text-muted-foreground">
-                      配属履歴がありません
-                    </td>
-                  </tr>
-                )}
-                {sortedHistories.map((h) => {
-                  const isEditingThis = editingHistoryId === h.id;
-                  const isCurrent = !h.endDate;
-                  return (
-                    <tr key={h.id} className={`border-b ${isCurrent ? "bg-indigo-50/50 dark:bg-indigo-950/20" : ""}`} data-testid={`row-history-${h.id}`}>
-                      {isEditingThis ? (
-                        <>
-                          <td className="py-1 pr-2">
-                            <Input
-                              value={historyForm.assignment}
-                              onChange={(e) => setHistoryForm({ ...historyForm, assignment: e.target.value })}
-                              className="h-7 text-xs"
-                              data-testid={`input-edit-history-assignment-${h.id}`}
-                            />
-                          </td>
-                          <td className="py-1 pr-2">
-                            <DateInput
-                              value={historyForm.startDate}
-                              onChange={(v) => setHistoryForm({ ...historyForm, startDate: v })}
-                              className="h-7 text-xs"
-                              data-testid={`input-edit-history-start-${h.id}`}
-                            />
-                          </td>
-                          <td className="py-1 pr-2">
-                            <DateInput
-                              value={historyForm.endDate}
-                              onChange={(v) => setHistoryForm({ ...historyForm, endDate: v })}
-                              className="h-7 text-xs"
-                              data-testid={`input-edit-history-end-${h.id}`}
-                            />
-                          </td>
-                          <td className="py-1 pr-2">
-                            <Input
-                              value={historyForm.note}
-                              onChange={(e) => setHistoryForm({ ...historyForm, note: e.target.value })}
-                              className="h-7 text-xs"
-                              data-testid={`input-edit-history-note-${h.id}`}
-                            />
-                          </td>
-                          <td className="py-1 text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                                onClick={saveHistory}
-                                disabled={updateHistoryMutation.isPending}
-                                data-testid={`button-save-history-${h.id}`}
-                              >
-                                <Check className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                onClick={() => setEditingHistoryId(null)}
-                                data-testid={`button-cancel-history-${h.id}`}
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </td>
-                        </>
-                      ) : (
-                        <>
-                          <td className="py-2">
-                            <div className="flex items-center gap-1.5">
-                              {isCurrent && (
-                                <span className="inline-block h-2 w-2 rounded-full bg-indigo-500 shrink-0" />
-                              )}
-                              <span className={`font-medium ${isCurrent ? "text-indigo-700 dark:text-indigo-400" : ""}`}>
-                                {h.assignment === "-" ? "本社" : h.assignment}
-                              </span>
-                              {isCurrent && (
-                                <Badge variant="outline" className="text-xs px-1 py-0 border-indigo-300 bg-indigo-100 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-400">
-                                  現在
-                                </Badge>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-2 tabular-nums text-muted-foreground">{h.startDate}</td>
-                          <td className="py-2 tabular-nums text-muted-foreground">{h.endDate || "―"}</td>
-                          <td className="py-2 text-xs text-muted-foreground max-w-[180px] truncate">{h.note || "―"}</td>
-                          <td className="py-2 text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                onClick={() => startEditHistory(h)}
-                                data-testid={`button-edit-history-${h.id}`}
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-7 w-7 text-muted-foreground hover:text-red-600 hover:bg-red-50"
-                                onClick={() => handleDeleteHistory(h.id)}
-                                disabled={deleteHistoryMutation.isPending}
-                                data-testid={`button-delete-history-${h.id}`}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </td>
-                        </>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-        </CollapsibleContent>
-      </Card>
-      </Collapsible>
-
       {/* ─── Feature B: 有給使用履歴 ─── */}
       <Collapsible open={leaveUsageOpen} onOpenChange={setLeaveUsageOpen}>
       <Card className="border">
@@ -3248,141 +3383,6 @@ export default function EmployeeDetail() {
                         disabled={deleteLeaveUsageMutation.isPending}
                         data-testid={`button-delete-leave-usage-${usage.id}`}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-        </CollapsibleContent>
-      </Card>
-      </Collapsible>
-
-      {/* ─── 特別休暇 ─── */}
-      <Collapsible open={specialLeaveOpen} onOpenChange={setSpecialLeaveOpen}>
-      <Card className="border">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <CollapsibleTrigger asChild>
-              <button type="button" className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
-                <Gift className="h-4 w-4 text-purple-500" />
-                特別休暇
-                <span className="text-xs font-normal text-muted-foreground">
-                  {(specialLeavesData ?? []).length}件
-                </span>
-                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
-              </button>
-            </CollapsibleTrigger>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-6 px-2 text-xs ml-auto"
-              onClick={(e) => {
-                e.stopPropagation();
-                setSpecialLeaveOpen(true);
-                setShowAddSpecialLeave(!showAddSpecialLeave);
-              }}
-            >
-              <Plus className="h-3 w-3 mr-1" />
-              追加
-            </Button>
-          </CardTitle>
-        </CardHeader>
-        <CollapsibleContent>
-        <CardContent className="pt-0">
-          {/* 追加フォーム */}
-          {showAddSpecialLeave && (
-            <div className="rounded-md bg-purple-50/50 dark:bg-purple-950/10 border border-purple-200 dark:border-purple-800 p-3 mb-3">
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                <div>
-                  <Label className="text-xs">種別</Label>
-                  <select
-                    className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
-                    value={newSpecialLeave.leaveType}
-                    onChange={(e) => setNewSpecialLeave({ ...newSpecialLeave, leaveType: e.target.value })}
-                  >
-                    <option value="慶弔休暇">慶弔休暇</option>
-                    <option value="結婚休暇">結婚休暇</option>
-                    <option value="忌引休暇">忌引休暇</option>
-                    <option value="産前産後休暇">産前産後休暇</option>
-                    <option value="育児休暇">育児休暇</option>
-                    <option value="介護休暇">介護休暇</option>
-                    <option value="裁判員休暇">裁判員休暇</option>
-                    <option value="その他">その他</option>
-                  </select>
-                </div>
-                <div>
-                  <Label className="text-xs">開始日</Label>
-                  <DateInput className="h-8 text-xs" value={newSpecialLeave.startDate}
-                    onChange={(v) => setNewSpecialLeave({ ...newSpecialLeave, startDate: v })} />
-                </div>
-                <div>
-                  <Label className="text-xs">終了日</Label>
-                  <DateInput className="h-8 text-xs" value={newSpecialLeave.endDate}
-                    onChange={(v) => setNewSpecialLeave({ ...newSpecialLeave, endDate: v })} />
-                </div>
-                <div>
-                  <Label className="text-xs">日数</Label>
-                  <Input type="number" step="0.5" min="0.5" className="h-8 text-xs" value={newSpecialLeave.days}
-                    onChange={(e) => setNewSpecialLeave({ ...newSpecialLeave, days: parseFloat(e.target.value) || 1 })} />
-                </div>
-                <div>
-                  <Label className="text-xs">理由</Label>
-                  <Input className="h-8 text-xs" placeholder="任意" value={newSpecialLeave.reason}
-                    onChange={(e) => setNewSpecialLeave({ ...newSpecialLeave, reason: e.target.value })} />
-                </div>
-              </div>
-              <div className="flex gap-2 mt-2">
-                <Button size="sm" className="h-7 text-xs"
-                  disabled={!newSpecialLeave.startDate || !newSpecialLeave.endDate || createSpecialLeaveMutation.isPending}
-                  onClick={() => createSpecialLeaveMutation.mutate({
-                    employeeId: id, ...newSpecialLeave,
-                  })}>
-                  {createSpecialLeaveMutation.isPending ? "登録中..." : "登録"}
-                </Button>
-                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowAddSpecialLeave(false)}>
-                  キャンセル
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* 一覧 */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/30 text-left text-muted-foreground">
-                  <th className="py-2 font-medium text-xs">種別</th>
-                  <th className="py-2 font-medium text-xs">期間</th>
-                  <th className="py-2 font-medium text-xs text-right">日数</th>
-                  <th className="py-2 font-medium text-xs">理由</th>
-                  <th className="py-2 font-medium text-xs text-right" />
-                </tr>
-              </thead>
-              <tbody>
-                {(!specialLeavesData || specialLeavesData.length === 0) && (
-                  <tr><td colSpan={5} className="py-4 text-center text-sm text-muted-foreground">特別休暇の記録なし</td></tr>
-                )}
-                {[...(specialLeavesData ?? [])].sort((a, b) => b.startDate.localeCompare(a.startDate)).map((sl) => (
-                  <tr key={sl.id} className="border-b">
-                    <td className="py-2">
-                      <Badge variant="outline" className="text-xs px-1.5 py-0 border-purple-300 bg-purple-50 text-purple-700 dark:border-purple-700 dark:bg-purple-950/40 dark:text-purple-400">
-                        {sl.leaveType}
-                      </Badge>
-                    </td>
-                    <td className="py-2 text-xs tabular-nums text-muted-foreground">
-                      {sl.startDate} 〜 {sl.endDate}
-                    </td>
-                    <td className="py-2 text-right tabular-nums font-medium">{Number(sl.days).toFixed(2)}日</td>
-                    <td className="py-2 text-muted-foreground text-xs max-w-[180px] truncate">{sl.reason || "-"}</td>
-                    <td className="py-2 text-right">
-                      <Button size="icon" variant="ghost"
-                        className="h-7 w-7 text-muted-foreground hover:text-red-600 hover:bg-red-50"
-                        onClick={() => { if (window.confirm("この特別休暇を削除しますか？")) deleteSpecialLeaveMutation.mutate(sl.id); }}
-                        disabled={deleteSpecialLeaveMutation.isPending}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </td>
