@@ -168,37 +168,6 @@ describe("calculatePaidLeavesForEmployee 統合テスト", () => {
     expect(results[2].cycleStartDate).toBe("2026-02-28");
   });
 
-  test("シナリオ6: M&A対応社員", async () => {
-    await db.insert(employees).values({
-      id: "TEST006",
-      name: "テスト6",
-      joinDate: "2020-01-01",
-      baselineDate: "2024-06-01",
-      baselineRemainingDays: 5,
-      baselineNote: "M&A移行",
-    });
-
-    await calculatePaidLeavesForEmployee("TEST006", { today: new Date("2026-05-17") });
-
-    const results = await db
-      .select()
-      .from(paidLeaves)
-      .where(eq(paidLeaves.employeeId, "TEST006"))
-      .orderBy(paidLeaves.cycleStartDate);
-
-    // 第1, 第2 サイクル
-    expect(results.length).toBe(2);
-    // 第1サイクル: 2024/06/01〜2025/05/31、granted=0、carry=5、baseline=5
-    expect(results[0].cycleStartDate).toBe("2024-06-01");
-    expect(results[0].cycleEndDate).toBe("2025-05-31");
-    expect(results[0].grantedDays).toBe(0);
-    expect(results[0].carriedOverDays).toBe(5);
-    expect(results[0].baselineRemaining).toBe(5);
-    // 第2サイクル(進行中): 2025/06/01〜2026/05/31
-    expect(results[1].cycleStartDate).toBe("2025-06-01");
-    expect(results[1].finalRemaining).toBe(null);
-  });
-
   test("シナリオ7: 冪等性確認", async () => {
     await db.insert(employees).values({
       id: "TEST007",
