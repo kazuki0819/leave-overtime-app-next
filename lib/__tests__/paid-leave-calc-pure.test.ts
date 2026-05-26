@@ -6,7 +6,6 @@ import {
   calculateExpiredDays,
   calculateCarriedOverDays,
   isEndOfMonthAugustHire,
-  calculateMAndACycleStart,
   formatISODate,
 } from "../paid-leave-calc";
 
@@ -117,12 +116,3 @@ describe("calculateCarriedOverDays", () => {
   });
 });
 
-describe("calculateMAndACycleStart", () => {
-  test("第1サイクル = baseline_date", () => {
-    expect(formatISODate(calculateMAndACycleStart(new Date("2024-06-01"), 1))).toBe("2024-06-01");
-  });
-
-  test("第2サイクル = baseline_date + 1年", () => {
-    expect(formatISODate(calculateMAndACycleStart(new Date("2024-06-01"), 2))).toBe("2025-06-01");
-  });
-});

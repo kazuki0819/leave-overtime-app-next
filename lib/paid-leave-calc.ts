@@ -72,14 +72,6 @@ export function calculateCarriedOverDays(
   return Math.max(0, previousFinalRemaining - expiredAmount);
 }
 
-export function calculateMAndACycleStart(
-  baselineDate: Date,
-  cycleNumber: number
-): Date {
-  if (cycleNumber === 1) return new Date(baselineDate);
-  return addYears(baselineDate, cycleNumber - 1);
-}
-
 export function formatISODate(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -124,8 +116,6 @@ export async function calculatePaidLeavesForEmployee(
   }
 
   const joinDate = new Date(employee.joinDate);
-  const isMAndA = employee.baselineDate !== null && employee.baselineRemainingDays !== null;
-  const baselineDate = isMAndA ? new Date(employee.baselineDate!) : null;
 
   // 時効計算用: usage のみ（補正値は時効母数に含めない）
   const usagesOnly = await db
@@ -154,14 +144,7 @@ export async function calculatePaidLeavesForEmployee(
     .orderBy(asc(leaveUsages.recordDate));
 
   let maxCycleNumber = 0;
-  if (isMAndA) {
-    let n = 1;
-    while (calculateMAndACycleStart(baselineDate!, n) <= today) {
-      maxCycleNumber = n;
-      n++;
-      if (n > 100) break;
-    }
-  } else {
+  {
     let n = 0;
     while (calculateCycleStartDate(joinDate, n) <= today) {
       maxCycleNumber = n;
@@ -178,7 +161,7 @@ export async function calculatePaidLeavesForEmployee(
     let twoCyclesBackGranted = 0;
     let twoCyclesBackStart: Date | null = null;
 
-    const startCycle = isMAndA ? 1 : 0;
+    const startCycle = 0;
 
     for (let cycleNumber = startCycle; cycleNumber <= maxCycleNumber; cycleNumber++) {
       let cycleStart: Date;
@@ -186,50 +169,21 @@ export async function calculatePaidLeavesForEmployee(
       let granted: number;
       let carry: number;
 
-      if (isMAndA) {
-        cycleStart = calculateMAndACycleStart(baselineDate!, cycleNumber);
-        cycleEnd = subDays(calculateMAndACycleStart(baselineDate!, cycleNumber + 1), 1);
+      cycleStart = calculateCycleStartDate(joinDate, cycleNumber);
+      cycleEnd = calculateCycleEndDate(joinDate, cycleNumber);
 
-        if (cycleNumber === 1) {
-          granted = 0;
-          carry = employee.baselineRemainingDays!;
-        } else if (cycleNumber === 2) {
-          granted = calculateGrantedDays(joinDate, cycleNumber, exemptCycles.has(cycleNumber));
-          carry = calculateCarriedOverDays(previousFinalRemaining, 0);
-        } else if (cycleNumber === 3) {
-          granted = calculateGrantedDays(joinDate, cycleNumber, exemptCycles.has(cycleNumber));
-          const cumulativeUsageFromMAndAStart = usagesOnly
-            .filter((u) => new Date(u.recordDate) >= baselineDate!)
-            .reduce((sum, u) => sum + u.days, 0);
-          const expired = Math.max(0, employee.baselineRemainingDays! - cumulativeUsageFromMAndAStart);
-          carry = calculateCarriedOverDays(previousFinalRemaining, expired);
-        } else {
-          granted = calculateGrantedDays(joinDate, cycleNumber, exemptCycles.has(cycleNumber));
-          const cumulativeUsageFromTwoBack = twoCyclesBackStart
-            ? usagesOnly
-                .filter((u) => new Date(u.recordDate) >= twoCyclesBackStart!)
-                .reduce((sum, u) => sum + u.days, 0)
-            : 0;
-          const expired = calculateExpiredDays(twoCyclesBackGranted, cumulativeUsageFromTwoBack);
-          carry = calculateCarriedOverDays(previousFinalRemaining, expired);
-        }
+      granted = calculateGrantedDays(joinDate, cycleNumber, exemptCycles.has(cycleNumber));
+
+      if (cycleNumber === 0 || cycleNumber === 1) {
+        carry = 0;
       } else {
-        cycleStart = calculateCycleStartDate(joinDate, cycleNumber);
-        cycleEnd = calculateCycleEndDate(joinDate, cycleNumber);
-
-        granted = calculateGrantedDays(joinDate, cycleNumber, exemptCycles.has(cycleNumber));
-
-        if (cycleNumber === 0 || cycleNumber === 1) {
-          carry = 0;
-        } else {
-          const cumulativeUsageFromTwoBack = twoCyclesBackStart
-            ? usagesOnly
-                .filter((u) => new Date(u.recordDate) >= twoCyclesBackStart!)
-                .reduce((sum, u) => sum + u.days, 0)
-            : 0;
-          const expired = calculateExpiredDays(twoCyclesBackGranted, cumulativeUsageFromTwoBack);
-          carry = calculateCarriedOverDays(previousFinalRemaining, expired);
-        }
+        const cumulativeUsageFromTwoBack = twoCyclesBackStart
+          ? usagesOnly
+              .filter((u) => new Date(u.recordDate) >= twoCyclesBackStart!)
+              .reduce((sum, u) => sum + u.days, 0)
+          : 0;
+        const expired = calculateExpiredDays(twoCyclesBackGranted, cumulativeUsageFromTwoBack);
+        carry = calculateCarriedOverDays(previousFinalRemaining, expired);
       }
 
       const baseline = granted + carry;
@@ -260,9 +214,7 @@ export async function calculatePaidLeavesForEmployee(
 
       twoCyclesBackGranted = previousGrantedDays;
       twoCyclesBackStart = cycleNumber >= 1
-        ? (isMAndA
-            ? calculateMAndACycleStart(baselineDate!, cycleNumber - 1)
-            : calculateCycleStartDate(joinDate, cycleNumber - 1))
+        ? calculateCycleStartDate(joinDate, cycleNumber - 1)
         : null;
       previousGrantedDays = granted;
       previousFinalRemaining = isInProgress ? current : final!;
