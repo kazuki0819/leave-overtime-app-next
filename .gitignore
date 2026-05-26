@@ -42,3 +42,9 @@ local.db-journal
 local.db
 local.db-journal
 .vercel
+
+# 機密ファイル・データファイル（2026-05-27 追加）
+.env*.local.bak*
+*.bak
+bulk_usage_import.csv
+*.sql
