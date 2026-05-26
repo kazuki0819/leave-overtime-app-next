@@ -12,7 +12,7 @@ import {
 } from "./schema";
 import { adjustmentDaysSchema, reasonSchema, voidLeaveUsageSchema } from "./validations/leave-usage";
 import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoExpiredDays, calcConsumedDaysFromUsages, calcRemainingDays, calcUsageRate } from "./leave-calc";
-import { recalculatePaidLeavesAfterUsageChange } from "./paid-leave-calc";
+import { recalculatePaidLeavesAfterUsageChange, calculatePaidLeavesForEmployee } from "./paid-leave-calc";
 import { db, client } from "./db";
 import { eq, and, sql, desc, asc } from "drizzle-orm";
 
@@ -122,10 +122,28 @@ export class TursoStorage implements IStorage {
   async updateEmployee(id: string, emp: Partial<InsertEmployee>): Promise<Employee | undefined> {
     const existing = await this.getEmployee(id);
     if (!existing) return undefined;
+    const joinDateChanged = emp.joinDate !== undefined && emp.joinDate !== existing.joinDate;
     const updated = { ...existing, ...emp, id };
     await db.update(employees).set(updated).where(eq(employees.id, id));
     const rows = await db.select().from(employees).where(eq(employees.id, id)).limit(1);
-    return rows[0];
+    const result = rows[0];
+
+    if (joinDateChanged && result?.joinDate) {
+      try {
+        // paid_leaves を全削除→新しい join_date 起点で再生成。
+        // leave_usages は削除せず record_date で新サイクルに再振り分けされる。
+        // 注意: 再生成で paid_leaves.id が変わるため、paid_leave_id を持つ
+        // leave_usages の紐付けが切れる。現時点では paid_leave_id≠0 のレコードが
+        // 運用上存在しないため実害なし。将来 adjustment が増えた場合は要対応。
+        await calculatePaidLeavesForEmployee(id, { source: "auto-recalc" });
+      } catch (error) {
+        console.error(
+          `[paid-leave-calc] recalc failed after joinDate change. employeeId=${id}, error=${String(error)}`
+        );
+      }
+    }
+
+    return result;
   }
 
   async deleteEmployee(id: string): Promise<boolean> {

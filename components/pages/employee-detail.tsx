@@ -654,17 +654,41 @@ export default function EmployeeDetail() {
         return;
       }
     }
-    updateEmpMutation.mutate({
-      name: editForm.name,
-      assignment: editForm.assignment,
-      joinDate: editForm.joinDate,
-      tenureMonths: editForm.tenureMonths,
-    });
-    updateLeaveMutation.mutate({
-      grantedDays: editForm.grantedDays,
-      carriedOverDays: editForm.carriedOverDays,
-      expiredDays: editForm.expiredDays,
-    });
+    const joinDateChanged = editForm.joinDate !== employee?.joinDate;
+    if (joinDateChanged) {
+      if (!window.confirm("入社日を変更すると、この社員の有給サイクルが再計算されます。よろしいですか？")) {
+        return;
+      }
+    }
+    if (joinDateChanged) {
+      updateEmpMutation.mutate({
+        name: editForm.name,
+        assignment: editForm.assignment,
+        joinDate: editForm.joinDate,
+        tenureMonths: editForm.tenureMonths,
+      }, {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["/api/paid-leaves", id] });
+          queryClient.invalidateQueries({ queryKey: ["/api/paid-leaves/all", id] });
+          queryClient.invalidateQueries({ queryKey: ["/api/paid-leaves"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/alerts"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/employee-summaries"] });
+        },
+      });
+    } else {
+      updateEmpMutation.mutate({
+        name: editForm.name,
+        assignment: editForm.assignment,
+        joinDate: editForm.joinDate,
+        tenureMonths: editForm.tenureMonths,
+      });
+      updateLeaveMutation.mutate({
+        grantedDays: editForm.grantedDays,
+        carriedOverDays: editForm.carriedOverDays,
+        expiredDays: editForm.expiredDays,
+      });
+    }
   };
 
   // Feature A: start editing a month row
