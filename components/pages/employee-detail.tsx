@@ -64,10 +64,7 @@ import type { Employee, PaidLeave, MonthlyOvertime, EmployeeAlert, LeaveUsage, A
 import type { PaidLeaveExtended, PaidLeaveCycleSummary } from "@/lib/storage";
 import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoGrantedDays, calcAutoCarryoverDays, calcAutoExpiredDays, getCurrentCycleRange, type CycleRange, type LeaveDeadlineInfo, type ExpiryRiskInfo, type ConsumptionPaceInfo, type CarryoverUtilInfo } from "@/lib/leave-calc";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { AddAdjustmentDialog } from "@/components/add-adjustment-dialog";
 import { VoidLeaveUsageDialog } from "@/components/void-leave-usage-dialog";
-import { SplitAdjustmentDialog } from "@/components/split-adjustment-dialog";
-import { ConfirmDateDialog } from "@/components/confirm-date-dialog";
 
 const MONTHS_FY = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
 
@@ -94,14 +91,6 @@ export default function EmployeeDetail() {
   const parseOT = (v: string) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
   const parseOTInt = (v: string) => { const n = parseInt(v); return isNaN(n) ? 0 : n; };
 
-  // Feature B: Leave usage history state
-  const [showAddLeaveUsage, setShowAddLeaveUsage] = useState(false);
-  const [newLeaveUsage, setNewLeaveUsage] = useState({
-    recordDate: "",
-    days: 1,
-    note: "",
-  });
-
   // Special leave state
   const [showAddSpecialLeave, setShowAddSpecialLeave] = useState(false);
   const [newSpecialLeave, setNewSpecialLeave] = useState({
@@ -112,14 +101,9 @@ export default function EmployeeDetail() {
     reason: "",
   });
 
-  // PR-4: Adjustment/void/split/date-confirm dialog state
-  const [addAdjustmentOpen, setAddAdjustmentOpen] = useState(false);
+  // PR-4: Void dialog state
   const [voidDialogOpen, setVoidDialogOpen] = useState(false);
   const [voidTarget, setVoidTarget] = useState<LeaveUsage | null>(null);
-  const [splitDialogOpen, setSplitDialogOpen] = useState(false);
-  const [splitTarget, setSplitTarget] = useState<LeaveUsage | null>(null);
-  const [confirmDateDialogOpen, setConfirmDateDialogOpen] = useState(false);
-  const [confirmDateTarget, setConfirmDateTarget] = useState<LeaveUsage | null>(null);
 
   // Memo inline edit state
   const [isMemoEditing, setIsMemoEditing] = useState(false);
@@ -138,7 +122,6 @@ export default function EmployeeDetail() {
 
   // Collapsible section state
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [leaveUsageOpen, setLeaveUsageOpen] = useState(false);
   const [specialLeaveOpen, setSpecialLeaveOpen] = useState(false);
 
   // Past cycle accordion state (first one open by default)
@@ -294,8 +277,6 @@ export default function EmployeeDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/employee-summaries"] });
       queryClient.invalidateQueries({ queryKey: ["/api/alerts"] });
       toast({ title: "有給使用を追加しました" });
-      setShowAddLeaveUsage(false);
-      setNewLeaveUsage({ recordDate: "", days: 1, note: "" });
       setCycleAddForm({ recordDate: "", days: 1, note: "" });
     },
   });
@@ -543,22 +524,6 @@ export default function EmployeeDetail() {
     return leaveUsages.reduce((sum, u) => sum + u.days, 0);
   }, [leaveUsages, paidLeave?.consumedDays]);
 
-  const adjustmentUsages = useMemo(() => {
-    return (leaveUsages ?? [])
-      .filter((u) => u.recordType === "adjustment")
-      .sort((a, b) => (b.recordDate || b.startDate).localeCompare(a.recordDate || a.startDate));
-  }, [leaveUsages]);
-
-  const adjustmentTotal = useMemo(() => {
-    return adjustmentUsages
-      .filter((u) => !u.isVoided)
-      .reduce((sum, u) => sum + u.days, 0);
-  }, [adjustmentUsages]);
-
-  const activeAdjustmentCount = useMemo(() => {
-    return adjustmentUsages.filter((u) => !u.isVoided).length;
-  }, [adjustmentUsages]);
-
   const currentCycle = useMemo(() => {
     if (!employee?.joinDate) return null;
     return getCurrentCycleRange(employee.joinDate);
@@ -740,20 +705,6 @@ export default function EmployeeDetail() {
     });
   };
 
-  // Feature B: save new leave usage
-  const saveNewLeaveUsage = () => {
-    if (!newLeaveUsage.recordDate || newLeaveUsage.days <= 0) {
-      toast({ title: "入力エラー", description: "取得日・日数は必須です", variant: "destructive" });
-      return;
-    }
-    createLeaveUsageMutation.mutate({
-      employeeId: id,
-      recordDate: newLeaveUsage.recordDate,
-      days: newLeaveUsage.days,
-      note: newLeaveUsage.note,
-    });
-  };
-
   const saveCycleLeaveUsage = (cycleStart: string, cycleEnd: string) => {
     if (!cycleAddForm.recordDate || cycleAddForm.days <= 0) {
       toast({ title: "入力エラー", description: "取得日・日数は必須です", variant: "destructive" });
@@ -803,13 +754,6 @@ export default function EmployeeDetail() {
     if (!window.confirm("この有給使用を削除しますか？")) return;
     deleteLeaveUsageMutation.mutate(usageId);
   };
-
-  // Feature B: sort leave usages descending by recordDate
-  const sortedLeaveUsages = useMemo(() => {
-    return [...(leaveUsages ?? [])].sort((a, b) =>
-      (b.recordDate || b.startDate).localeCompare(a.recordDate || a.startDate)
-    );
-  }, [leaveUsages]);
 
   if (empLoading) {
     return (
@@ -1919,142 +1863,6 @@ export default function EmployeeDetail() {
         </CollapsibleContent>
       </Card>
       </Collapsible>
-
-      {/* ═══ 補正値セクション ═══ */}
-      {paidLeave && !isEditing && (
-        <>
-          <div className="flex justify-between items-center mb-3">
-            <h2 className="text-[15px] font-semibold text-[var(--ink)] tracking-tight">補正値</h2>
-            <Button
-              onClick={() => setAddAdjustmentOpen(true)}
-              className="bg-[var(--ink)] text-[var(--surface)] hover:bg-[var(--ink-90)] gap-1.5"
-              size="sm"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              補正値を追加
-            </Button>
-          </div>
-
-          <div className="bg-[var(--surface)] border border-[var(--pr4-border)] rounded-[10px] overflow-hidden shadow-xs mb-5">
-            <div className="px-5 py-3.5 border-b border-[var(--pr4-border)] flex justify-between items-center">
-              <h3 className="text-sm font-semibold text-[var(--ink)]">補正値の履歴</h3>
-              <span className="text-[11px] text-[var(--ink-50)] font-mono">
-                {adjustmentUsages.length} 件 · うち有効 {activeAdjustmentCount}件
-              </span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-[var(--surface-2)]">
-                    <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "14%" }}>日付</th>
-                    <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "14%" }}>種別</th>
-                    <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "12%" }}>日数</th>
-                    <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]">理由</th>
-                    <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "12%" }}>状態</th>
-                    <th className="text-right px-5 py-2.5 text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider border-b border-[var(--pr4-border)]" style={{ width: "18%" }} />
-                  </tr>
-                </thead>
-                <tbody>
-                  {adjustmentUsages.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="px-5 py-8 text-center text-sm text-[var(--ink-50)]">
-                        補正値の履歴はありません
-                      </td>
-                    </tr>
-                  )}
-                  {adjustmentUsages.map((u) => {
-                    const isVoided = !!u.isVoided;
-                    const isIncrease = u.days < 0;
-                    const displayDate = u.recordDate || u.startDate;
-                    const daysDisplay = isIncrease
-                      ? `+${Math.abs(u.days).toFixed(1)}`
-                      : `−${Math.abs(u.days).toFixed(1)}`;
-                    return (
-                      <tr key={u.id} className={`border-b border-[var(--pr4-border)] last:border-b-0 ${isVoided ? "text-[var(--ink-35)]" : ""} hover:bg-[var(--surface-2)] transition-colors`}>
-                        <td className="px-5 py-3.5">
-                          <span className={`font-mono text-xs font-medium ${isVoided ? "line-through text-[var(--ink-35)]" : "text-[var(--ink)]"}`}>
-                            {displayDate}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3.5">
-                          {isVoided ? (
-                            <Badge variant="voided" className="text-[11px]">
-                              {isIncrease ? "補正（増）" : "補正（減）"}
-                            </Badge>
-                          ) : (
-                            <Badge variant={isIncrease ? "success" : "danger"} className="text-[11px]">
-                              <span className="w-1 h-1 rounded-full bg-current mr-1" />
-                              {isIncrease ? "補正（増）" : "補正（減）"}
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <span className={`text-sm font-semibold tracking-tight ${
-                            isVoided ? "line-through text-[var(--ink-35)]"
-                            : isIncrease ? "text-[var(--green)]"
-                            : "text-[var(--red)]"
-                          }`}>
-                            {daysDisplay}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <span className={`text-xs leading-snug ${isVoided ? "line-through text-[var(--ink-35)]" : "text-[var(--ink-70)]"}`}>
-                            {u.reason || "-"}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3.5">
-                          {isVoided ? (
-                            <Badge variant="voided" className="text-[11px]">解除済</Badge>
-                          ) : (
-                            <Badge variant="neut" className="text-[11px]">有効</Badge>
-                          )}
-                        </td>
-                        <td className="px-5 py-3.5 text-right">
-                          {isVoided ? (
-                            <span className="text-[10px] text-[var(--ink-35)] font-mono">
-                              {u.voidedAt ? new Date(u.voidedAt).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" }) : ""} 解除
-                            </span>
-                          ) : (
-                            <div className="flex items-center gap-1 justify-end">
-                              <button
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-transparent border border-[var(--pr4-border)] rounded text-[10px] text-[var(--ink-50)] font-medium cursor-pointer hover:bg-[var(--accent-soft)] hover:text-[var(--pr4-accent)] hover:border-[var(--pr4-accent)]/30 transition-colors"
-                                onClick={() => {
-                                  setSplitTarget(u);
-                                  setSplitDialogOpen(true);
-                                }}
-                              >
-                                分割
-                              </button>
-                              <button
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-transparent border border-[var(--pr4-border)] rounded text-[10px] text-[var(--ink-50)] font-medium cursor-pointer hover:bg-[var(--accent-soft)] hover:text-[var(--pr4-accent)] hover:border-[var(--pr4-accent)]/30 transition-colors"
-                                onClick={() => {
-                                  setConfirmDateTarget(u);
-                                  setConfirmDateDialogOpen(true);
-                                }}
-                              >
-                                日付確定
-                              </button>
-                              <button
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-transparent border border-[var(--pr4-border)] rounded text-[10px] text-[var(--ink-70)] font-medium cursor-pointer hover:bg-[var(--red-soft)] hover:text-[var(--red)] hover:border-[var(--red)]/30 transition-colors"
-                                onClick={() => {
-                                  setVoidTarget(u);
-                                  setVoidDialogOpen(true);
-                                }}
-                              >
-                                解除
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
-      )}
 
       {/* ═══ v24 2窓表示: 残日数サマリ（最上部配置） ═══ */}
       {paidLeave && currentCycleSummary && !isEditing && (
@@ -3483,148 +3291,6 @@ export default function EmployeeDetail() {
         </CardContent>
       </Card>
 
-      {/* ─── Feature B: 有給使用履歴 ─── */}
-      <Collapsible open={leaveUsageOpen} onOpenChange={setLeaveUsageOpen}>
-      <Card className="border">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <CollapsibleTrigger asChild>
-              <button type="button" className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
-                <CalendarDays className="h-4 w-4 text-emerald-500" />
-                有給使用履歴
-                <span className="text-xs font-normal text-muted-foreground">
-                  {sortedLeaveUsages.length}件
-                </span>
-                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
-              </button>
-            </CollapsibleTrigger>
-            <Button
-              size="sm"
-              variant="outline"
-              className="ml-auto h-7 text-xs gap-1"
-              onClick={(e) => {
-                e.stopPropagation();
-                setLeaveUsageOpen(true);
-                setShowAddLeaveUsage(true);
-                setNewLeaveUsage({ recordDate: "", days: 1, note: "" });
-              }}
-              data-testid="button-add-leave-usage"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              追加
-            </Button>
-          </CardTitle>
-        </CardHeader>
-        <CollapsibleContent>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm" data-testid="leave-usage-table">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="pb-2 font-medium">取得日</th>
-                  <th className="pb-2 font-medium text-right">日数</th>
-                  <th className="pb-2 font-medium">備考</th>
-                  <th className="pb-2 font-medium text-right">削除</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* Add row */}
-                {showAddLeaveUsage && (
-                  <tr className="border-b bg-muted/30">
-                    <td className="py-1 pr-2">
-                      <DateInput
-                        value={newLeaveUsage.recordDate}
-                        onChange={(v) => setNewLeaveUsage({ ...newLeaveUsage, recordDate: v })}
-                        enableWareki
-                        className="h-7 text-xs"
-                        data-testid="input-new-leave-record-date"
-                      />
-                    </td>
-                    <td className="py-1 pr-2">
-                      <Input
-                        type="number"
-                        step="0.5"
-                        min="0.5"
-                        value={newLeaveUsage.days}
-                        onChange={(e) => setNewLeaveUsage({ ...newLeaveUsage, days: parseFloat(e.target.value) || 0.5 })}
-                        className="h-7 w-20 text-right ml-auto text-xs"
-                        required
-                        data-testid="input-new-leave-days"
-                      />
-                    </td>
-                    <td className="py-1 pr-2">
-                      <Input
-                        value={newLeaveUsage.note}
-                        onChange={(e) => setNewLeaveUsage({ ...newLeaveUsage, note: e.target.value })}
-                        placeholder="備考（任意）"
-                        className="h-7 text-xs"
-                        data-testid="input-new-leave-note"
-                      />
-                    </td>
-                    <td className="py-1 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                          onClick={saveNewLeaveUsage}
-                          disabled={createLeaveUsageMutation.isPending}
-                          data-testid="button-save-new-leave-usage"
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                          onClick={() => setShowAddLeaveUsage(false)}
-                          data-testid="button-cancel-new-leave-usage"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-                {/* Existing rows */}
-                {sortedLeaveUsages.length === 0 && !showAddLeaveUsage && (
-                  <tr>
-                    <td colSpan={4} className="py-4 text-center text-sm text-muted-foreground">
-                      有給使用履歴がありません
-                    </td>
-                  </tr>
-                )}
-                {sortedLeaveUsages.map((usage) => (
-                  <tr key={usage.id} className="border-b" data-testid={`row-leave-usage-${usage.id}`}>
-                    <td className="py-2 tabular-nums">{usage.recordDate || usage.startDate}</td>
-                    <td className="py-2 text-right tabular-nums font-medium">{Number(usage.days).toFixed(2)}日</td>
-                    <td className="py-2 text-muted-foreground text-xs max-w-[180px] truncate">
-                      {usage.note || "-"}
-                    </td>
-                    <td className="py-2 text-right">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7 text-muted-foreground hover:text-red-600 hover:bg-red-50"
-                        onClick={() => handleDeleteLeaveUsage(usage.id)}
-                        disabled={deleteLeaveUsageMutation.isPending}
-                        data-testid={`button-delete-leave-usage-${usage.id}`}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-        </CollapsibleContent>
-      </Card>
-      </Collapsible>
-
-
-
       {/* ─── 退職処理ダイアログ ─── */}
       <Dialog open={retireDialogOpen} onOpenChange={setRetireDialogOpen}>
         <DialogContent data-testid="dialog-retire">
@@ -3690,17 +3356,6 @@ export default function EmployeeDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* PR-4: 補正値追加モーダル */}
-      {paidLeave && (
-        <AddAdjustmentDialog
-          open={addAdjustmentOpen}
-          onOpenChange={setAddAdjustmentOpen}
-          paidLeaveId={paidLeave.id}
-          employeeId={id}
-          employeeName={employee.name}
-        />
-      )}
-
       {/* PR-4: 解除モーダル */}
       <VoidLeaveUsageDialog
         open={voidDialogOpen}
@@ -3708,22 +3363,6 @@ export default function EmployeeDetail() {
         usage={voidTarget}
         employeeId={id}
         currentRemainingDays={paidLeave?.adjustedRemainingDays ?? 0}
-      />
-
-      {/* PR-4: 分割モーダル */}
-      <SplitAdjustmentDialog
-        open={splitDialogOpen}
-        onOpenChange={setSplitDialogOpen}
-        target={splitTarget}
-        employeeId={id}
-      />
-
-      {/* PR-4: 日付確定モーダル */}
-      <ConfirmDateDialog
-        open={confirmDateDialogOpen}
-        onOpenChange={setConfirmDateDialogOpen}
-        target={confirmDateTarget}
-        employeeId={id}
       />
     </div>
   );
