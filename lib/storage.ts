@@ -166,6 +166,13 @@ export class TursoStorage implements IStorage {
       await this.updateAssignmentHistory(openHistory.id, { endDate: retiredDate });
     }
     await db.update(employees).set({ status: "retired", retiredDate, assignment: "-" }).where(eq(employees.id, id));
+
+    try {
+      await calculatePaidLeavesForEmployee(id, { source: "manual" });
+    } catch (e) {
+      console.error(`[retireEmployee] recalc failed for employeeId=${id}:`, e);
+    }
+
     const rows = await db.select().from(employees).where(eq(employees.id, id)).limit(1);
     return rows[0];
   }
@@ -174,6 +181,13 @@ export class TursoStorage implements IStorage {
     const existing = await this.getEmployee(id);
     if (!existing) return undefined;
     await db.update(employees).set({ status: "active", retiredDate: "" }).where(eq(employees.id, id));
+
+    try {
+      await calculatePaidLeavesForEmployee(id, { source: "manual" });
+    } catch (e) {
+      console.error(`[reinstateEmployee] recalc failed for employeeId=${id}:`, e);
+    }
+
     const rows = await db.select().from(employees).where(eq(employees.id, id)).limit(1);
     return rows[0];
   }

@@ -117,6 +117,11 @@ export async function calculatePaidLeavesForEmployee(
 
   const joinDate = new Date(employee.joinDate);
 
+  const effectiveEndDate: Date =
+    employee.status === "retired" && employee.retiredDate !== ""
+      ? new Date(employee.retiredDate)
+      : today;
+
   // 時効計算用: usage のみ（補正値は時効母数に含めない）
   const usagesOnly = await db
     .select()
@@ -146,7 +151,7 @@ export async function calculatePaidLeavesForEmployee(
   let maxCycleNumber = 0;
   {
     let n = 0;
-    while (calculateCycleStartDate(joinDate, n) <= today) {
+    while (calculateCycleStartDate(joinDate, n) <= effectiveEndDate) {
       maxCycleNumber = n;
       n++;
       if (n > 100) break;
