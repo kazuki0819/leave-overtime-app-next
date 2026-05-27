@@ -10,7 +10,7 @@ import { eq } from "drizzle-orm";
 
 describe("calculatePaidLeavesForEmployee 統合テスト", () => {
   beforeEach(async () => {
-    const testIds = ["TEST001", "TEST002", "TEST003", "TEST004", "TEST005", "TEST006", "TEST007"];
+    const testIds = ["TEST001", "TEST002", "TEST003", "TEST004", "TEST005", "TEST006", "TEST007", "TEST_RET01", "TEST_RET02", "TEST_RET03"];
     for (const id of testIds) {
       await db.delete(paidLeaves).where(eq(paidLeaves.employeeId, id));
       await db.delete(leaveUsages).where(eq(leaveUsages.employeeId, id));
@@ -198,6 +198,94 @@ describe("calculatePaidLeavesForEmployee 統合テスト", () => {
       expect(second[i].baselineRemaining).toBe(first[i].baselineRemaining);
       expect(second[i].currentRemaining).toBe(first[i].currentRemaining);
     }
+  });
+
+  test("シナリオ8: 退職者は退職日を含むサイクルまで生成、それ以降は生成しない", async () => {
+    await db.insert(employees).values({
+      id: "TEST_RET01",
+      name: "退職テスト01",
+      assignment: "-",
+      joinDate: "2020-04-01",
+      retiredDate: "2022-09-30",
+      status: "retired",
+      tenureMonths: 0,
+      memo: "",
+    });
+
+    await calculatePaidLeavesForEmployee("TEST_RET01", {
+      today: new Date("2026-05-28"),
+    });
+
+    const cycles = await db
+      .select()
+      .from(paidLeaves)
+      .where(eq(paidLeaves.employeeId, "TEST_RET01"))
+      .orderBy(paidLeaves.cycleStartDate);
+
+    const cycleStarts = cycles.map((c) => c.cycleStartDate);
+    expect(cycleStarts).toContain("2020-10-01");
+    expect(cycleStarts).toContain("2021-10-01");
+    expect(cycleStarts).not.toContain("2022-10-01");
+    expect(cycleStarts).not.toContain("2023-10-01");
+    expect(cycleStarts).not.toContain("2024-10-01");
+    expect(cycleStarts).not.toContain("2025-10-01");
+  });
+
+  test("シナリオ9: 退職日がサイクル開始日と一致する場合、そのサイクルは生成される", async () => {
+    await db.insert(employees).values({
+      id: "TEST_RET02",
+      name: "退職テスト02",
+      assignment: "-",
+      joinDate: "2020-04-01",
+      retiredDate: "2022-10-01",
+      status: "retired",
+      tenureMonths: 0,
+      memo: "",
+    });
+
+    await calculatePaidLeavesForEmployee("TEST_RET02", {
+      today: new Date("2026-05-28"),
+    });
+
+    const cycles = await db
+      .select()
+      .from(paidLeaves)
+      .where(eq(paidLeaves.employeeId, "TEST_RET02"))
+      .orderBy(paidLeaves.cycleStartDate);
+
+    const cycleStarts = cycles.map((c) => c.cycleStartDate);
+    expect(cycleStarts).toContain("2020-10-01");
+    expect(cycleStarts).toContain("2021-10-01");
+    expect(cycleStarts).toContain("2022-10-01");
+    expect(cycleStarts).not.toContain("2023-10-01");
+  });
+
+  test("シナリオ10: status='active' の社員は retiredDate があっても today まで生成される", async () => {
+    await db.insert(employees).values({
+      id: "TEST_RET03",
+      name: "退職テスト03",
+      assignment: "-",
+      joinDate: "2020-04-01",
+      retiredDate: "2022-09-30",
+      status: "active",
+      tenureMonths: 0,
+      memo: "",
+    });
+
+    await calculatePaidLeavesForEmployee("TEST_RET03", {
+      today: new Date("2026-05-28"),
+    });
+
+    const cycles = await db
+      .select()
+      .from(paidLeaves)
+      .where(eq(paidLeaves.employeeId, "TEST_RET03"))
+      .orderBy(paidLeaves.cycleStartDate);
+
+    const cycleStarts = cycles.map((c) => c.cycleStartDate);
+    expect(cycleStarts).toContain("2020-10-01");
+    expect(cycleStarts).toContain("2025-10-01");
+    expect(cycles.length).toBeGreaterThanOrEqual(6);
   });
 });
 
