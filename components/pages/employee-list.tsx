@@ -34,8 +34,7 @@ import {
 } from "@/components/ui/dialog";
 import { SearchWithHistory } from "@/components/search-with-history";
 import { useToast } from "@/hooks/use-toast";
-import type { Employee, PaidLeave, AssignmentHistory, LeaveUsage } from "@/lib/schema";
-import { calcConsumedDaysFromUsages, calcAutoExpiredDays, calcRemainingDays, calcUsageRate } from "@/lib/leave-calc";
+import type { Employee, PaidLeave, AssignmentHistory } from "@/lib/schema";
 
 type PaidLeaveWithStats = PaidLeave & {
   consumedDays: number;
@@ -95,14 +94,6 @@ export default function EmployeeList() {
     queryKey: ["/api/paid-leaves"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/paid-leaves");
-      return res.json();
-    },
-  });
-
-  const { data: allLeaveUsages } = useQuery<LeaveUsage[]>({
-    queryKey: ["/api/leave-usages"],
-    queryFn: async () => {
-      const res = await apiRequest("GET", "/api/leave-usages");
       return res.json();
     },
   });
@@ -179,34 +170,18 @@ export default function EmployeeList() {
   const leaveMap = useMemo(() => {
     const m = new Map<string, PaidLeaveWithStats>();
     if (!paidLeaves) return m;
-    const usagesByLeaveId = new Map<number, LeaveUsage[]>();
-    if (allLeaveUsages) {
-      for (const u of allLeaveUsages) {
-        if (u.isVoided) continue;
-        const arr = usagesByLeaveId.get(u.paidLeaveId) ?? [];
-        arr.push(u);
-        usagesByLeaveId.set(u.paidLeaveId, arr);
+    for (const l of paidLeaves) {
+      const existing = m.get(l.employeeId);
+      if (!existing || l.id > existing.id) {
+        const remainingDays = Math.max(0, l.finalRemaining ?? l.currentRemaining);
+        const consumedDays = l.baselineRemaining - (l.finalRemaining ?? l.currentRemaining);
+        const total = l.grantedDays + l.carriedOverDays;
+        const usageRate = total > 0 ? Math.round((consumedDays / total) * 10000) / 10000 : 0;
+        m.set(l.employeeId, { ...l, consumedDays, remainingDays, usageRate });
       }
     }
-    for (const l of paidLeaves) {
-      const usgs = usagesByLeaveId.get(l.id) ?? [];
-      const consumedDays = calcConsumedDaysFromUsages(usgs);
-      const autoExpired = calcAutoExpiredDays(l.carriedOverDays, consumedDays);
-      const remainingDays = Math.max(0, calcRemainingDays({
-        grantedDays: l.grantedDays,
-        carriedOverDays: l.carriedOverDays,
-        consumedDays,
-        expiredDays: autoExpired,
-      }));
-      const usageRate = calcUsageRate({
-        grantedDays: l.grantedDays,
-        carriedOverDays: l.carriedOverDays,
-        consumedDays,
-      });
-      m.set(l.employeeId, { ...l, consumedDays, remainingDays, usageRate });
-    }
     return m;
-  }, [paidLeaves, allLeaveUsages]);
+  }, [paidLeaves]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
