@@ -564,10 +564,16 @@ export default function EmployeeDetail() {
 
   const currentCycleUsages = useMemo(() => {
     if (!leaveUsages || !currentCycleSummary) return [];
-    return leaveUsages.filter((u) => {
-      const d = u.recordDate || u.startDate;
-      return d >= currentCycleSummary.cycleStartDate && d <= currentCycleSummary.cycleEndDate;
-    });
+    return [...leaveUsages]
+      .filter((u) => {
+        const d = u.recordDate || u.startDate;
+        return d >= currentCycleSummary.cycleStartDate && d <= currentCycleSummary.cycleEndDate;
+      })
+      .sort((a, b) => {
+        const da = a.recordDate || a.startDate;
+        const db = b.recordDate || b.startDate;
+        return da.localeCompare(db) || a.id - b.id;
+      });
   }, [leaveUsages, currentCycleSummary]);
 
   // 自動計算値
@@ -2493,10 +2499,16 @@ export default function EmployeeDetail() {
           <div className="space-y-2">
             {pastCycleSummaries.map((cycle, idx) => {
               const cycleLabel = idx === 0 ? "前サイクル" : `${idx + 1}サイクル前`;
-              const cycleUsages = (leaveUsages ?? []).filter((u) => {
-                const d = u.recordDate || u.startDate;
-                return d >= cycle.cycleStartDate && d <= cycle.cycleEndDate;
-              });
+              const cycleUsages = [...(leaveUsages ?? [])]
+                .filter((u) => {
+                  const d = u.recordDate || u.startDate;
+                  return d >= cycle.cycleStartDate && d <= cycle.cycleEndDate;
+                })
+                .sort((a, b) => {
+                  const da = a.recordDate || a.startDate;
+                  const db = b.recordDate || b.startDate;
+                  return da.localeCompare(db) || a.id - b.id;
+                });
               const adjDisplayTotal = -cycle.adjustmentDays;
               const twoWindowDiff = cycle.adjustedRemaining - cycle.autoRemaining;
 
