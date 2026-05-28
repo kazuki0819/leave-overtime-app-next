@@ -2634,7 +2634,7 @@ export default function EmployeeDetail() {
                             <div className="flex justify-between items-center mb-3">
                               <span className="text-xs font-semibold text-[var(--ink)]">サイクル全体サマリ</span>
                             </div>
-                            <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+                            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                               <div className="text-center">
                                 <div className="text-[10px] text-[var(--ink-50)]">付与日数</div>
                                 <div className="text-sm font-semibold tabular-nums text-[var(--ink)]">{cycle.grantedDays.toFixed(1)}<span className="text-[10px] font-normal text-[var(--ink-50)] ml-0.5">日</span></div>
@@ -2658,10 +2658,9 @@ export default function EmployeeDetail() {
                                 </div>
                               </div>
                               <div className="text-center bg-[var(--accent-soft)] rounded p-1">
-                                <div className="text-[10px] text-[var(--pr4-accent)]">失効日数</div>
-                                <div className="text-sm font-semibold tabular-nums text-[var(--pr4-accent)]">{nextCycleSummary ? (cycle.adjustedRemaining - nextCycleSummary.carriedOverDays).toFixed(1) : "─"}<span className="text-[10px] font-normal ml-0.5">{nextCycleSummary ? "日" : ""}</span></div>
-                              </div>
-                              <div className="text-center bg-[var(--accent-soft)] rounded p-1">
+                                <div className="text-[10px] text-red-600 dark:text-red-400">失効日数</div>
+                                <div className="text-sm font-semibold tabular-nums text-red-600 dark:text-red-400">{nextCycleSummary ? (cycle.adjustedRemaining - nextCycleSummary.carriedOverDays).toFixed(1) : "─"}<span className="text-[10px] font-normal ml-0.5">{nextCycleSummary ? "日" : ""}</span></div>
+                                <div className="border-t border-border/50 my-1"></div>
                                 <div className="text-[10px] text-[var(--pr4-accent)]">次サイクル繰越</div>
                                 <div className="text-sm font-semibold tabular-nums text-[var(--pr4-accent)]">{nextCycleSummary ? nextCycleSummary.carriedOverDays.toFixed(1) : "─"}<span className="text-[10px] font-normal ml-0.5">{nextCycleSummary ? "日" : ""}</span></div>
                               </div>
