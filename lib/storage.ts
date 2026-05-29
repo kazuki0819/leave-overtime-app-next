@@ -403,6 +403,7 @@ export class TursoStorage implements IStorage {
   }
 
   async createLeaveUsage(usage: InsertLeaveUsage): Promise<LeaveUsage> {
+    const now = new Date().toISOString();
     const rows = await db.insert(leaveUsages).values({
       employeeId: usage.employeeId,
       recordDate: usage.recordDate,
@@ -410,6 +411,8 @@ export class TursoStorage implements IStorage {
       endDate: usage.recordDate,
       days: usage.days,
       note: usage.note ?? null,
+      createdAt: now,
+      updatedAt: now,
     }).returning();
     const created = rows[0];
 
