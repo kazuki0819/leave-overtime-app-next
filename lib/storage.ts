@@ -264,11 +264,15 @@ export class TursoStorage implements IStorage {
     const leave = rows[0];
     if (!leave) return undefined;
 
-    const usages = await db.select().from(leaveUsages)
+    const allUsageRows = await db.select().from(leaveUsages)
       .where(and(
-        eq(leaveUsages.paidLeaveId, leave.id),
+        eq(leaveUsages.employeeId, employeeId),
         eq(leaveUsages.isVoided, 0),
       ));
+
+    const usages = allUsageRows.filter(u =>
+      u.recordDate >= leave.cycleStartDate && u.recordDate <= leave.cycleEndDate
+    );
 
     const allTotal = usages.reduce((sum, u) => sum + u.days, 0);
     const usageOnlyTotal = usages
