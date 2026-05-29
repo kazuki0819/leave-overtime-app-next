@@ -1074,13 +1074,14 @@ export class TursoStorage implements IStorage {
       const overtimeInfoCount = overtimeAlerts.filter(a => a.severity === "info").length;
 
       const usgsForSummary = hasLeave ? (usagesByPaidLeaveId.get(latestLeave!.id) ?? []) : [];
+      const cycleUsages = hasLeave
+        ? usgsForSummary.filter(u => u.recordDate >= latestLeave!.cycleStartDate && u.recordDate <= latestLeave!.cycleEndDate)
+        : [];
+      const empConsumedDays = cycleUsages.reduce((sum, u) => sum + u.days, 0);
+      const empAutoExpired = hasLeave ? calcAutoExpiredDays(carriedOverDays, empConsumedDays) : 0;
       const empRemainingDays = hasLeave
-        ? Math.max(0, latestLeave!.finalRemaining ?? latestLeave!.currentRemaining)
+        ? Math.max(0, grantedDays + carriedOverDays - empConsumedDays - empAutoExpired)
         : 0;
-      const empConsumedDays = hasLeave
-        ? latestLeave!.baselineRemaining - (latestLeave!.finalRemaining ?? latestLeave!.currentRemaining)
-        : 0;
-      const empAutoExpired = hasLeave ? latestLeave!.expiredDays : 0;
       const empUsageRate = hasLeave
         ? ((grantedDays + carriedOverDays) > 0
           ? Math.round((empConsumedDays / (grantedDays + carriedOverDays)) * 10000) / 10000
@@ -1095,17 +1096,18 @@ export class TursoStorage implements IStorage {
       return {
         id: emp.id, name: emp.name, assignment: emp.assignment, status: emp.status,
         paidLeave: hasLeave ? (() => {
-          const usageOnlyTotal = usgsForSummary
+          const usageOnlyTotal = cycleUsages
             .filter(u => u.recordType === "usage")
             .reduce((s, u) => s + u.days, 0);
-          const adjustments = usgsForSummary.filter(u => u.recordType === "adjustment");
+          const adjustments = cycleUsages.filter(u => u.recordType === "adjustment");
+          const expiredAuto = calcAutoExpiredDays(carriedOverDays, usageOnlyTotal);
           return {
             consumedDays: empConsumedDays, remainingDays: Math.max(0, empRemainingDays),
             totalAvailable: grantedDays + carriedOverDays,
             usageRate: empUsageRate, grantedDays,
             carriedOverDays, expiredDays: empAutoExpired,
             adjustedRemainingDays: Math.max(0, empRemainingDays),
-            autoRemainingDays: Math.max(0, latestLeave!.baselineRemaining - usageOnlyTotal),
+            autoRemainingDays: Math.max(0, grantedDays + carriedOverDays - usageOnlyTotal - expiredAuto),
             activeAdjustmentCount: adjustments.length,
           };
         })() : null,
