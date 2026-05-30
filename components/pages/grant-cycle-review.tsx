@@ -99,9 +99,8 @@ export default function GrantCycleReview() {
     const total = emps.length;
     const achieved5 = emps.filter((e) => e.achieved5Days).length;
     const expiredCount = emps.filter((e) => e.expiredDays > 0).length;
-    const avgUsageRate = Math.round(
-      emps.reduce((sum, e) => sum + e.usageRate, 0) / total,
-    );
+    const avgUsageRate =
+      emps.reduce((sum, e) => sum + e.usageRate, 0) / total;
     const avgRemaining =
       Math.round(
         (emps.reduce((sum, e) => sum + e.remainingDays, 0) / total) * 10,
@@ -331,14 +330,14 @@ export default function GrantCycleReview() {
                         平均取得率
                       </p>
                       <p className="text-lg font-bold mt-0.5">
-                        {stats.avgUsageRate}%
+                        {Math.round(stats.avgUsageRate * 100)}%
                       </p>
                     </div>
                     <div
-                      className={`rounded-lg p-2 ${stats.avgUsageRate >= 50 ? "bg-emerald-50 dark:bg-emerald-950/40" : "bg-amber-50 dark:bg-amber-950/40"}`}
+                      className={`rounded-lg p-2 ${stats.avgUsageRate >= 0.5 ? "bg-emerald-50 dark:bg-emerald-950/40" : "bg-amber-50 dark:bg-amber-950/40"}`}
                     >
                       <TrendingUp
-                        className={`h-4 w-4 ${stats.avgUsageRate >= 50 ? "text-emerald-500" : "text-amber-500"}`}
+                        className={`h-4 w-4 ${stats.avgUsageRate >= 0.5 ? "text-emerald-500" : "text-amber-500"}`}
                       />
                     </div>
                   </div>
@@ -478,14 +477,14 @@ export default function GrantCycleReview() {
                     </TableCell>
                     <TableCell
                       className={
-                        emp.usageRate >= 80
+                        emp.usageRate >= 0.8
                           ? "text-green-600"
-                          : emp.usageRate <= 49
+                          : emp.usageRate <= 0.49
                             ? "text-red-600"
                             : ""
                       }
                     >
-                      {emp.usageRate}%
+                      {Math.round(emp.usageRate * 100)}%
                     </TableCell>
                     <TableCell>
                       {emp.achieved5Days ? (
