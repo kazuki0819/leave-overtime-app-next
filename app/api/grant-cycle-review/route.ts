@@ -4,7 +4,7 @@ import { ensureDbInitialized } from "@/lib/init-db";
 import { db } from "@/lib/db";
 import { employees, paidLeaves, assignmentHistories, leaveUsages } from "@/lib/schema";
 import { eq, and, lte, gte, or, like } from "drizzle-orm";
-import { calcAllGrantDates, isGrantedInMonth, calcConsumedDaysFromUsages, calcAutoExpiredDays, calcRemainingDays } from "@/lib/leave-calc";
+import { calcAllGrantDates, isGrantedInMonth, calcConsumedDaysFromUsages, calcAutoExpiredDays, calcRemainingDays, calcUsageRate } from "@/lib/leave-calc";
 
 const querySchema = z.object({
   year: z.coerce.number().int().min(2000).max(2100),
@@ -55,12 +55,6 @@ export async function GET(request: NextRequest) {
 
     const allUsages = await db.select().from(leaveUsages)
       .where(eq(leaveUsages.isVoided, 0));
-    const usagesByLeaveId = new Map<number, typeof allUsages>();
-    for (const u of allUsages) {
-      const arr = usagesByLeaveId.get(u.paidLeaveId) ?? [];
-      arr.push(u);
-      usagesByLeaveId.set(u.paidLeaveId, arr);
-    }
 
     const result: Array<{
       id: string;
@@ -114,7 +108,11 @@ export async function GET(request: NextRequest) {
 
       const assignment = await getAssignmentAtDate(emp.id, grantDateStr);
 
-      const usgs = usagesByLeaveId.get(leave.id) ?? [];
+      const usgs = allUsages.filter(u =>
+        u.employeeId === emp.id &&
+        u.recordDate >= leave.cycleStartDate &&
+        u.recordDate <= leave.cycleEndDate
+      );
       const consumedDays = calcConsumedDaysFromUsages(usgs);
       const autoExpired = calcAutoExpiredDays(leave.carriedOverDays, consumedDays);
       const remaining = calcRemainingDays({
@@ -124,10 +122,11 @@ export async function GET(request: NextRequest) {
         expiredDays: autoExpired,
       });
 
-      const usageRate =
-        leave.grantedDays > 0
-          ? Math.round((consumedDays / leave.grantedDays) * 100)
-          : 0;
+      const usageRate = calcUsageRate({
+        grantedDays: leave.grantedDays,
+        carriedOverDays: leave.carriedOverDays,
+        consumedDays,
+      });
 
       result.push({
         id: emp.id,
