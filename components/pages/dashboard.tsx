@@ -6,7 +6,6 @@ import { apiRequest } from "@/lib/queryClient";
 import Link from "next/link";
 import {
   Users,
-  AlertTriangle,
   Clock,
   Calendar,
   ChevronRight,
@@ -97,14 +96,11 @@ export default function Dashboard() {
       ? withLeave.reduce((s, e) => s + (e.paidLeave?.consumedDays ?? 0), 0) / withLeave.length
       : 0;
 
-    const totalActiveAdjustments = withLeave.reduce((s, e) => s + (e.paidLeave?.activeAdjustmentCount ?? 0), 0);
-
     return {
       totalEmployees: summaries.length,
       avgUsageRate,
       avgConsumedDays,
       fiveDayFailing,
-      totalActiveAdjustments,
       leaveDanger: summaries.filter(e => e.leaveDangerCount > 0).length,
       leaveWarning: summaries.filter(e => e.leaveWarningCount > 0 && e.leaveDangerCount === 0).length,
       leaveCaution: summaries.filter(e => e.leaveCautionCount > 0).length,
@@ -177,8 +173,8 @@ export default function Dashboard() {
     return (
       <div className="space-y-6">
         <h1 className="text-xl font-bold" data-testid="page-title">ダッシュボード</h1>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-2">
+          {[...Array(2)].map((_, i) => (
             <Skeleton key={i} className="h-20 rounded-lg" />
           ))}
         </div>
@@ -199,8 +195,8 @@ export default function Dashboard() {
         <h1 className="text-xl font-bold" data-testid="page-title">ダッシュボード</h1>
       </div>
 
-      {/* Top KPI strip — v24: 4 columns */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Top KPI strip */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-2">
         <Card className="border border-[var(--pr4-border)] bg-[var(--surface)]">
           <CardContent className="p-3.5">
             <div className="flex items-center justify-between">
@@ -226,21 +222,6 @@ export default function Dashboard() {
               </div>
               <div className={`rounded-lg p-2 ${stats.fiveDayFailing > 0 ? "bg-[var(--red)]/10" : "bg-[var(--green-soft)]"}`}>
                 <Calendar className={`h-4 w-4 ${stats.fiveDayFailing > 0 ? "text-[var(--red)]" : "text-[var(--green)]"}`} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className={`border ${stats.totalActiveAdjustments > 10 ? "border-[var(--amber)]/30 bg-[var(--amber-soft)]" : "border-[var(--pr4-border)] bg-[var(--surface)]"}`}>
-          <CardContent className="p-3.5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-semibold text-[var(--ink-50)] uppercase tracking-wider">アクティブ補正値</p>
-                <p className="text-lg font-bold mt-0.5 text-[var(--ink)]">
-                  {stats.totalActiveAdjustments}<span className="text-xs font-normal text-[var(--ink-50)] ml-0.5">件</span>
-                </p>
-              </div>
-              <div className={`rounded-lg p-2 ${stats.totalActiveAdjustments > 10 ? "bg-[var(--amber)]/10" : "bg-[var(--accent-soft)]"}`}>
-                <AlertTriangle className={`h-4 w-4 ${stats.totalActiveAdjustments > 10 ? "text-[var(--amber)]" : "text-[var(--pr4-accent)]"}`} />
               </div>
             </div>
           </CardContent>
