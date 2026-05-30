@@ -3,7 +3,7 @@ import { z } from "zod";
 import { ensureDbInitialized } from "@/lib/init-db";
 import { db } from "@/lib/db";
 import { employees, paidLeaves, assignmentHistories, leaveUsages } from "@/lib/schema";
-import { eq, and, lte, gte, or } from "drizzle-orm";
+import { eq, and, lte, gte, or, like } from "drizzle-orm";
 import { calcAllGrantDates, isGrantedInMonth, calcConsumedDaysFromUsages, calcAutoExpiredDays, calcRemainingDays } from "@/lib/leave-calc";
 
 const querySchema = z.object({
@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { year, month } = parsed.data;
+  const ym = `${year}-${String(month).padStart(2, "0")}`;
 
   try {
     const allEmployees = await db.select().from(employees);
@@ -96,7 +97,12 @@ export async function GET(request: NextRequest) {
       const leaveRows = await db
         .select()
         .from(paidLeaves)
-        .where(eq(paidLeaves.employeeId, emp.id))
+        .where(
+          and(
+            eq(paidLeaves.employeeId, emp.id),
+            like(paidLeaves.cycleStartDate, `${ym}%`),
+          ),
+        )
         .limit(1);
       const leave = leaveRows[0];
       if (!leave) {
