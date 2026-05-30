@@ -4,7 +4,7 @@ import { ensureDbInitialized } from "@/lib/init-db";
 import { db } from "@/lib/db";
 import { employees, paidLeaves, assignmentHistories, leaveUsages } from "@/lib/schema";
 import { eq, and, lte, gte, or, like } from "drizzle-orm";
-import { calcAllGrantDates, isGrantedInMonth, calcConsumedDaysFromUsages, calcAutoExpiredDays, calcRemainingDays, calcUsageRate } from "@/lib/leave-calc";
+import { calcAllGrantDates, isGrantedInMonth, calcConsumedDaysFromUsages, calcAutoExpiredDays, calcRemainingDays } from "@/lib/leave-calc";
 
 const querySchema = z.object({
   year: z.coerce.number().int().min(2000).max(2100),
@@ -124,11 +124,10 @@ export async function GET(request: NextRequest) {
         expiredDays: autoExpired,
       });
 
-      const usageRate = calcUsageRate({
-        grantedDays: leave.grantedDays,
-        carriedOverDays: leave.carriedOverDays,
-        consumedDays,
-      });
+      const usageRate =
+        leave.grantedDays > 0
+          ? Math.round((consumedDays / leave.grantedDays) * 100)
+          : 0;
 
       result.push({
         id: emp.id,
