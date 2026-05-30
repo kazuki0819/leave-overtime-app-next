@@ -4,7 +4,7 @@ import { ensureDbInitialized } from "@/lib/init-db";
 import { db } from "@/lib/db";
 import { employees, paidLeaves, assignmentHistories, leaveUsages } from "@/lib/schema";
 import { eq, and, lte, gte, or } from "drizzle-orm";
-import { isGrantedInMonth, calcAllGrantDates, calcConsumedDaysFromUsages, calcAutoExpiredDays, calcRemainingDays } from "@/lib/leave-calc";
+import { isGrantedInMonth, calcAllGrantDates, calcConsumedDaysFromUsages, calcAutoExpiredDays, calcRemainingDays, calcUsageRate } from "@/lib/leave-calc";
 
 const querySchema = z.object({
   year: z.coerce.number().int().min(2000).max(2100),
@@ -66,12 +66,6 @@ export async function GET(request: NextRequest) {
 
     const allUsages = await db.select().from(leaveUsages)
       .where(eq(leaveUsages.isVoided, 0));
-    const usagesByLeaveId = new Map<number, typeof allUsages>();
-    for (const u of allUsages) {
-      const arr = usagesByLeaveId.get(u.paidLeaveId) ?? [];
-      arr.push(u);
-      usagesByLeaveId.set(u.paidLeaveId, arr);
-    }
 
     const dataRows: string[] = [];
 
@@ -103,7 +97,11 @@ export async function GET(request: NextRequest) {
       const isRetired = emp.status === "retired";
       const retiredDate = emp.retiredDate === "" ? null : emp.retiredDate;
 
-      const usgs = usagesByLeaveId.get(leave.id) ?? [];
+      const usgs = allUsages.filter(u =>
+        u.employeeId === emp.id &&
+        u.recordDate >= leave.cycleStartDate &&
+        u.recordDate <= leave.cycleEndDate
+      );
       const consumedDays = calcConsumedDaysFromUsages(usgs);
       const autoExpired = calcAutoExpiredDays(leave.carriedOverDays, consumedDays);
       const remaining = calcRemainingDays({
@@ -112,17 +110,18 @@ export async function GET(request: NextRequest) {
         consumedDays,
         expiredDays: autoExpired,
       });
-      const usageRate =
-        leave.grantedDays > 0
-          ? Math.round((consumedDays / leave.grantedDays) * 100)
-          : 0;
+      const usageRate = calcUsageRate({
+        grantedDays: leave.grantedDays,
+        carriedOverDays: leave.carriedOverDays,
+        consumedDays,
+      });
 
       dataRows.push(
         [
           escapeCsv(emp.id),
           escapeCsv(emp.name),
           escapeCsv(Math.max(0, remaining)),
-          escapeCsv(`${usageRate}%`),
+          escapeCsv(`${Math.round(usageRate * 100)}%`),
           escapeCsv(consumedDays >= 5 ? "達成" : "未達成"),
           escapeCsv(leave.grantedDays),
           escapeCsv(leave.carriedOverDays),
