@@ -165,6 +165,7 @@ export async function calculatePaidLeavesForEmployee(
     let previousGrantedDays = 0;
     let twoCyclesBackGranted = 0;
     let twoCyclesBackStart: Date | null = null;
+    let previousCycleId: number | null = null;
 
     const startCycle = 0;
 
@@ -173,6 +174,7 @@ export async function calculatePaidLeavesForEmployee(
       let cycleEnd: Date;
       let granted: number;
       let carry: number;
+      let expired = 0;
 
       cycleStart = calculateCycleStartDate(joinDate, cycleNumber);
       cycleEnd = calculateCycleEndDate(joinDate, cycleNumber);
@@ -191,7 +193,7 @@ export async function calculatePaidLeavesForEmployee(
             .filter((u) => u.recordDate >= twoCyclesBackStartStr && u.recordDate < cycleStartStr)
             .reduce((sum, u) => sum + u.days, 0);
         }
-        const expired = calculateExpiredDays(twoCyclesBackGranted, cumulativeUsageFromTwoBack);
+        expired = calculateExpiredDays(twoCyclesBackGranted, cumulativeUsageFromTwoBack);
         carry = calculateCarriedOverDays(previousFinalRemaining, expired);
         carry = Math.min(carry, previousGrantedDays);
       }
@@ -205,7 +207,7 @@ export async function calculatePaidLeavesForEmployee(
       const isInProgress = cycleStart <= today && today <= cycleEnd;
       const final = isInProgress ? null : current;
 
-      await tx.insert(paidLeaves).values({
+      const [inserted] = await tx.insert(paidLeaves).values({
         employeeId,
         cycleStartDate: cycleStartStr,
         cycleEndDate: cycleEndStr,
@@ -217,7 +219,16 @@ export async function calculatePaidLeavesForEmployee(
         expiredDays: 0,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-      });
+      }).returning({ id: paidLeaves.id });
+
+      // Badge式後書き: 前サイクルの expired_days = 前サイクルの finalRemaining − 当サイクルへの carry
+      if (cycleNumber >= 2 && previousCycleId !== null) {
+        await tx.update(paidLeaves)
+          .set({ expiredDays: previousFinalRemaining - carry, updatedAt: new Date().toISOString() })
+          .where(eq(paidLeaves.id, previousCycleId));
+      }
+
+      previousCycleId = inserted.id;
 
       twoCyclesBackGranted = previousGrantedDays;
       twoCyclesBackStart = cycleNumber >= 1
