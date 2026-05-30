@@ -118,6 +118,7 @@ export default function EmployeeList() {
       setForm(defaultForm);
       queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
       queryClient.invalidateQueries({ queryKey: ["/api/employee-summaries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/paid-leaves"] });
     },
     onError: (error: Error) => {
       toast({

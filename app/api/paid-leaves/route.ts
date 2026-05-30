@@ -3,6 +3,8 @@ import { ensureDbInitialized } from "@/lib/init-db";
 import { storage } from "@/lib/storage";
 import { insertPaidLeaveSchema } from "@/lib/schema";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   await ensureDbInitialized();
   const leaves = await storage.getPaidLeaves();

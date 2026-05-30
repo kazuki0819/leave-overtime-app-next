@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { ensureDbInitialized } from "@/lib/init-db";
 import { storage } from "@/lib/storage";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   await ensureDbInitialized();
   // Turso is cloud-hosted, so backup info is adapted
