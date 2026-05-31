@@ -4,7 +4,7 @@ import { ensureDbInitialized } from "@/lib/init-db";
 import { db } from "@/lib/db";
 import { employees, paidLeaves, assignmentHistories, leaveUsages } from "@/lib/schema";
 import { eq, and, lte, gte, or, like } from "drizzle-orm";
-import { calcAllGrantDates, isGrantedInMonth, calcConsumedDaysFromUsages, calcAutoExpiredDays, calcRemainingDays, calcUsageRate } from "@/lib/leave-calc";
+import { calcAllGrantDates, isGrantedInMonth, calcConsumedDaysFromUsages, calcUsageRate } from "@/lib/leave-calc";
 
 const querySchema = z.object({
   year: z.coerce.number().int().min(2000).max(2100),
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
       carriedOverDays: number;
       consumedDays: number;
       remainingDays: number;
-      expiredDays: number;
+      expiredDays: number | null;
       usageRate: number;
       achieved5Days: boolean;
     }> = [];
@@ -114,13 +114,9 @@ export async function GET(request: NextRequest) {
         u.recordDate <= leave.cycleEndDate
       );
       const consumedDays = calcConsumedDaysFromUsages(usgs);
-      const autoExpired = calcAutoExpiredDays(leave.carriedOverDays, consumedDays);
-      const remaining = calcRemainingDays({
-        grantedDays: leave.grantedDays,
-        carriedOverDays: leave.carriedOverDays,
-        consumedDays,
-        expiredDays: autoExpired,
-      });
+      const isCurrentCycle = leave.finalRemaining === null;
+      const remaining = leave.finalRemaining ?? leave.currentRemaining;
+      const expiredDays = isCurrentCycle ? null : leave.expiredDays;
 
       const usageRate = calcUsageRate({
         grantedDays: leave.grantedDays,
@@ -138,8 +134,8 @@ export async function GET(request: NextRequest) {
         grantedDays: leave.grantedDays,
         carriedOverDays: leave.carriedOverDays,
         consumedDays,
-        remainingDays: Math.max(0, remaining),
-        expiredDays: autoExpired,
+        remainingDays: Math.max(0, remaining ?? 0),
+        expiredDays,
         usageRate,
         achieved5Days: consumedDays >= 5,
       });

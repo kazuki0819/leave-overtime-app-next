@@ -49,7 +49,7 @@ type GrantCycleEmployee = {
   carriedOverDays: number;
   consumedDays: number;
   remainingDays: number;
-  expiredDays: number;
+  expiredDays: number | null;
   usageRate: number;
   achieved5Days: boolean;
 };
@@ -98,7 +98,7 @@ export default function GrantCycleReview() {
     const emps = data.employees;
     const total = emps.length;
     const achieved5 = emps.filter((e) => e.achieved5Days).length;
-    const expiredCount = emps.filter((e) => e.expiredDays > 0).length;
+    const expiredCount = emps.filter((e) => e.expiredDays != null && e.expiredDays > 0).length;
     const avgUsageRate =
       emps.reduce((sum, e) => sum + e.usageRate, 0) / total;
     const avgRemaining =
@@ -498,12 +498,12 @@ export default function GrantCycleReview() {
                     <TableCell>{emp.consumedDays}</TableCell>
                     <TableCell
                       className={
-                        emp.expiredDays > 0
+                        emp.expiredDays != null && emp.expiredDays > 0
                           ? "text-red-600"
                           : "text-muted-foreground"
                       }
                     >
-                      {emp.expiredDays}
+                      {emp.expiredDays === null ? "─" : emp.expiredDays}
                     </TableCell>
                     <TableCell>{emp.assignment}</TableCell>
                   </TableRow>
