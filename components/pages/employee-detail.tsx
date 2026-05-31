@@ -62,7 +62,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import type { Employee, PaidLeave, MonthlyOvertime, EmployeeAlert, LeaveUsage, AssignmentHistory, SpecialLeave } from "@/lib/schema";
 import type { PaidLeaveExtended, PaidLeaveCycleSummary } from "@/lib/storage";
-import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoGrantedDays, calcAutoCarryoverDays, calcAutoExpiredDays, getCurrentCycleRange, type CycleRange, type LeaveDeadlineInfo, type ExpiryRiskInfo, type ConsumptionPaceInfo, type CarryoverUtilInfo } from "@/lib/leave-calc";
+import { calcLeaveDeadline, calcExpiryRisk, calcConsumptionPace, calcCarryoverUtil, calcAutoGrantedDays, calcAutoCarryoverDays, getCurrentCycleRange, type CycleRange, type LeaveDeadlineInfo, type ExpiryRiskInfo, type ConsumptionPaceInfo, type CarryoverUtilInfo } from "@/lib/leave-calc";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { VoidLeaveUsageDialog } from "@/components/void-leave-usage-dialog";
 
@@ -113,8 +113,7 @@ export default function EmployeeDetail() {
   const [manualOverrides, setManualOverrides] = useState<{
     grantedDays: boolean;
     carriedOverDays: boolean;
-    expiredDays: boolean;
-  }>({ grantedDays: false, carriedOverDays: false, expiredDays: false });
+  }>({ grantedDays: false, carriedOverDays: false });
 
   // Retirement dialog state
   const [retireDialogOpen, setRetireDialogOpen] = useState(false);
@@ -587,26 +586,15 @@ export default function EmployeeDetail() {
     return calcAutoCarryoverDays(paidLeave?.carriedOverDays);
   }, [paidLeave?.carriedOverDays]);
 
-  // 自動時効日数: 非編集時は DB 値（paid_leaves.expired_days）を直接参照、
-  // 編集中は編集フォームの繰越・消化値からリアルタイム計算
-  const autoExpiredDays = useMemo(() => {
-    if (!isEditing) {
-      return paidLeave?.expiredDays ?? 0;
-    }
-    return calcAutoExpiredDays(editForm.carriedOverDays ?? 0, computedConsumedDays);
-  }, [isEditing, editForm.carriedOverDays, computedConsumedDays, paidLeave?.expiredDays]);
+  const autoExpiredDays = paidLeave?.expiredDays ?? 0;
 
   const startEditing = () => {
-    // 現在の値が自動計算値と一致するかを判定し、手動上書き状態を初期化
     const currentGranted = paidLeave?.grantedDays ?? 0;
     const currentCarryover = paidLeave?.carriedOverDays ?? 0;
-    const currentExpired = paidLeave?.expiredDays ?? 0;
-    const expectedExpired = calcAutoExpiredDays(currentCarryover, computedConsumedDays);
 
     setManualOverrides({
       grantedDays: currentGranted !== autoGrantedDays && currentGranted !== 0,
       carriedOverDays: currentCarryover !== autoCarryoverDays && currentCarryover !== 0,
-      expiredDays: currentExpired !== expectedExpired && currentExpired !== 0,
     });
 
     setEditForm({
@@ -616,7 +604,6 @@ export default function EmployeeDetail() {
       tenureMonths: employee?.tenureMonths,
       grantedDays: currentGranted !== 0 ? currentGranted : autoGrantedDays,
       carriedOverDays: currentCarryover !== 0 ? currentCarryover : autoCarryoverDays,
-      expiredDays: currentExpired !== 0 ? currentExpired : expectedExpired,
     });
     setIsEditing(true);
   };
@@ -628,7 +615,7 @@ export default function EmployeeDetail() {
     (editForm.grantedDays ?? 0) +
       (editForm.carriedOverDays ?? 0) -
       computedConsumedDays -
-      (editForm.expiredDays ?? 0)
+      autoExpiredDays
   );
   const computedUsageRate =
     (editForm.grantedDays ?? 0) > 0
@@ -640,7 +627,6 @@ export default function EmployeeDetail() {
     const fields = [
       { key: "grantedDays", label: "付与日数" },
       { key: "carriedOverDays", label: "繰越日数" },
-      { key: "expiredDays", label: "時効日数" },
     ] as const;
     for (const { key, label } of fields) {
       if ((editForm[key] ?? 0) < 0) {
@@ -680,7 +666,6 @@ export default function EmployeeDetail() {
       updateLeaveMutation.mutate({
         grantedDays: editForm.grantedDays,
         carriedOverDays: editForm.carriedOverDays,
-        expiredDays: editForm.expiredDays,
       });
     }
   };
@@ -1375,13 +1360,7 @@ export default function EmployeeDetail() {
                                 const next = !manualOverrides.carriedOverDays;
                                 setManualOverrides(prev => ({ ...prev, carriedOverDays: next }));
                                 if (!next) {
-                                  setEditForm(prev => {
-                                    const updated = { ...prev, carriedOverDays: autoCarryoverDays };
-                                    if (!manualOverrides.expiredDays) {
-                                      updated.expiredDays = calcAutoExpiredDays(autoCarryoverDays, computedConsumedDays);
-                                    }
-                                    return updated;
-                                  });
+                                  setEditForm(prev => ({ ...prev, carriedOverDays: autoCarryoverDays }));
                                 }
                               }}
                               data-testid="toggle-carriedOverDays"
@@ -1411,13 +1390,7 @@ export default function EmployeeDetail() {
                           onChange={(e) => {
                             const val = parseFloat(e.target.value);
                             const newCarry = isNaN(val) ? 0 : val;
-                            setEditForm(prev => {
-                              const updated = { ...prev, carriedOverDays: newCarry };
-                              if (!manualOverrides.expiredDays) {
-                                updated.expiredDays = calcAutoExpiredDays(newCarry, computedConsumedDays);
-                              }
-                              return updated;
-                            });
+                            setEditForm(prev => ({ ...prev, carriedOverDays: newCarry }));
                           }}
                           className="border-amber-300 dark:border-amber-700"
                           data-testid="input-carriedOverDays"
@@ -1428,13 +1401,7 @@ export default function EmployeeDetail() {
                           className="h-9 w-9 shrink-0"
                           onClick={() => {
                             setManualOverrides(prev => ({ ...prev, carriedOverDays: false }));
-                            setEditForm(prev => {
-                              const updated = { ...prev, carriedOverDays: autoCarryoverDays };
-                              if (!manualOverrides.expiredDays) {
-                                updated.expiredDays = calcAutoExpiredDays(autoCarryoverDays, computedConsumedDays);
-                              }
-                              return updated;
-                            });
+                            setEditForm(prev => ({ ...prev, carriedOverDays: autoCarryoverDays }));
                           }}
                           data-testid="reset-carriedOverDays"
                         >
@@ -1468,86 +1435,19 @@ export default function EmployeeDetail() {
                     </div>
                   </div>
 
-                  {/* 時効日数 */}
+                  {/* 時効日数（読み取り専用 — Badge 式で自動確定） */}
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <Label className="text-xs flex items-center gap-1">
-                        <Calculator className="h-3 w-3 text-blue-500" />
-                        時効日数
-                      </Label>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              type="button"
-                              className="text-xs flex items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
-                              onClick={() => {
-                                const next = !manualOverrides.expiredDays;
-                                setManualOverrides(prev => ({ ...prev, expiredDays: next }));
-                                if (!next) {
-                                  setEditForm(prev => ({
-                                    ...prev,
-                                    expiredDays: calcAutoExpiredDays(prev.carriedOverDays ?? 0, computedConsumedDays),
-                                  }));
-                                }
-                              }}
-                              data-testid="toggle-expiredDays"
-                            >
-                              {manualOverrides.expiredDays ? (
-                                <><LockOpen className="h-3 w-3" /> 手動</>
-                              ) : (
-                                <><Lock className="h-3 w-3 text-blue-500" /> 自動</>
-                              )}
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="text-xs">
-                            {manualOverrides.expiredDays
-                              ? `自動値に戻す: ${autoExpiredDays}日（繰越分の未消化 = 時効）`
-                              : "手動で上書き"}
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                    <Label className="text-xs flex items-center gap-1 mb-1">
+                      <Calculator className="h-3 w-3 text-blue-500" />
+                      時効日数
+                      <span className="text-[10px] text-blue-600 dark:text-blue-400 ml-auto flex items-center gap-0.5">
+                        <Lock className="h-2.5 w-2.5" /> サイクル終了時に自動確定
+                      </span>
+                    </Label>
+                    <div className="h-9 px-3 flex items-center justify-between rounded-md border bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800" data-testid="auto-expiredDays">
+                      <span className="text-sm font-bold tabular-nums">{autoExpiredDays}</span>
+                      <span className="text-[10px] text-blue-600 dark:text-blue-400">先入先出</span>
                     </div>
-                    {manualOverrides.expiredDays ? (
-                      <div className="flex gap-1">
-                        <Input
-                          type="number"
-                          step="0.5"
-                          min="0"
-                          value={editForm.expiredDays ?? 0}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value);
-                            setEditForm({ ...editForm, expiredDays: isNaN(val) ? 0 : val });
-                          }}
-                          className="border-amber-300 dark:border-amber-700"
-                          data-testid="input-expiredDays"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-9 w-9 shrink-0"
-                          onClick={() => {
-                            setManualOverrides(prev => ({ ...prev, expiredDays: false }));
-                            setEditForm(prev => ({
-                              ...prev,
-                              expiredDays: calcAutoExpiredDays(prev.carriedOverDays ?? 0, computedConsumedDays),
-                            }));
-                          }}
-                          data-testid="reset-expiredDays"
-                        >
-                          <RotateCcw className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div
-                        className="h-9 px-3 flex items-center justify-between rounded-md border bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors"
-                        onClick={() => setManualOverrides(prev => ({ ...prev, expiredDays: true }))}
-                        data-testid="auto-expiredDays"
-                      >
-                        <span className="text-sm font-bold tabular-nums">{editForm.expiredDays ?? autoExpiredDays}</span>
-                        <span className="text-[10px] text-blue-600 dark:text-blue-400">先入先出</span>
-                      </div>
-                    )}
                   </div>
                 </div>
                 <div className="rounded-md border bg-muted/30 px-3 py-2.5 grid grid-cols-2 gap-x-4 gap-y-1.5">
@@ -1591,11 +1491,9 @@ export default function EmployeeDetail() {
                     <Button
                       size="sm"
                       onClick={() => {
-                        const expiredDays = calcAutoExpiredDays(autoCarryoverDays, 0);
                         updateLeaveMutation.mutate({
                           grantedDays: autoGrantedDays,
                           carriedOverDays: autoCarryoverDays,
-                          expiredDays: expiredDays,
                         });
                       }}
                       disabled={updateLeaveMutation.isPending}
