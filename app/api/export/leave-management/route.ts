@@ -4,7 +4,7 @@ import { storage } from "@/lib/storage";
 import { db } from "@/lib/db";
 import { leaveUsages } from "@/lib/schema";
 import { eq } from "drizzle-orm";
-import { calcConsumedDaysFromUsages, calcUsageRate } from "@/lib/leave-calc";
+import { calcUsageRate } from "@/lib/leave-calc";
 
 export async function GET(request: NextRequest) {
   await ensureDbInitialized();
@@ -45,7 +45,8 @@ export async function GET(request: NextRequest) {
     const grantedDays = latest.grantedDays;
     const carriedOverDays = latest.carriedOverDays;
     const usgs = usagesByPaidLeaveId.get(latest.id) ?? [];
-    const consumedDays = calcConsumedDaysFromUsages(usgs);
+    const cycleUsages = usgs.filter(u => u.recordDate >= latest.cycleStartDate && u.recordDate <= latest.cycleEndDate);
+    const consumedDays = cycleUsages.reduce((sum, u) => sum + u.days, 0);
     const remaining = Math.max(0, latest.finalRemaining ?? latest.currentRemaining);
     const usageRate = calcUsageRate({ grantedDays, carriedOverDays, consumedDays });
     return [
