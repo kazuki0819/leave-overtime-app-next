@@ -23,10 +23,6 @@ export interface PaidLeaveExtended extends PaidLeave {
   usageRate: number;
   adjustedRemainingDays: number;
   autoRemainingDays: number;
-  carriedOverBreakdown: {
-    auto: number;
-    adjustmentDerived: number;
-  };
 }
 
 export interface PaidLeaveCycleSummary extends PaidLeave {
@@ -278,22 +274,10 @@ export class TursoStorage implements IStorage {
     const usageOnlyTotal = usages
       .filter((u) => u.recordType === "usage")
       .reduce((sum, u) => sum + u.days, 0);
-    const adjustmentTotal = usages
-      .filter((u) => u.recordType === "adjustment")
-      .reduce((sum, u) => sum + u.days, 0);
-
-    const expired = calcAutoExpiredDays(leave.carriedOverDays, allTotal);
-    const adjustedRemainingDays = Math.max(0,
-      leave.grantedDays + leave.carriedOverDays - allTotal - expired);
-
-    const expiredAuto = calcAutoExpiredDays(leave.carriedOverDays, usageOnlyTotal);
-    const autoRemainingDays = Math.max(0,
-      leave.grantedDays + leave.carriedOverDays - usageOnlyTotal - expiredAuto);
-
     const consumedDays = allTotal;
-    const computedExpired = calcAutoExpiredDays(leave.carriedOverDays, consumedDays);
-    const derivedRemainingDays = Math.max(0, leave.grantedDays + leave.carriedOverDays - consumedDays - computedExpired);
-    const derivedUsageRate = calcUsageRate({
+    const remainingDays = Math.max(0, leave.finalRemaining ?? leave.currentRemaining);
+    const autoRemainingDays = Math.max(0, leave.baselineRemaining - usageOnlyTotal);
+    const usageRate = calcUsageRate({
       grantedDays: leave.grantedDays,
       carriedOverDays: leave.carriedOverDays,
       consumedDays,
@@ -302,14 +286,10 @@ export class TursoStorage implements IStorage {
     return {
       ...leave,
       consumedDays,
-      remainingDays: derivedRemainingDays,
-      usageRate: derivedUsageRate,
-      adjustedRemainingDays,
+      remainingDays,
+      usageRate,
+      adjustedRemainingDays: remainingDays,
       autoRemainingDays,
-      carriedOverBreakdown: {
-        auto: leave.carriedOverDays,
-        adjustmentDerived: -adjustmentTotal,
-      },
     };
   }
 
