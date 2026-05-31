@@ -587,13 +587,14 @@ export default function EmployeeDetail() {
     return calcAutoCarryoverDays(paidLeave?.carriedOverDays);
   }, [paidLeave?.carriedOverDays]);
 
-  // 編集中の自動時効日数（編集フォームの繰越・消化値からリアルタイム計算）
+  // 自動時効日数: 非編集時は DB 値（paid_leaves.expired_days）を直接参照、
+  // 編集中は編集フォームの繰越・消化値からリアルタイム計算
   const autoExpiredDays = useMemo(() => {
     if (!isEditing) {
-      return calcAutoExpiredDays(paidLeave?.carriedOverDays ?? 0, computedConsumedDays);
+      return paidLeave?.expiredDays ?? 0;
     }
     return calcAutoExpiredDays(editForm.carriedOverDays ?? 0, computedConsumedDays);
-  }, [isEditing, editForm.carriedOverDays, computedConsumedDays, paidLeave?.carriedOverDays]);
+  }, [isEditing, editForm.carriedOverDays, computedConsumedDays, paidLeave?.expiredDays]);
 
   const startEditing = () => {
     // 現在の値が自動計算値と一致するかを判定し、手動上書き状態を初期化
@@ -1274,7 +1275,7 @@ export default function EmployeeDetail() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base font-semibold">
               <Calendar className="h-4 w-4 text-emerald-500" />
-              有給休暇{currentCycle ? `（${currentCycle.startDate}〜）` : ""}
+              有給休暇{(currentCycleSummary?.cycleStartDate ?? currentCycle?.startDate) ? `（${currentCycleSummary?.cycleStartDate ?? currentCycle?.startDate}〜）` : ""}
             </CardTitle>
           </CardHeader>
           <CardContent>
