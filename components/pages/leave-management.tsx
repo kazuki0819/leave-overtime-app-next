@@ -127,7 +127,6 @@ function LeaveEmployeeRow({
   // ── Paid leave edit state ──────────────────────────────────────────────
   const [editGranted, setEditGranted] = useState("");
   const [editCarriedOver, setEditCarriedOver] = useState("");
-  const [editExpired, setEditExpired] = useState("");
   const [isEditingLeave, setIsEditingLeave] = useState(false);
 
   // ── Fetch leave usages when expanded ───────────────────────────────────
@@ -175,7 +174,7 @@ function LeaveEmployeeRow({
 
   // ── Update paid leave mutation ─────────────────────────────────────────
   const updatePaidLeaveMutation = useMutation({
-    mutationFn: async (data: { employeeId: string; grantedDays?: number; carriedOverDays?: number; expiredDays?: number }) => {
+    mutationFn: async (data: { employeeId: string; grantedDays?: number; carriedOverDays?: number }) => {
       const res = await apiRequest("PUT", "/api/paid-leaves", data);
       return res.json();
     },
@@ -203,7 +202,6 @@ function LeaveEmployeeRow({
   const handleStartEdit = () => {
     setEditGranted(String(leave?.grantedDays ?? 0));
     setEditCarriedOver(String(leave?.carriedOverDays ?? 0));
-    setEditExpired(String(leave?.expiredDays ?? 0));
     setIsEditingLeave(true);
   };
 
@@ -212,7 +210,6 @@ function LeaveEmployeeRow({
       employeeId: emp.id,
       grantedDays: Number(editGranted) || 0,
       carriedOverDays: Number(editCarriedOver) || 0,
-      expiredDays: Number(editExpired) || 0,
     });
   };
 
@@ -539,17 +536,7 @@ function LeaveEmployeeRow({
                         </div>
                         <div>
                           <label className="text-xs text-muted-foreground">失効日数</label>
-                          {isEditingLeave ? (
-                            <Input
-                              type="number"
-                              step="0.5"
-                              className="h-8 text-sm"
-                              value={editExpired}
-                              onChange={(e) => setEditExpired(e.target.value)}
-                            />
-                          ) : (
-                            <p className="text-sm font-medium tabular-nums">{Number(leave.expiredDays).toFixed(2)}</p>
-                          )}
+                          <p className="text-sm font-medium tabular-nums">{Number(leave.expiredDays).toFixed(2)}</p>
                         </div>
                       </div>
 
