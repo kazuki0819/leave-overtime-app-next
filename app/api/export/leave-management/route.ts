@@ -4,7 +4,7 @@ import { storage } from "@/lib/storage";
 import { db } from "@/lib/db";
 import { leaveUsages } from "@/lib/schema";
 import { eq } from "drizzle-orm";
-import { calcConsumedDaysFromUsages, calcAutoExpiredDays, calcRemainingDays, calcUsageRate } from "@/lib/leave-calc";
+import { calcConsumedDaysFromUsages, calcUsageRate } from "@/lib/leave-calc";
 
 export async function GET(request: NextRequest) {
   await ensureDbInitialized();
@@ -46,18 +46,12 @@ export async function GET(request: NextRequest) {
     const carriedOverDays = latest.carriedOverDays;
     const usgs = usagesByPaidLeaveId.get(latest.id) ?? [];
     const consumedDays = calcConsumedDaysFromUsages(usgs);
-    const autoExpired = calcAutoExpiredDays(carriedOverDays, consumedDays);
-    const remaining = calcRemainingDays({
-      grantedDays,
-      carriedOverDays,
-      consumedDays,
-      expiredDays: autoExpired,
-    });
+    const remaining = Math.max(0, latest.finalRemaining ?? latest.currentRemaining);
     const usageRate = calcUsageRate({ grantedDays, carriedOverDays, consumedDays });
     return [
       emp.id, emp.name, emp.assignment, emp.joinDate,
       grantedDays, carriedOverDays, consumedDays,
-      Math.max(0, remaining), autoExpired,
+      remaining, latest.expiredDays,
       `${(usageRate * 100).toFixed(1)}%`,
     ].join(",");
   });
