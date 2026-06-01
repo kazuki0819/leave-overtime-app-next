@@ -48,3 +48,13 @@ local.db-journal
 *.bak
 bulk_usage_import.csv
 *.sql
+
+# --- ローカル作業ファイル 2026-06-01 整理 ---
+.env*.tmp
+/docs/
+/scripts/bulk-import-stage2.ts
+/scripts/bulk-recalc-67.ts
+/scripts/pr-2-pre-migration-snapshot.txt
+/scripts/verify-expired-days-v2.mjs
+/scripts/verify-expired-days.mjs
+/scripts/verify-fifo-67.ts
