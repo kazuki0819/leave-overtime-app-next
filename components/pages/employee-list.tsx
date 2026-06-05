@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import Link from "next/link";
@@ -249,6 +249,18 @@ export default function EmployeeList() {
 
     return list;
   }, [employees, search, sortKey, sortDir, leaveMap]);
+
+  useEffect(() => {
+    if (filteredSorted.length === 0) return;
+    let id: string | null = null;
+    try { id = sessionStorage.getItem("employee-list:lastViewedId"); } catch {}
+    if (!id) return;
+    const row = document.querySelector(`[data-testid="row-employee-${id}"]`);
+    if (row) {
+      row.scrollIntoView({ block: "center" });
+    }
+    try { sessionStorage.removeItem("employee-list:lastViewedId"); } catch {}
+  }, [filteredSorted]);
 
   const SortIcon = ({ col }: { col: SortKey }) => {
     if (sortKey !== col) return <ArrowUpDown className="h-3 w-3 opacity-40" />;
@@ -653,7 +665,10 @@ function EmployeeRow({
               href={`/employees/${emp.id}`}
               className={`font-medium hover:underline ${empRetired ? "text-muted-foreground" : "text-primary"}`}
               data-testid={`link-employee-${emp.id}`}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                try { sessionStorage.setItem("employee-list:lastViewedId", emp.id); } catch {}
+              }}
             >
               {emp.name}
             </Link>
